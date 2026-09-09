@@ -27,15 +27,15 @@ interface KPIDef {
 }
 
 const KPI_CARDS: KPIDef[] = [
-  { key: 'bookingsToday', label: 'حجوزات اليوم', icon: <FaCalendarCheck />, iconBg: 'bg-[#10B981]/8', iconColor: 'text-[#059669]', permission: 'bookings:view' },
-  { key: 'newCustomers', label: 'عملاء جدد', icon: <FaUsers />, iconBg: 'bg-[#3B82F6]/8', iconColor: 'text-[#2563EB]', permission: 'customers:view' },
-  { key: 'carsInService', label: 'سيارات قيد الخدمة', icon: <FaCar />, iconBg: 'bg-[#F59E0B]/8', iconColor: 'text-[#D97706]', permission: 'bookings:view' },
-  { key: 'completedServices', label: 'خدمات مكتملة اليوم', icon: <FaCheckCircle />, iconBg: 'bg-[#10B981]/8', iconColor: 'text-[#059669]', permission: 'bookings:view' },
-  { key: 'revenue', label: 'إيرادات الشهر', icon: <FaMoneyBillWave />, iconBg: 'bg-[#8B5CF6]/8', iconColor: 'text-[#7C3AED]', permission: 'invoices:view', format: 'currency' },
-  { key: 'pendingPayments', label: 'مدفوعات معلقة', icon: <FaReceipt />, iconBg: 'bg-[#EF4444]/8', iconColor: 'text-[#DC2626]', permission: 'invoices:view', format: 'currency' },
-  { key: 'totalReferrals', label: 'إجمالي الإحالات', icon: <FaHandshake />, iconBg: 'bg-[#06B6D4]/8', iconColor: 'text-[#0891B2]', permission: 'referrals:view' },
-  { key: 'pendingCommissions', label: 'عمولات معلقة', icon: <FaExchangeAlt />, iconBg: 'bg-[#F97316]/8', iconColor: 'text-[#EA580C]', permission: 'commissions:view', format: 'currency' },
-  { key: 'lowStock', label: 'مخزون منخفض', icon: <FaExclamationTriangle />, iconBg: 'bg-[#EF4444]/8', iconColor: 'text-[#DC2626]', permission: 'materials:view' },
+  { key: 'bookingsToday', label: 'حجوزات اليوم', icon: <FaCalendarCheck />, iconBg: 'bg-[#10B981]/8', iconColor: 'text-[#059669]', permission: 'bookings:read' },
+  { key: 'newCustomers', label: 'عملاء جدد', icon: <FaUsers />, iconBg: 'bg-[#3B82F6]/8', iconColor: 'text-[#2563EB]', permission: 'customers:read' },
+  { key: 'carsInService', label: 'سيارات قيد الخدمة', icon: <FaCar />, iconBg: 'bg-[#F59E0B]/8', iconColor: 'text-[#D97706]', permission: 'bookings:read' },
+  { key: 'completedServices', label: 'خدمات مكتملة اليوم', icon: <FaCheckCircle />, iconBg: 'bg-[#10B981]/8', iconColor: 'text-[#059669]', permission: 'bookings:read' },
+  { key: 'revenue', label: 'إيرادات الشهر', icon: <FaMoneyBillWave />, iconBg: 'bg-[#8B5CF6]/8', iconColor: 'text-[#7C3AED]', permission: 'invoices:read', format: 'currency' },
+  { key: 'pendingPayments', label: 'مدفوعات معلقة', icon: <FaReceipt />, iconBg: 'bg-[#EF4444]/8', iconColor: 'text-[#DC2626]', permission: 'invoices:read', format: 'currency' },
+  { key: 'totalReferrals', label: 'إجمالي الإحالات', icon: <FaHandshake />, iconBg: 'bg-[#06B6D4]/8', iconColor: 'text-[#0891B2]', permission: 'referrals:read' },
+  { key: 'pendingCommissions', label: 'عمولات معلقة', icon: <FaExchangeAlt />, iconBg: 'bg-[#F97316]/8', iconColor: 'text-[#EA580C]', permission: 'commissions:read', format: 'currency' },
+  { key: 'lowStock', label: 'مخزون منخفض', icon: <FaExclamationTriangle />, iconBg: 'bg-[#EF4444]/8', iconColor: 'text-[#DC2626]', permission: 'materials:read' },
 ]
 
 interface DashboardKPIProps {

@@ -87,10 +87,10 @@ export async function updateSession(request: NextRequest) {
 
       const { data: rolePerms } = await supabaseRbac
         .from('role_permissions')
-        .select('resource, action')
+        .select('permissions(resource, action)')
         .eq('role_id', staffMember.role_id)
 
-      const permissions = (rolePerms || []).map((p: { resource: string; action: string }) => `${p.resource}:${p.action}`)
+      const permissions = ((rolePerms as unknown as { permissions?: { resource: string; action: string } }[] | null) || []).map((p) => `${p.permissions?.resource}:${p.permissions?.action}`)
 
       const permHeader = permissions.join(',')
       supabaseResponse.headers.set('x-user-id', user.id)

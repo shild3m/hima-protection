@@ -264,10 +264,10 @@ interface DashboardChartsProps {
 }
 
 function ChartsInner({ permissions, from, to }: DashboardChartsProps & { from: string; to: string }) {
-  const canViewBookings = permissions.includes('bookings:view')
-  const canViewInvoices = permissions.includes('invoices:view')
-  const canViewReferrals = permissions.includes('referrals:view')
-  const canViewMaterials = permissions.includes('materials:view')
+  const canViewBookings = permissions.includes('bookings:read')
+  const canViewInvoices = permissions.includes('invoices:read')
+  const canViewReferrals = permissions.includes('referrals:read')
+  const canViewMaterials = permissions.includes('materials:read')
 
   const promise = useMemo(() => {
     return Promise.all([

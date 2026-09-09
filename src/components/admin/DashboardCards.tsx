@@ -35,7 +35,7 @@ interface DashboardCardsProps {
 
 export default function DashboardCards({ permissions }: DashboardCardsProps) {
   const visibleCards = CARDS.filter(card =>
-    permissions.includes(`${card.resource}:view`) || card.resource === 'bookings'
+    permissions.includes(`${card.resource}:read`) || card.resource === 'bookings'
   )
 
   return (

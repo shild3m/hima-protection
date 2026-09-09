@@ -142,7 +142,7 @@ export async function getDashboardKPIs(): Promise<{
     const queries: Promise<void>[] = []
 
     // --- BOOKINGS: AGGREGATE via head:true count + status GROUP BY ---
-    if (hasPerm(perms, 'bookings:view')) {
+    if (hasPerm(perms, 'bookings:read')) {
       queries.push(
         (async () => {
           const [todayCountResult, statusResult, inServiceResult, completedResult] = await Promise.all([
@@ -189,7 +189,7 @@ export async function getDashboardKPIs(): Promise<{
     }
 
     // --- CUSTOMERS: AGGREGATE via head:true count ---
-    if (hasPerm(perms, 'customers:view')) {
+    if (hasPerm(perms, 'customers:read')) {
       queries.push(
         (async () => {
           const { count } = await admin
@@ -202,7 +202,7 @@ export async function getDashboardKPIs(): Promise<{
     }
 
     // --- REVENUE + PENDING: SUM via RPC, bounded fallback ---
-    if (hasPerm(perms, 'invoices:view') || hasPerm(perms, 'payments:view')) {
+    if (hasPerm(perms, 'invoices:read') || hasPerm(perms, 'payments:read')) {
       queries.push(
         (async () => {
           // Revenue: AGGREGATE via RPC (server-side SUM), bounded fallback
@@ -255,7 +255,7 @@ export async function getDashboardKPIs(): Promise<{
     }
 
     // --- REFERRALS: AGGREGATE via head:true count ---
-    if (hasPerm(perms, 'referrals:view')) {
+    if (hasPerm(perms, 'referrals:read')) {
       queries.push(
         (async () => {
           const { count } = await admin
@@ -267,7 +267,7 @@ export async function getDashboardKPIs(): Promise<{
     }
 
     // --- COMMISSIONS: SUM via RPC, bounded fallback ---
-    if (hasPerm(perms, 'commissions:view')) {
+    if (hasPerm(perms, 'commissions:read')) {
       queries.push(
         (async () => {
           kpis.pendingCommissions = await tryRpc(
@@ -292,7 +292,7 @@ export async function getDashboardKPIs(): Promise<{
     }
 
     // --- LOW STOCK: AGGREGATE via RPC, bounded count fallback ---
-    if (hasPerm(perms, 'materials:view')) {
+    if (hasPerm(perms, 'materials:read')) {
       queries.push(
         (async () => {
           kpis.lowStock = await tryRpc(
@@ -653,10 +653,10 @@ export async function getRecentActivity(
     const admin = getSupabaseAdmin()
     const items: RecentActivityItem[] = []
 
-    const canBookings = hasPerm(perms, 'bookings:view')
-    const canPayments = hasPerm(perms, 'payments:view')
-    const canReferrals = hasPerm(perms, 'referrals:view')
-    const canCustomers = hasPerm(perms, 'customers:view')
+    const canBookings = hasPerm(perms, 'bookings:read')
+    const canPayments = hasPerm(perms, 'payments:read')
+    const canReferrals = hasPerm(perms, 'referrals:read')
+    const canCustomers = hasPerm(perms, 'customers:read')
 
     const queries: Promise<void>[] = []
 

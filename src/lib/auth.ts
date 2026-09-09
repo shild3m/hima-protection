@@ -37,11 +37,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     if (staff.is_active === false) return null
 
     let permissions: string[] = []
-    const rolePerms = staff.roles?.[0]?.role_permissions
+    const rolePerms = (staff.roles as { role_permissions?: { permissions?: { resource: string; action: string } }[] } | null)?.role_permissions
     if (rolePerms) {
       permissions = rolePerms.map(
-        (rp: { permissions: { resource: string; action: string }[] }) =>
-          `${rp.permissions[0]?.resource}:${rp.permissions[0]?.action}`
+        (rp) => `${rp.permissions?.resource}:${rp.permissions?.action}`
       )
     }
 
@@ -75,11 +74,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
     const dealerRoleId = dealerRole?.id
     let permissions: string[] = []
-    const dealerPerms = dealerRole?.role_permissions
+    const dealerPerms = dealerRole?.role_permissions as unknown as { permissions?: { resource: string; action: string } }[] | undefined
     if (dealerPerms) {
       permissions = dealerPerms.map(
-        (rp: { permissions: { resource: string; action: string }[] }) =>
-          `${rp.permissions[0]?.resource}:${rp.permissions[0]?.action}`
+        (rp) => `${rp.permissions?.resource}:${rp.permissions?.action}`
       )
     }
 
