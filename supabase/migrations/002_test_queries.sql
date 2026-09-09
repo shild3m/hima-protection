@@ -1,0 +1,404 @@
+-- ============================================================
+-- PHASE 02 FINAL — Security Tests (22 Scenarios)
+-- منصة تظليل وحة السيارات
+-- ============================================================
+
+-- ============================================================
+-- TEST 1: Anonymous cannot INSERT customers directly
+-- Expected: RLS blocks anonymous INSERT
+-- ============================================================
+-- As anonymous user (no auth):
+-- INSERT INTO public.customers (full_name, phone, source)
+-- VALUES ('Test User', '1234567890', 'online');
+-- Expected: ERROR (permission denied for table customers)
+
+-- ============================================================
+-- TEST 2: Anonymous cannot INSERT vehicles directly
+-- Expected: RLS blocks anonymous INSERT
+-- ============================================================
+-- INSERT INTO public.vehicles (customer_id, make, model)
+-- VALUES ('some-uuid', 'Toyota', 'Camry');
+-- Expected: ERROR (permission denied for table vehicles)
+
+-- ============================================================
+-- TEST 3: Anonymous cannot INSERT bookings directly
+-- Expected: RLS blocks anonymous INSERT
+-- ============================================================
+-- INSERT INTO public.bookings (customer_id, vehicle_id, service_id)
+-- VALUES ('uuid1', 'uuid2', 'uuid3');
+-- Expected: ERROR (permission denied for table bookings)
+
+-- ============================================================
+-- TEST 4: Anonymous CAN create Guest Booking through approved flow
+-- Expected: Booking created via create_guest_booking() RPC
+-- ============================================================
+-- SELECT public.create_guest_booking(
+--   p_customer_name := 'أحمد محمد',
+--   p_customer_phone := '+966501234567',
+--   p_car_make := 'Toyota',
+--   p_car_model := 'Camry',
+--   p_service_id := (SELECT id FROM public.services WHERE is_active = true LIMIT 1),
+--   p_idempotency_key := 'test-guest-001'
+-- );
+-- Expected: { success: true, booking_id: ..., message: 'تم إنشاء الحجز بنجاح' }
+
+-- ============================================================
+-- TEST 5: Anonymous cannot record payment
+-- Expected: Function rejects anonymous caller
+-- ============================================================
+-- SELECT public.record_payment(
+--   p_invoice_id := 'some-uuid',
+--   p_amount := 100.00,
+--   p_payment_method := 'cash'
+-- );
+-- Expected: { success: false, error: 'ليس لديك صلاحية تسجيل الدفع' }
+
+-- ============================================================
+-- TEST 6: Anonymous cannot deduct inventory
+-- Expected: Function rejects anonymous caller
+-- ============================================================
+-- SELECT public.record_inventory_usage(
+--   p_material_id := 'some-uuid',
+--   p_quantity := 2
+-- );
+-- Expected: { success: false, error: 'ليس لديك صلاحية استخدام المخزون' }
+
+-- ============================================================
+-- TEST 7: Anonymous cannot receive purchase
+-- Expected: Function rejects anonymous caller
+-- ============================================================
+-- SELECT public.receive_purchase(
+--   p_purchase_id := 'some-uuid',
+--   p_items := '[{"material_id": "uuid", "quantity": 1, "unit_cost": 50}]'::jsonb
+-- );
+-- Expected: { success: false, error: 'ليس لديك صلاحية استلام المشتريات' }
+
+-- ============================================================
+-- TEST 8: Dealer cannot record payment
+-- Expected: Function rejects dealer (no payments.create permission)
+-- ============================================================
+-- As dealer user:
+-- SELECT public.record_payment(
+--   p_invoice_id := 'some-uuid',
+--   p_amount := 100.00,
+--   p_payment_method := 'cash'
+-- );
+-- Expected: { success: false, error: 'ليس لديك صلاحية تسجيل الدفع' }
+
+-- ============================================================
+-- TEST 9: Dealer cannot modify another dealer's referral
+-- Expected: RLS blocks dealer from updating other dealer's referrals
+-- ============================================================
+-- As dealer A:
+-- UPDATE public.referrals SET notes = 'hacked'
+-- WHERE id = (SELECT id FROM public.referrals WHERE dealer_id != public.get_dealer_id(auth.uid()) LIMIT 1);
+-- Expected: 0 rows updated (RLS filters out other dealer's referrals)
+
+-- ============================================================
+-- TEST 10: Dealer cannot create commission
+-- Expected: Function rejects dealer (no commissions.create permission)
+-- ============================================================
+-- As dealer user:
+-- SELECT public.create_commission(p_referral_id := 'some-uuid');
+-- Expected: { success: false, error: 'ليس لديك صلاحية إنشاء العمولات' }
+
+-- ============================================================
+-- TEST 11: Staff permissions are checked from role_id (NOT staff.role)
+-- Expected: has_permission() → get_user_role_id() → staff.role_id → roles → role_permissions
+-- ============================================================
+-- Step 1: Verify get_user_role() uses role_id → roles.name
+-- SELECT public.get_user_role(
+--   (SELECT user_id FROM public.staff WHERE role_id = (SELECT id FROM public.roles WHERE name = 'accountant') LIMIT 1)
+-- );
+-- Expected: 'accountant' (from roles.name via role_id, NOT from staff.role text)
+
+-- Step 2: Verify has_permission() works via role_id chain
+-- SELECT public.has_permission(
+--   (SELECT user_id FROM public.staff WHERE role_id = (SELECT id FROM public.roles WHERE name = 'accountant') LIMIT 1),
+--   'payments', 'create'
+-- );
+-- Expected: true (accountant has payments.create via role_id → role_permissions)
+
+-- Step 3: Verify technician has NO payments.create
+-- SELECT public.has_permission(
+--   (SELECT user_id FROM public.staff WHERE role_id = (SELECT id FROM public.roles WHERE name = 'technician') LIMIT 1),
+--   'payments', 'create'
+-- );
+-- Expected: false
+
+-- ============================================================
+-- TEST 12: Duplicate payment is prevented
+-- Expected: Idempotency key returns existing payment
+-- ============================================================
+-- First call:
+-- SELECT public.record_payment(
+--   p_invoice_id := (SELECT id FROM public.invoices WHERE status = 'issued' LIMIT 1),
+--   p_amount := 100.00,
+--   p_payment_method := 'cash',
+--   p_idempotency_key := 'test-duplicate-001'
+-- );
+-- Expected: { success: true, payment_id: ..., duplicate: false }
+
+-- Second call (same key):
+-- SELECT public.record_payment(
+--   p_invoice_id := (SELECT id FROM public.invoices WHERE status = 'issued' LIMIT 1),
+--   p_amount := 100.00,
+--   p_payment_method := 'cash',
+--   p_idempotency_key := 'test-duplicate-001'
+-- );
+-- Expected: { success: true, duplicate: true, message: 'تم تسجيل هذه الدفعة مسبقاً' }
+
+-- ============================================================
+-- TEST 13: Duplicate inventory usage is prevented
+-- Expected: Idempotency key returns existing transaction
+-- ============================================================
+-- First call:
+-- SELECT public.record_inventory_usage(
+--   p_material_id := (SELECT id FROM public.materials WHERE current_stock > 10 LIMIT 1),
+--   p_quantity := 1,
+--   p_idempotency_key := 'test-inv-dup-001'
+-- );
+-- Expected: { success: true, transaction_id: ..., duplicate: false }
+
+-- Second call (same key):
+-- SELECT public.record_inventory_usage(
+--   p_material_id := (SELECT id FROM public.materials WHERE current_stock > 10 LIMIT 1),
+--   p_quantity := 1,
+--   p_idempotency_key := 'test-inv-dup-001'
+-- );
+-- Expected: { success: true, duplicate: true }
+
+-- ============================================================
+-- TEST 14: Duplicate guest booking is prevented
+-- Expected: Idempotency key returns existing booking
+-- ============================================================
+-- First call:
+-- SELECT public.create_guest_booking(
+--   p_customer_name := 'سعيد أحمد',
+--   p_customer_phone := '+966509876543',
+--   p_car_make := 'Honda',
+--   p_car_model := 'Civic',
+--   p_service_id := (SELECT id FROM public.services WHERE is_active = true LIMIT 1),
+--   p_idempotency_key := 'test-guest-dup-001'
+-- );
+-- Expected: { success: true, booking_id: ..., duplicate: false }
+
+-- Second call (same key):
+-- SELECT public.create_guest_booking(
+--   p_customer_name := 'سعيد أحمد',
+--   p_customer_phone := '+966509876543',
+--   p_car_make := 'Honda',
+--   p_car_model := 'Civic',
+--   p_service_id := (SELECT id FROM public.services WHERE is_active = true LIMIT 1),
+--   p_idempotency_key := 'test-guest-dup-001'
+-- );
+-- Expected: { success: true, duplicate: true }
+
+-- ============================================================
+-- TEST 15: Payment concurrency cannot overpay invoice
+-- Expected: Second concurrent payment fails with amount validation
+-- ============================================================
+-- Transaction 1:
+-- BEGIN;
+-- SELECT public.record_payment(
+--   p_invoice_id := 'target-invoice-uuid',
+--   p_amount := 500.00,
+--   p_payment_method := 'cash',
+--   p_idempotency_key := 'concurrent-001'
+-- );
+-- -- Do NOT commit yet
+--
+-- Transaction 2 (concurrent):
+-- BEGIN;
+-- SELECT public.record_payment(
+--   p_invoice_id := 'target-invoice-uuid',
+--   p_amount := 600.00,
+--   p_payment_method := 'cash',
+--   p_idempotency_key := 'concurrent-002'
+-- );
+-- Expected: Transaction 2 blocks (SELECT FOR UPDATE) or fails if invoice total < 600
+
+-- ============================================================
+-- TEST 16: Inventory concurrency cannot create negative stock
+-- Expected: Atomic UPDATE prevents negative stock
+-- ============================================================
+-- Get material with stock = 5:
+-- SELECT id, current_stock FROM public.materials WHERE current_stock = 5 LIMIT 1;
+--
+-- Try to deduct 10:
+-- SELECT public.record_inventory_usage(
+--   p_material_id := 'material-with-5-stock',
+--   p_quantity := 10
+-- );
+-- Expected: { success: false, error: 'المخزون غير كافٍ...' }
+
+-- ============================================================
+-- TEST 17: Audit logs cannot be UPDATE/DELETE by application users
+-- Expected: No UPDATE/DELETE policies exist on audit_logs
+-- ============================================================
+-- Check RLS policies:
+-- SELECT policyname, cmd FROM pg_policies
+-- WHERE tablename = 'audit_logs' ORDER BY cmd;
+-- Expected: Only SELECT policy exists (admin_select_audit_logs)
+-- No INSERT, UPDATE, or DELETE policies
+
+-- Try UPDATE:
+-- UPDATE public.audit_logs SET action = 'hacked' WHERE id = 1;
+-- Expected: ERROR (permission denied)
+
+-- Try DELETE:
+-- DELETE FROM public.audit_logs WHERE id = 1;
+-- Expected: ERROR (permission denied)
+
+-- ============================================================
+-- TEST A: Changing staff.role text does NOT affect permissions
+-- Expected: Permissions are based on role_id, not staff.role text
+-- ============================================================
+-- Step 1: Get a staff member's current role_id and permissions
+-- SELECT s.id, s.user_id, s.role, s.role_id, r.name as role_name
+-- FROM public.staff s
+-- JOIN public.roles r ON r.id = s.role_id
+-- WHERE s.is_active = true LIMIT 1;
+--
+-- Step 2: Record current permissions
+-- SELECT public.has_permission(s.user_id, 'bookings', 'read') as has_bookings_read
+-- FROM public.staff s WHERE s.id = 'staff-uuid';
+-- Expected: true (if role has bookings.read)
+--
+-- Step 3: Change staff.role text to something wrong
+-- UPDATE public.staff SET role = 'hacked_role' WHERE id = 'staff-uuid';
+--
+-- Step 4: Verify permissions UNCHANGED (still based on role_id)
+-- SELECT public.has_permission('user-uuid', 'bookings', 'read');
+-- Expected: true (unchanged — permissions use role_id, not staff.role)
+--
+-- Step 5: Restore staff.role
+-- UPDATE public.staff SET role = 'original_role' WHERE id = 'staff-uuid';
+
+-- ============================================================
+-- TEST B: Changing role_id CHANGES permissions immediately
+-- Expected: Permissions reflect new role_id
+-- ============================================================
+-- Step 1: Get staff with accountant role
+-- SELECT s.user_id, s.role_id, r.name as role_name
+-- FROM public.staff s
+-- JOIN public.roles r ON r.id = s.role_id
+-- WHERE r.name = 'accountant' AND s.is_active = true LIMIT 1;
+--
+-- Step 2: Verify accountant has payments.create
+-- SELECT public.has_permission('user-uuid', 'payments', 'create');
+-- Expected: true
+--
+-- Step 3: Change role_id to technician
+-- UPDATE public.staff
+-- SET role_id = (SELECT id FROM public.roles WHERE name = 'technician')
+-- WHERE user_id = 'user-uuid';
+--
+-- Step 4: Verify permissions CHANGED (technician has NO payments.create)
+-- SELECT public.has_permission('user-uuid', 'payments', 'create');
+-- Expected: false
+--
+-- Step 5: Restore role_id
+-- UPDATE public.staff
+-- SET role_id = (SELECT id FROM public.roles WHERE name = 'accountant')
+-- WHERE user_id = 'user-uuid';
+
+-- ============================================================
+-- TEST C: get_user_role() reflects roles.name from role_id
+-- Expected: Function returns roles.name, not staff.role
+-- ============================================================
+-- Step 1: Get staff with role_id pointing to 'admin'
+-- SELECT s.user_id, s.role as old_role_text, s.role_id, r.name as role_id_name
+-- FROM public.staff s
+-- JOIN public.roles r ON r.id = s.role_id
+-- WHERE r.name = 'admin' AND s.is_active = true LIMIT 1;
+--
+-- Step 2: Call get_user_role()
+-- SELECT public.get_user_role('user-uuid');
+-- Expected: 'admin' (from roles.name via role_id)
+--
+-- Step 3: If staff.role text was different, function still returns correct role
+-- (e.g., if staff.role = 'receptionist' but role_id → 'admin', function returns 'admin')
+
+-- ============================================================
+-- TEST D: RLS settings/audit_logs/offers/dealers do NOT use staff.role
+-- Expected: All use has_permission() or get_dealer_id(), not get_user_role() with role names
+-- ============================================================
+-- Check settings SELECT policy:
+-- SELECT qual FROM pg_policies WHERE tablename = 'settings' AND cmd = 'SELECT';
+-- Expected: public.has_permission(auth.uid(), 'settings', 'read')
+-- NOT: public.get_user_role(auth.uid()) IN ('super_admin', 'admin')
+--
+-- Check audit_logs SELECT policy:
+-- SELECT qual FROM pg_policies WHERE tablename = 'audit_logs' AND cmd = 'SELECT';
+-- Expected: public.has_permission(auth.uid(), 'audit_logs', 'read')
+--
+-- Check offers SELECT policy (staff):
+-- SELECT qual FROM pg_policies WHERE tablename = 'offers' AND cmd = 'SELECT' AND policyname = 'staff_select_all_offers';
+-- Expected: public.has_permission(auth.uid(), 'offers', 'read')
+--
+-- Check dealers SELECT policy (staff):
+-- SELECT qual FROM pg_policies WHERE tablename = 'dealers' AND cmd = 'SELECT' AND policyname = 'staff_select_all_dealers';
+-- Expected: public.has_permission(auth.uid(), 'dealers', 'read')
+
+-- ============================================================
+-- TEST E: authenticated cannot execute sensitive RPC directly
+-- Expected: REVOKE from public prevents authenticated from calling sensitive functions
+-- ============================================================
+-- As authenticated user (not service_role):
+-- SELECT public.record_payment('uuid', 100, 'cash');
+-- Expected: ERROR (permission denied for function record_payment)
+--
+-- SELECT public.record_inventory_usage('uuid', 2);
+-- Expected: ERROR (permission denied for function record_inventory_usage)
+--
+-- SELECT public.receive_purchase('uuid', '[]'::jsonb);
+-- Expected: ERROR (permission denied for function receive_purchase)
+--
+-- SELECT public.complete_booking('uuid');
+-- Expected: ERROR (permission denied for function complete_booking)
+--
+-- Note: These functions are service_role ONLY. Server Actions use service_role.
+-- Helper functions (has_permission, get_user_role, etc.) ARE granted to authenticated for RLS.
+
+-- ============================================================
+-- VERIFICATION QUERIES
+-- ============================================================
+
+-- 1. Verify get_user_role() uses role_id → roles.name
+-- SELECT prosrc FROM pg_proc
+-- WHERE proname = 'get_user_role' AND pronamespace = 'public'::regnamespace;
+-- Expected: JOIN with roles table, NO reference to s.role text
+
+-- 2. Verify NO RLS policy uses get_user_role() with role names
+-- SELECT policyname, qual FROM pg_policies
+-- WHERE schemaname = 'public'
+--   AND qual LIKE '%get_user_role%';
+-- Expected: 0 rows (all replaced with has_permission)
+
+-- 3. Verify all sensitive functions are service_role ONLY
+-- SELECT routine_name, grantee, privilege_type
+-- FROM information_schema.role_routines
+-- WHERE routine_schema = 'public'
+--   AND routine_name IN ('record_payment', 'record_inventory_usage', 'receive_purchase', 'complete_booking', 'create_commission', 'create_guest_booking')
+-- ORDER BY routine_name, grantee;
+-- Expected: Only service_role grant for each
+
+-- 4. Verify helper functions are granted to authenticated
+-- SELECT routine_name, grantee, privilege_type
+-- FROM information_schema.role_routines
+-- WHERE routine_schema = 'public'
+--   AND routine_name IN ('get_user_role', 'get_user_role_id', 'has_permission', 'get_dealer_id', 'normalize_phone')
+-- ORDER BY routine_name, grantee;
+-- Expected: authenticated grant for each
+
+-- 5. Verify no function uses staff.role for authorization
+-- SELECT proname FROM pg_proc
+-- WHERE pronamespace = 'public'::regnamespace
+--   AND prosrc LIKE '%s.role%'
+--   AND proname IN ('get_user_role', 'has_permission', 'record_payment', 'record_inventory_usage');
+-- Expected: 0 rows
+
+-- ============================================================
+-- END OF SECURITY TESTS
+-- ============================================================

@@ -1,0 +1,7 @@
+▲ Next.js 16.3.3 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.8.116:3000
+- Environments: .env.local
+✓ Ready in 621ms
+✓ Running next.config.ts took 43ms
+

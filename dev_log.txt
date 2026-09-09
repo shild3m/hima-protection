@@ -1,0 +1,10 @@
+▲ Next.js 16.3.3 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.8.116:3000
+- Environments: .env.local
+✓ Ready in 720ms
+✓ Running next.config.ts took 60ms
+
+○ Compiling /crm/customers ...
+ GET /crm/customers 200 in 8.2s (next.js: 7.7s, application-code: 462ms)
+ GET /crm/customers 200 in 84ms (next.js: 5ms, application-code: 79ms)

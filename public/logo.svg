@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect width="256" height="256" rx="32" fill="#0F172A"/>
+  <rect x="16" y="16" width="224" height="224" rx="24" fill="#C4121A" opacity="0.15"/>
+  <text x="128" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="56" fill="#C4121A">H</text>
+  <text x="128" y="165" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="18" fill="#FFFFFF">Hima Protection</text>
+</svg>

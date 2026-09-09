@@ -1,0 +1,3 @@
+⚠ Warning: Next.js ignored package-lock.json in C:\Users\aaaa1 because it would include your home directory (C:\Users\aaaa1).
+ To use this directory, set `outputFileTracingRoot` in your Next.js config.
+
