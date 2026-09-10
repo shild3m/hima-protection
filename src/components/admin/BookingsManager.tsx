@@ -20,7 +20,6 @@ import {
  FaPlus,
  FaUser,
  FaTrash,
- FaCog,
  FaExchangeAlt,
  FaEnvelope,
  FaCalendarPlus,
@@ -103,12 +102,6 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   const [deleteToken, setDeleteToken] = useState('')
   const [deleteError, setDeleteError] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [showTokenSettings, setShowTokenSettings] = useState(false)
-  const [currentToken, setCurrentToken] = useState('')
-  const [newToken, setNewToken] = useState('')
-  const [tokenSettingsLoading, setTokenSettingsLoading] = useState(false)
-  const [tokenSettingsError, setTokenSettingsError] = useState('')
-  const [tokenSettingsSuccess, setTokenSettingsSuccess] = useState('')
 
   const canUpdate = hasPermission('bookings', 'update')
   const canCreate = hasPermission('bookings', 'create')
@@ -291,29 +284,6 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
    }
  }
 
- const handleSaveToken = async () => {
-   if (!currentToken.trim() || !newToken.trim()) return
-   setTokenSettingsLoading(true)
-   setTokenSettingsError('')
-   setTokenSettingsSuccess('')
-   try {
-     const { sha256 } = await import('@/lib/crypto')
-     const { setDeleteToken } = await import('@/app/actions/bookings')
-     const result = await setDeleteToken(await sha256(currentToken.trim()), await sha256(newToken.trim()))
-     if (result.success) {
-       setTokenSettingsSuccess('تم تحديث رمز الحذف بنجاح')
-       setCurrentToken('')
-       setNewToken('')
-     } else {
-       setTokenSettingsError(result.error || 'حدث خطأ')
-     }
-   } catch {
-     setTokenSettingsError('حدث خطأ غير متوقع')
-   } finally {
-     setTokenSettingsLoading(false)
-   }
- }
-
  const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
 
  const handleCreateBookingSubmit = async (e: React.FormEvent) => {
@@ -418,7 +388,6 @@ const statusBadge = (status: string, booking?: Booking) => {
  <p className="text-[#62666D] text-sm mt-1 mr-11">عرض وإدارة حجوزات العملاء</p>
  </div>
  {canCreate && (
- <div className="flex gap-2">
  <button
  onClick={() => setShowCreateForm(true)}
  className="px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2"
@@ -426,16 +395,6 @@ const statusBadge = (status: string, booking?: Booking) => {
  <FaPlus className="text-xs" />
  حجز جديد
  </button>
- {isSuperAdmin && (
- <button
- onClick={() => { setShowTokenSettings(true); setCurrentToken(''); setNewToken(''); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
- className="px-3 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#62666D] rounded-xl text-sm font-bold transition-all flex items-center gap-2"
- title="إعدادات الحذف"
- >
- <FaCog className="text-xs" />
- </button>
- )}
- </div>
  )}
  </div>
 
@@ -1000,76 +959,6 @@ const statusBadge = (status: string, booking?: Booking) => {
   className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all"
   >
   إلغاء
-  </button>
-  </div>
-  </div>
-  </div>
-  )}
-
-  {showTokenSettings && (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setShowTokenSettings(false)}>
-  <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-  <div className="flex items-center justify-between mb-4">
-  <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
-  <FaCog className="text-[#62666D] text-sm" />
-  رمز الحذف السري
-  </h3>
-  <button onClick={() => setShowTokenSettings(false)} className="text-[#62666D] hover:text-[#111214] transition">
-  <FaTimes />
-  </button>
-  </div>
-
-  <p className="text-xs text-[#62666D] mb-4 leading-relaxed">
-  لتغيير رمز الحذف: أدخل الرمز الحالي أولًا للتحقق، ثم الرمز الجديد. الرمز يُخزّن كـ hash فقط (لا يمكن استرجاعه) — وإذا نسيته يمكنك تغييره من أداة Supabase مباشرة.
-  </p>
-
-  {tokenSettingsSuccess && (
-  <div className="mb-4 p-3 bg-[#ECFDF5] rounded-xl border border-[#A7F3D0] text-xs text-[#059669] font-bold">
-  {tokenSettingsSuccess}
-  </div>
-  )}
-  {tokenSettingsError && (
-  <div className="mb-4 p-3 bg-[#FEF2F2] rounded-xl border border-[#FECACA] text-xs text-[#DC2626] font-bold">
-  {tokenSettingsError}
-  </div>
-  )}
-
-  <div className="mb-4">
-  <label className="text-xs font-bold text-[#62666D] mb-1 block">الرمز الحالي *</label>
-  <input
-  type="password"
-  value={currentToken}
-  onChange={e => { setCurrentToken(e.target.value); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
-  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
-  placeholder="الرمز الحالي..."
-  autoFocus
-  />
-  </div>
-
-  <div className="mb-4">
-  <label className="text-xs font-bold text-[#62666D] mb-1 block">الرمز الجديد *</label>
-  <input
-  type="password"
-  value={newToken}
-  onChange={e => { setNewToken(e.target.value); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
-  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
-  placeholder="رمز سري جديد..."
-  />
-  </div>
-
-  <div className="flex gap-3">
-  <button
-  onClick={handleSaveToken}
-  disabled={!currentToken.trim() || !newToken.trim() || tokenSettingsLoading}
-  className="flex-1 px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-  >
-  {tokenSettingsLoading ? <><FaSpinner className="animate-spin" /> جاري الحفظ...</> : 'حفظ الرمز'}
-  </button>
-  <button
-  onClick={() => setShowTokenSettings(false)}
-  className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all"
-  >
-  إغلاق
   </button>
   </div>
   </div>
