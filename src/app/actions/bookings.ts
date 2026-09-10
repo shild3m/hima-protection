@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
@@ -434,10 +435,15 @@ export async function deleteBooking(id: string, tokenHash: string) {
       return { success: false as const, error: 'الحجز غير موجود' }
     }
 
-    await supabase.from('booking_status_history').delete().eq('booking_id', id)
-    await supabase.from('notifications').delete().eq('resource_id', id).eq('resource_type', 'bookings')
+    const admin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    const { error } = await supabase.from('bookings').delete().eq('id', id)
+    await admin.from('booking_status_history').delete().eq('booking_id', id)
+    await admin.from('notifications').delete().eq('resource_id', id).eq('resource_type', 'bookings')
+
+    const { error } = await admin.from('bookings').delete().eq('id', id)
 
     if (error) {
       console.error('Delete booking error:', error)
