@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { Tajawal } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+
+const tajawal = Tajawal({
+  variable: "--font-tajawal",
+  subsets: ["arabic"],
+  weight: ["400", "500", "700"],
+});
 
 export const metadata: Metadata = {
   title: "عنوان الحماية — حماية سياراتك هي أولويتنا",
@@ -101,7 +108,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className="h-full antialiased">
+    <html lang="ar" dir="rtl" className={`${tajawal.variable} h-full antialiased`}>
       <head>
         <script
           type="application/ld+json"
@@ -116,7 +123,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-[#0A0A0B] text-white">
+      <body className={`${tajawal.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
