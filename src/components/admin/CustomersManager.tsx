@@ -23,6 +23,7 @@ import {
  FaHeadset,
  FaChevronRight,
  FaChevronLeft,
+ FaTrash,
 } from 'react-icons/fa'
 
 interface Customer {
@@ -85,6 +86,7 @@ export default function CustomersManager() {
  const [customerVehicles, setCustomerVehicles] = useState<Vehicle[]>([])
  const [loadingVehicles, setLoadingVehicles] = useState(false)
  const [togglingId, setTogglingId] = useState<string | null>(null)
+ const [actionLoading, setActionLoading] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const canCreate = hasPermission('customers', 'create')
@@ -150,10 +152,29 @@ export default function CustomersManager() {
  }
  } catch {
  setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
- } finally {
- setTogglingId(null)
- }
- }
+  } finally {
+    setTogglingId(null)
+  }
+  }
+
+  const handleDeleteCustomer = async (id: string) => {
+  if (!window.confirm('هل أنت متأكد من حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.')) return
+  setActionLoading(id)
+  try {
+    const { softDeleteCustomer } = await import('@/app/actions/crm')
+    const result = await softDeleteCustomer(id)
+    if (result.success) {
+    setNotification({ type: 'success', message: 'تم حذف العميل بنجاح' })
+    fetchCustomers()
+    } else {
+    setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
+    }
+  } catch {
+    setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+  } finally {
+    setActionLoading(null)
+  }
+  }
 
  const handleViewCustomer = async (customer: Customer) => {
  setViewingCustomer(customer)
@@ -326,13 +347,6 @@ export default function CustomersManager() {
  </div>
 
  <div className="flex gap-1.5 sm:gap-2 shrink-0 mr-2 sm:mr-4">
- <button
- onClick={() => handleViewCustomer(viewingCustomer?.id === customer.id ? null as any : customer)}
- className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
- >
- <FaEye className="text-[9px] sm:text-[10px]" />
- <span className="hidden sm:inline">عرض</span>
- </button>
  {canUpdate && (
  <>
  <button
@@ -342,6 +356,30 @@ export default function CustomersManager() {
  <FaPen className="text-[9px] sm:text-[10px]" />
  <span className="hidden sm:inline">تعديل</span>
  </button>
+ </>
+ )}
+ {hasPermission('customers', 'delete') && (
+ <button
+ onClick={() => handleDeleteCustomer(customer.id)}
+ disabled={actionLoading === customer.id}
+ className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 flex items-center gap-1 hover:scale-105"
+ >
+ {actionLoading === customer.id ? (
+ <FaSpinner className="text-[9px] sm:text-[10px] animate-spin" />
+ ) : (
+ <FaTrash className="text-[9px] sm:text-[10px]" />
+ )}
+ <span className="hidden sm:inline">حذف</span>
+ </button>
+ )}
+ <button
+ onClick={() => handleViewCustomer(viewingCustomer?.id === customer.id ? null as any : customer)}
+ className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
+ >
+ <FaEye className="text-[9px] sm:text-[10px]" />
+ <span className="hidden sm:inline">عرض</span>
+ </button>
+ {canUpdate && (
  <button
  onClick={() => handleToggle(customer.id)}
  disabled={togglingId === customer.id}
@@ -360,7 +398,6 @@ export default function CustomersManager() {
  )}
  <span className="hidden sm:inline">{customer.is_active ? 'تعطيل' : 'تفعيل'}</span>
  </button>
- </>
  )}
  </div>
  </div>

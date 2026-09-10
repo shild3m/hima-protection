@@ -268,3 +268,57 @@ export async function toggleSupplierActive(id: string) {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
 }
+
+export async function deleteSupplier(id: string) {
+  const user = await requireAuth()
+  if (!user.permissions.includes('suppliers:delete')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  try {
+    const supabase = await createClient()
+
+    const { data: existing } = await supabase
+      .from('suppliers')
+      .select('id, name')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) {
+      return { success: false as const, error: 'المورد غير موجود' }
+    }
+
+    const { data: hasPurchases } = await supabase
+      .from('purchases')
+      .select('id')
+      .eq('supplier_id', id)
+      .limit(1)
+      .maybeSingle()
+
+    if (hasPurchases) {
+      return { success: false as const, error: 'لا يمكن حذف المورد لوجود مشتريات مرتبطة. استخدم التعطيل بدلاً من الحذف.' }
+    }
+
+    const { error } = await supabase
+      .from('suppliers')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Delete supplier error:', error)
+      return { success: false as const, error: 'تعذر حذف المورد' }
+    }
+
+    await logAudit({
+      userId: user.auth_user_id,
+      action: 'supplier_deleted',
+      resourceType: 'suppliers',
+      resourceId: id,
+      newValues: { name: existing.name },
+    })
+
+    return { success: true as const }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}

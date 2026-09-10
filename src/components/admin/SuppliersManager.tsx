@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import {
- FaSearch, FaEye, FaPen, FaTimes, FaExclamationTriangle,
- FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaPlus,
- FaToggleOn, FaToggleOff, FaTruck,
+ FaSearch, FaEye, FaPen, FaTrash, FaTimes, FaExclamationTriangle,
+  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaPlus,
+  FaToggleOn, FaToggleOff, FaTruck,
 } from 'react-icons/fa'
 
 interface Supplier {
@@ -31,10 +31,12 @@ export default function SuppliersManager() {
  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null)
  const [supplierHistory, setSupplierHistory] = useState<{ total_purchases: number; total_spend: number; last_purchase: string | null } | null>(null)
  const [saving, setSaving] = useState(false)
+ const [actionLoading, setActionLoading] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
  const canCreate = hasPermission('suppliers', 'create')
  const canUpdate = hasPermission('suppliers', 'update')
+ const canDelete = hasPermission('suppliers', 'delete')
 
  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', notes: '' })
 
@@ -92,7 +94,18 @@ export default function SuppliersManager() {
  const { toggleSupplierActive } = await import('@/app/actions/suppliers')
  const res = await toggleSupplierActive(id)
  if (res.success) { setNotification({ type: 'success', message: 'تم تحديث الحالة' }); loadSuppliers(debouncedSearch, page) }
- else setNotification({ type: 'error', message: res.error })
+ else setNotification({ type: 'error', message: res.error || 'حدث خطأ' })
+ }
+
+ const handleDeleteSupplier = async (id: string) => {
+ if (!window.confirm('هل أنت متأكد من حذف هذا المورد؟ لا يمكن التراجع عن هذا الإجراء.')) return
+ setActionLoading(id); setNotification(null)
+ try {
+ const { deleteSupplier } = await import('@/app/actions/suppliers')
+ const res = await deleteSupplier(id)
+ if (res.success) { setNotification({ type: 'success', message: 'تم حذف المورد' }); loadSuppliers(debouncedSearch, page) }
+ else setNotification({ type: 'error', message: res.error || 'حدث خطأ' })
+ } finally { setActionLoading(null) }
  }
 
  return (
@@ -157,10 +170,13 @@ export default function SuppliersManager() {
  <button onClick={() => openView(s)} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D] hover:text-[#111214]" title="عرض"><FaEye className="text-xs" /></button>
  {canUpdate && <>
  <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D] hover:text-[#111214]" title="تعديل"><FaPen className="text-xs" /></button>
- <button onClick={() => handleToggleActive(s.id)} className={`p-1.5 rounded-lg hover:bg-[#F1F2F3] ${s.is_active ? 'text-[#059669]' : 'text-[#62666D]'}`} title={s.is_active ? 'تعطيل' : 'تفعيل'}>
- {s.is_active ? <FaToggleOn className="text-xs" /> : <FaToggleOff className="text-xs" />}
- </button>
- </>}
+  <button onClick={() => handleToggleActive(s.id)} className={`p-1.5 rounded-lg hover:bg-[#F1F2F3] ${s.is_active ? 'text-[#059669]' : 'text-[#62666D]'}`} title={s.is_active ? 'تعطيل' : 'تفعيل'}>
+  {s.is_active ? <FaToggleOn className="text-xs" /> : <FaToggleOff className="text-xs" />}
+  </button>
+  </>}
+  {canDelete && <button onClick={() => handleDeleteSupplier(s.id)} disabled={actionLoading === s.id} className="p-1.5 rounded-lg hover:bg-[#FEF2F2] text-[#DC2626] hover:text-[#9B1B30] disabled:opacity-30" title="حذف">
+  {actionLoading === s.id ? <FaSpinner className="animate-spin text-xs" /> : <FaTrash className="text-xs" />}
+  </button>}
  </div>
  </td>
  </tr>

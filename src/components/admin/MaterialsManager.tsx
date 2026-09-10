@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import {
- FaSearch, FaEye, FaPen, FaTimes, FaExclamationTriangle,
+ FaSearch, FaEye, FaPen, FaTrash, FaTimes, FaExclamationTriangle,
  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaPlus,
  FaToggleOn, FaToggleOff, FaCubes,
 } from 'react-icons/fa'
@@ -45,10 +45,12 @@ export default function MaterialsManager() {
  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null)
  const [viewingMaterial, setViewingMaterial] = useState<Material | null>(null)
  const [saving, setSaving] = useState(false)
+ const [actionLoading, setActionLoading] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
  const canCreate = hasPermission('materials', 'create')
  const canUpdate = hasPermission('materials', 'update')
+ const canDelete = hasPermission('materials', 'delete')
 
  const [form, setForm] = useState({
  name: '', sku: '', unit: 'piece', min_stock: 0, max_stock: '',
@@ -133,6 +135,17 @@ export default function MaterialsManager() {
  else setNotification({ type: 'error', message: res.error || 'حدث خطأ غير متوقع' })
  }
 
+ const handleDeleteMaterial = async (id: string) => {
+ if (!window.confirm('هل أنت متأكد من حذف هذا المادة؟ لا يمكن التراجع عن هذا الإجراء.')) return
+ setActionLoading(id); setNotification(null)
+ try {
+ const { deleteMaterial } = await import('@/app/actions/materials')
+ const res = await deleteMaterial(id)
+ if (res.success) { setNotification({ type: 'success', message: 'تم حذف المادة' }); loadMaterials(debouncedSearch, page) }
+ else setNotification({ type: 'error', message: res.error || 'حدث خطأ غير متوقع' })
+ } finally { setActionLoading(null) }
+ }
+
  return (
  <div className="p-4 md:p-6 lg:p-8">
  <div className="flex items-center justify-between mb-6">
@@ -199,6 +212,14 @@ export default function MaterialsManager() {
  <button onClick={() => setViewingMaterial(m)} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D] hover:text-[#111214]" title="عرض"><FaEye className="text-xs" /></button>
  {canUpdate && <>
  <button onClick={() => openEdit(m)} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D] hover:text-[#111214]" title="تعديل"><FaPen className="text-xs" /></button>
+ </>}
+ {canDelete && (
+ <button onClick={() => handleDeleteMaterial(m.id)} disabled={actionLoading === m.id}
+ className="px-3 py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-lg text-xs font-bold transition-all disabled:opacity-30 flex items-center gap-1" title="حذف">
+ {actionLoading === m.id ? <FaSpinner className="animate-spin text-xs" /> : <FaTrash className="text-xs" />} حذف
+ </button>
+ )}
+ {canUpdate && <>
  <button onClick={() => handleToggleActive(m.id)} className={`p-1.5 rounded-lg hover:bg-[#F1F2F3] ${m.is_active ? 'text-[#059669]' : 'text-[#62666D]'}`} title={m.is_active ? 'تعطيل' : 'تفعيل'}>
  {m.is_active ? <FaToggleOn className="text-xs" /> : <FaToggleOff className="text-xs" />}
  </button>

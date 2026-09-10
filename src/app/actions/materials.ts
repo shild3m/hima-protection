@@ -329,6 +329,82 @@ export async function toggleMaterialActive(id: string) {
   }
 }
 
+export async function deleteMaterial(id: string) {
+  const user = await requireAuth()
+  if (!user.permissions.includes('materials:delete')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  try {
+    const supabase = await createClient()
+
+    const { data: existing } = await supabase
+      .from('materials')
+      .select('id, name')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) {
+      return { success: false as const, error: 'المادة غير موجودة' }
+    }
+
+    const { data: hasMovements } = await supabase
+      .from('inventory_transactions')
+      .select('id')
+      .eq('material_id', id)
+      .limit(1)
+      .maybeSingle()
+
+    if (hasMovements) {
+      return { success: false as const, error: 'لا يمكن حذف المادة لأنها مرتبطة بحركات مخزون. استخدم التعطيل بدلاً من الحذف.' }
+    }
+
+    const { data: hasPurchaseItems } = await supabase
+      .from('purchase_items')
+      .select('id')
+      .eq('material_id', id)
+      .limit(1)
+      .maybeSingle()
+
+    if (hasPurchaseItems) {
+      return { success: false as const, error: 'لا يمكن حذف المادة لأنها مرتبطة بمشتريات. استخدم التعطيل بدلاً من الحذف.' }
+    }
+
+    const { data: hasServiceMaterials } = await supabase
+      .from('service_materials')
+      .select('id')
+      .eq('material_id', id)
+      .limit(1)
+      .maybeSingle()
+
+    if (hasServiceMaterials) {
+      return { success: false as const, error: 'لا يمكن حذف المادة لأنها مرتبطة بخدمات. استخدم التعطيل بدلاً من الحذف.' }
+    }
+
+    const { error } = await supabase
+      .from('materials')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Delete material error:', error)
+      return { success: false as const, error: 'تعذر حذف المادة' }
+    }
+
+    await logAudit({
+      userId: user.auth_user_id,
+      action: 'material_deleted',
+      resourceType: 'materials',
+      resourceId: id,
+      oldValues: { name: existing.name },
+    })
+
+    return { success: true as const }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
 export async function getLowStockMaterials() {
   const user = await requireAuth()
   if (!user.permissions.includes('materials:read')) {

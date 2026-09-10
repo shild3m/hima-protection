@@ -18,6 +18,7 @@ import {
  FaPalette,
  FaChevronRight,
  FaChevronLeft,
+ FaTrash,
 } from 'react-icons/fa'
 
 interface Vehicle {
@@ -62,6 +63,7 @@ export default function VehiclesManager() {
  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
  const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null)
  const [togglingId, setTogglingId] = useState<string | null>(null)
+ const [actionLoading, setActionLoading] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
  const canCreate = hasPermission('vehicles', 'create')
@@ -123,6 +125,25 @@ export default function VehiclesManager() {
  setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
  } finally {
  setTogglingId(null)
+ }
+ }
+
+ const handleDeleteVehicle = async (id: string) => {
+ if (!window.confirm('هل أنت متأكد من حذف هذه المركبة؟ لا يمكن التراجع عن هذا الإجراء.')) return
+ setActionLoading(id)
+ try {
+ const { softDeleteVehicle } = await import('@/app/actions/crm')
+ const result = await softDeleteVehicle(id)
+ if (result.success) {
+ setNotification({ type: 'success', message: 'تم حذف المركبة بنجاح' })
+ fetchVehicles()
+ } else {
+ setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
+ }
+ } catch {
+ setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+ } finally {
+ setActionLoading(null)
  }
  }
 
@@ -300,6 +321,19 @@ export default function VehiclesManager() {
  <FaPen className="text-[9px] sm:text-[10px]" />
  <span className="hidden sm:inline">تعديل</span>
  </button>
+ {hasPermission('vehicles', 'delete') && (
+ <button
+ onClick={() => handleDeleteVehicle(vehicle.id)}
+ disabled={actionLoading === vehicle.id}
+ className="px-3 py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-lg text-xs font-bold transition-all disabled:opacity-30 flex items-center gap-1"
+ >
+ {actionLoading === vehicle.id ? (
+ <FaSpinner className="text-[10px] animate-spin" />
+ ) : (
+ <FaTrash className="text-[10px]" />
+ )}
+ </button>
+ )}
  <button
  onClick={() => handleToggle(vehicle.id)}
  disabled={togglingId === vehicle.id}
