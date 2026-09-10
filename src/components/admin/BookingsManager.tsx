@@ -19,6 +19,7 @@ import {
  FaClock,
  FaPlus,
  FaUser,
+ FaTrash,
  FaEnvelope,
  FaCalendarPlus,
 } from 'react-icons/fa'
@@ -96,6 +97,10 @@ export default function BookingsManager() {
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null)
+  const [deleteToken, setDeleteToken] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const canUpdate = hasPermission('bookings', 'update')
   const canCreate = hasPermission('bookings', 'create')
@@ -253,6 +258,29 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   }
  }
 
+ const handleDeleteBooking = async () => {
+   if (!deleteTarget) return
+   setDeleteLoading(true)
+   setDeleteError('')
+   try {
+     const { deleteBooking } = await import('@/app/actions/bookings')
+     const result = await deleteBooking(deleteTarget.id, deleteToken)
+     if (result.success) {
+       setNotification({ type: 'success', message: 'تم حذف الحجز بنجاح' })
+       setDeleteTarget(null)
+       setDeleteToken('')
+       fetchBookings()
+       fetchStats()
+     } else {
+       setDeleteError(result.error || 'حدث خطأ')
+     }
+   } catch {
+     setDeleteError('حدث خطأ غير متوقع')
+   } finally {
+     setDeleteLoading(false)
+   }
+ }
+
  const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
 
  const handleCreateBookingSubmit = async (e: React.FormEvent) => {
@@ -338,6 +366,18 @@ const statusBadge = (status: string, booking?: Booking) => {
               </button>
             )
           })}
+          {isSuperAdmin && (
+            <>
+            <div className="border-t border-[#E7E8EA] my-1"></div>
+            <button
+              onClick={() => { setActiveStatusDropdown(null); setDeleteTarget(booking); setDeleteError('') }}
+              className="w-full text-right px-3 py-2 text-xs font-bold flex items-center gap-2 text-[#DC2626] hover:bg-[#FEF2F2] transition-all"
+            >
+              <FaTrash className="text-[10px]" />
+              حذف الحجز
+            </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -559,9 +599,20 @@ const statusBadge = (status: string, booking?: Booking) => {
  <FaCalendarAlt className="text-[#DC2626] text-sm" />
  تفاصيل الحجز
  </h3>
+ <div className="flex items-center gap-3">
+ {isSuperAdmin && (
+ <button
+   onClick={() => { setDeleteTarget(viewingBooking); setDeleteError('') }}
+   className="text-[#DC2626] hover:bg-[#FEF2F2] p-2 rounded-lg transition-all"
+   title="حذف الحجز"
+ >
+   <FaTrash />
+ </button>
+ )}
  <button onClick={() => setViewingBooking(null)} className="text-[#62666D] hover:text-[#111214] transition">
  <FaTimes />
  </button>
+ </div>
  </div>
 
  {loadingDetail ? (
@@ -826,6 +877,56 @@ const statusBadge = (status: string, booking?: Booking) => {
   </button>
   </div>
   </form>
+  </div>
+  </div>
+  )}
+
+  {deleteTarget && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => { setDeleteTarget(null); setDeleteToken(''); setDeleteError('') }}>
+  <div className="bg-white border border-[#FECACA] rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+  <div className="flex items-center gap-3 mb-4">
+  <div className="w-10 h-10 rounded-xl bg-[#FEF2F2] flex items-center justify-center shrink-0">
+  <FaTrash className="text-[#DC2626]" />
+  </div>
+  <div>
+  <h3 className="text-base font-bold text-[#111214]">تأكيد الحذف</h3>
+  <p className="text-xs text-[#62666D]">لا يمكن التراجع عن هذا الإجراء</p>
+  </div>
+  </div>
+
+  <div className="mb-4 p-3 bg-[#FEF2F2] rounded-xl border border-[#FECACA]">
+  <p className="text-xs text-[#DC2626] font-bold">العميل: {deleteTarget.customer?.full_name || '---'}</p>
+  </div>
+
+  <div className="mb-4">
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">أدخل رمز الحذف السري</label>
+  <input
+  type="password"
+  value={deleteToken}
+  onChange={e => { setDeleteToken(e.target.value); setDeleteError('') }}
+  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
+  placeholder="الرمز السري..."
+  autoFocus
+  onKeyDown={e => { if (e.key === 'Enter' && deleteToken.trim()) handleDeleteBooking() }}
+  />
+  {deleteError && <p className="text-xs text-[#DC2626] mt-1 font-bold">{deleteError}</p>}
+  </div>
+
+  <div className="flex gap-3">
+  <button
+  onClick={handleDeleteBooking}
+  disabled={!deleteToken.trim() || deleteLoading}
+  className="flex-1 px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+  >
+  {deleteLoading ? <><FaSpinner className="animate-spin" /> جاري الحذف...</> : 'حذف نهائياً'}
+  </button>
+  <button
+  onClick={() => { setDeleteTarget(null); setDeleteToken(''); setDeleteError('') }}
+  className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all"
+  >
+  إلغاء
+  </button>
+  </div>
   </div>
   </div>
   )}

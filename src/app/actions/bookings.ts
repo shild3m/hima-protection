@@ -401,3 +401,54 @@ export async function adminCreateBooking(input: AdminBookingInput) {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
 }
+
+export async function deleteBooking(id: string, token: string) {
+  const user = await requireAuth()
+  if (user.role_name !== 'super_admin') {
+    return { success: false as const, error: 'غير مصرح — السوبر أدمن فقط' }
+  }
+
+  const expected = process.env.BOOKING_DELETE_SECRET
+  if (!expected || token !== expected) {
+    return { success: false as const, error: 'رمز الحذف غير صحيح' }
+  }
+
+  const rl = await checkRateLimit('bookings:delete')
+  if (!rl.ok) return { success: false as const, error: rl.error }
+
+  try {
+    const supabase = await createClient()
+
+    const { data: existing } = await supabase
+      .from('bookings')
+      .select('id, status')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) {
+      return { success: false as const, error: 'الحجز غير موجود' }
+    }
+
+    await supabase.from('booking_status_history').delete().eq('booking_id', id)
+    await supabase.from('notifications').delete().eq('resource_id', id).eq('resource_type', 'bookings')
+
+    const { error } = await supabase.from('bookings').delete().eq('id', id)
+
+    if (error) {
+      console.error('Delete booking error:', error)
+      return { success: false as const, error: 'تعذر حذف الحجز' }
+    }
+
+    await logAudit({
+      userId: user.auth_user_id,
+      action: 'admin_booking_deleted',
+      resourceType: 'bookings',
+      resourceId: id,
+      oldValues: { status: existing.status },
+    })
+
+    return { success: true as const }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
