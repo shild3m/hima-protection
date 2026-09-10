@@ -21,6 +21,7 @@ import {
  FaUser,
  FaTrash,
  FaCog,
+ FaExchangeAlt,
  FaEnvelope,
  FaCalendarPlus,
 } from 'react-icons/fa'
@@ -362,55 +363,10 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
 
 const statusBadge = (status: string, booking?: Booking) => {
   const config = STATUS_CONFIG[status] || { label: status, color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' }
-  const available = booking ? getAvailableStatuses(booking) : []
-  const isDropdownOpen = booking ? activeStatusDropdown === booking.id : false
-  const canClick = canUpdate && available.length > 0
-
   return (
-    <div className="relative inline-block" data-status-dropdown>
-      <button
-        type="button"
-        onClick={() => canClick && booking && setActiveStatusDropdown(isDropdownOpen ? null : booking.id)}
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all ${config.bg} ${config.color} ${canClick ? 'cursor-pointer hover:ring-2 hover:ring-[#006FE8]/30' : ''}`}
-      >
-        {config.label}
-        {canClick && <FaChevronDown className="text-[8px] opacity-60" />}
-      </button>
-      {isDropdownOpen && booking && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E7E8EA] rounded-xl shadow-xl min-w-[180px] py-1 animate-fadeIn">
-          <div className="px-3 py-1.5 text-[10px] font-bold text-[#62666D] border-b border-[#F1F2F3]">
-            تغيير الحالة إلى:
-          </div>
-          {available.map((nextStatus) => {
-            const cfg = STATUS_CONFIG[nextStatus]
-            return (
-              <button
-                key={nextStatus}
-                onClick={() => { setActiveStatusDropdown(null); handleStatusUpdate(booking.id, nextStatus) }}
-                disabled={updatingStatus === booking.id}
-                className={`w-full text-right px-3 py-2 text-xs font-bold flex items-center gap-2 hover:bg-[#F7F7F5] transition-all disabled:opacity-50 ${cfg.color}`}
-              >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.bg.replace('border-', 'border ').split(' ')[0].replace('bg-', 'bg-')}`}></span>
-                {cfg.label}
-                {updatingStatus === booking.id && <FaSpinner className="animate-spin mr-auto text-[10px]" />}
-              </button>
-            )
-          })}
-          {isSuperAdmin && (
-            <>
-            <div className="border-t border-[#E7E8EA] my-1"></div>
-            <button
-              onClick={() => { setActiveStatusDropdown(null); setDeleteTarget(booking); setDeleteError('') }}
-              className="w-full text-right px-3 py-2 text-xs font-bold flex items-center gap-2 text-[#DC2626] hover:bg-[#FEF2F2] transition-all"
-            >
-              <FaTrash className="text-[10px]" />
-              حذف الحجز
-            </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${config.bg} ${config.color}`}>
+      {config.label}
+    </span>
   )
   }
 
@@ -559,7 +515,7 @@ const statusBadge = (status: string, booking?: Booking) => {
  <h4 className="text-[#111214] font-bold text-xs sm:text-sm truncate">
  {booking.customer?.full_name || 'عميل'}
  </h4>
-  {statusBadge(booking.status, booking)}
+  {statusBadge(booking.status)}
  {booking.service && (
  <span className="text-[10px] text-[#62666D] hidden sm:inline">
  {booking.service.name}
@@ -592,6 +548,39 @@ const statusBadge = (status: string, booking?: Booking) => {
  </div>
 
  <div className="flex gap-1.5 sm:gap-2 shrink-0 mr-2 sm:mr-4">
+ {canUpdate && getAvailableStatuses(booking).length > 0 && (
+ <div className="relative" data-status-dropdown>
+   <button
+   type="button"
+   onClick={() => setActiveStatusDropdown(activeStatusDropdown === booking.id ? null : booking.id)}
+   className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
+   >
+   <FaExchangeAlt className="text-[9px] sm:text-[10px]" />
+   <span className="hidden sm:inline">تغيير الحالة</span>
+   <FaChevronDown className="text-[8px] opacity-60" />
+   </button>
+   {activeStatusDropdown === booking.id && (
+   <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E7E8EA] rounded-xl shadow-xl min-w-[180px] py-1 animate-fadeIn">
+     <div className="px-3 py-1.5 text-[10px] font-bold text-[#62666D] border-b border-[#F1F2F3]">تغيير الحالة إلى:</div>
+     {getAvailableStatuses(booking).map((nextStatus) => {
+       const cfg = STATUS_CONFIG[nextStatus]
+       return (
+         <button
+         key={nextStatus}
+         onClick={() => { setActiveStatusDropdown(null); handleStatusUpdate(booking.id, nextStatus) }}
+         disabled={updatingStatus === booking.id}
+         className={`w-full text-right px-3 py-2 text-xs font-bold flex items-center gap-2 hover:bg-[#F7F7F5] transition-all disabled:opacity-50 ${cfg.color}`}
+         >
+         <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.bg.replace('border-', 'border ').split(' ')[0]}`}></span>
+         {cfg.label}
+         {updatingStatus === booking.id && <FaSpinner className="animate-spin mr-auto text-[10px]" />}
+         </button>
+       )
+     })}
+   </div>
+   )}
+ </div>
+ )}
  <button
  onClick={() => handleViewBooking(booking)}
  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
@@ -671,9 +660,43 @@ const statusBadge = (status: string, booking?: Booking) => {
  </div>
  ) : (
  <div className="space-y-4">
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between items-center text-sm">
  <span className="text-[#62666D]">الحالة:</span>
-  {statusBadge(viewingBooking.status, viewingBooking as unknown as Booking)}
+ <div className="flex items-center gap-2">
+   {statusBadge(viewingBooking.status)}
+   {canUpdate && getAvailableStatuses(viewingBooking as unknown as Booking).length > 0 && (
+   <div className="relative" data-status-dropdown>
+     <button
+     type="button"
+     onClick={() => setActiveStatusDropdown(activeStatusDropdown === viewingBooking.id ? null : viewingBooking.id)}
+     className="px-2 py-1 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] font-bold transition-all hover:scale-105 flex items-center gap-1"
+     >
+     <FaExchangeAlt className="text-[9px]" />
+     <FaChevronDown className="text-[8px] opacity-60" />
+     </button>
+     {activeStatusDropdown === viewingBooking.id && (
+     <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E7E8EA] rounded-xl shadow-xl min-w-[180px] py-1 animate-fadeIn">
+       <div className="px-3 py-1.5 text-[10px] font-bold text-[#62666D] border-b border-[#F1F2F3]">تغيير الحالة إلى:</div>
+       {getAvailableStatuses(viewingBooking as unknown as Booking).map((nextStatus) => {
+         const cfg = STATUS_CONFIG[nextStatus]
+         return (
+           <button
+           key={nextStatus}
+           onClick={() => { setActiveStatusDropdown(null); handleStatusUpdate(viewingBooking.id, nextStatus) }}
+           disabled={updatingStatus === viewingBooking.id}
+           className={`w-full text-right px-3 py-2 text-xs font-bold flex items-center gap-2 hover:bg-[#F7F7F5] transition-all disabled:opacity-50 ${cfg.color}`}
+           >
+           <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.bg.replace('border-', 'border ').split(' ')[0]}`}></span>
+           {cfg.label}
+           {updatingStatus === viewingBooking.id && <FaSpinner className="animate-spin mr-auto text-[10px]" />}
+           </button>
+         )
+       })}
+     </div>
+     )}
+   </div>
+   )}
+ </div>
  </div>
 
  <div className="border-t border-[#E7E8EA] pt-4">
