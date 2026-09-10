@@ -44,9 +44,16 @@ export default function PurchasesManager() {
  const [saving, setSaving] = useState(false)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
- const canCreate = hasPermission('purchases', 'create')
- const canReceive = hasPermission('purchases', 'receive')
- const canUpdate = hasPermission('purchases', 'update')
+  const canCreate = hasPermission('purchases', 'create')
+  const canReceive = hasPermission('purchases', 'receive')
+  const canUpdate = hasPermission('purchases', 'update')
+
+  useEffect(() => {
+    if (canCreate && window.location.search.includes('create=true')) {
+      setForm({ supplier_id: '', purchase_date: new Date().toISOString().split('T')[0], notes: '', items: [{ material_id: '', quantity: 1, unit_cost: 0 }] })
+      setShowForm(true)
+    }
+  }, [canCreate])
 
  const [form, setForm] = useState({
  supplier_id: '', purchase_date: new Date().toISOString().split('T')[0], notes: '',

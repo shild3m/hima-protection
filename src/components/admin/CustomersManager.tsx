@@ -87,10 +87,16 @@ export default function CustomersManager() {
  const [togglingId, setTogglingId] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
- const canCreate = hasPermission('customers', 'create')
- const canUpdate = hasPermission('customers', 'update')
+  const canCreate = hasPermission('customers', 'create')
+  const canUpdate = hasPermission('customers', 'update')
 
- useEffect(() => {
+  useEffect(() => {
+    if (canCreate && window.location.search.includes('create=true')) {
+      setShowForm(true)
+    }
+  }, [canCreate])
+
+  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)
  debounceRef.current = setTimeout(() => {
  setDebouncedSearch(search)
