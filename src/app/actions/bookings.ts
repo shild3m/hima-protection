@@ -27,13 +27,10 @@ const MAX_PAGE_SIZE = 50
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   new: ['contacted', 'cancelled'],
-  contacted: ['confirmed', 'cancelled'],
-  confirmed: ['arrived', 'cancelled', 'no_show'],
-  arrived: ['in_progress', 'cancelled'],
+  contacted: ['in_progress', 'cancelled'],
   in_progress: ['completed'],
   completed: [],
   cancelled: [],
-  no_show: [],
 }
 
 function sanitizeError(error: unknown): string {
@@ -67,8 +64,7 @@ function validatePageSize(value: unknown): number {
 }
 
 const StatusSchema = z.enum([
-  'new', 'contacted', 'confirmed', 'arrived',
-  'in_progress', 'completed', 'cancelled', 'no_show',
+  'new', 'contacted', 'in_progress', 'completed', 'cancelled',
 ])
 
 export async function getBookings(
@@ -205,7 +201,27 @@ export async function updateBookingStatus(
       return { success: false as const, error: 'الحجز غير موجود' }
     }
 
-    const allowed = VALID_TRANSITIONS[existing.status] || []
+    let allowed = VALID_TRANSITIONS[existing.status] || []
+
+    // Super-admin undo: a cancelled booking can be returned to the status it
+    // was cancelled from (recorded in booking_status_history), falling back to 'new'.
+    if (existing.status === 'cancelled' && user.role_name === 'super_admin') {
+      const { data: lastCancel } = await supabase
+        .from('booking_status_history')
+        .select('old_status')
+        .eq('booking_id', id)
+        .eq('new_status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const TERMINAL = ['completed', 'cancelled']
+      const historyRevert =
+        lastCancel?.old_status && !TERMINAL.includes(lastCancel.old_status)
+          ? lastCancel.old_status
+          : null
+      allowed = [...allowed, historyRevert || 'new']
+    }
+
     if (!allowed.includes(newStatus)) {
       return {
         success: false as const,
@@ -250,7 +266,6 @@ export async function updateBookingStatus(
     })
 
     const STATUS_NOTIFICATIONS: Record<string, { type: string; title: string; msg: string }> = {
-      confirmed: { type: 'booking_confirmed', title: 'تم تأكيد الحجز', msg: `تم تأكيد الحجز ${id.slice(0, 8)}` },
       cancelled: { type: 'booking_cancelled', title: 'تم إلغاء الحجز', msg: `تم إلغاء الحجز ${id.slice(0, 8)}` },
       completed: { type: 'service_completed', title: 'اكتملت الخدمة', msg: `اكتملت خدمة الحجز ${id.slice(0, 8)}` },
     }
@@ -274,7 +289,7 @@ export async function getBookingStats() {
   try {
     const supabase = await createClient()
 
-    const ALL_STATUSES = ['new', 'contacted', 'confirmed', 'arrived', 'in_progress', 'completed', 'cancelled', 'no_show'] as const
+    const ALL_STATUSES = ['new', 'contacted', 'in_progress', 'completed', 'cancelled'] as const
     const counts: Record<string, number> = {}
     for (const s of ALL_STATUSES) counts[s] = 0
 

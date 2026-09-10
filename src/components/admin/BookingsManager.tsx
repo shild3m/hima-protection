@@ -62,29 +62,24 @@ interface Stats {
 type Notification = { type: 'success' | 'error'; message: string } | null
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
- new: { label: 'جديد', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
- contacted: { label: 'تم التواصل', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
- confirmed: { label: 'مؤكد', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
- arrived: { label: 'وصل', color: 'text-[#D97706]', bg: 'bg-[#FFFBEB] border-[#FDE68A]' },
- in_progress: { label: 'قيد التنفيذ', color: 'text-[#EA580C]', bg: 'bg-[#FFF7ED] border-orange-500/20' },
- completed: { label: 'مكتمل', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
- cancelled: { label: 'ملغي', color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' },
- no_show: { label: 'لم يحضر', color: 'text-[#DC2626]', bg: 'bg-[#FEF2F2] border-[#FECACA]' },
+  new: { label: 'جديد', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
+  contacted: { label: 'تم التواصل', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
+  in_progress: { label: 'قيد التنفيذ', color: 'text-[#EA580C]', bg: 'bg-[#FFF7ED] border-orange-500/20' },
+  completed: { label: 'مكتمل', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
+  cancelled: { label: 'ملغي', color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' },
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
- new: ['contacted', 'cancelled'],
- contacted: ['confirmed', 'cancelled'],
- confirmed: ['arrived', 'cancelled', 'no_show'],
- arrived: ['in_progress', 'cancelled'],
- in_progress: ['completed'],
- completed: [],
- cancelled: [],
- no_show: [],
+  new: ['contacted', 'cancelled'],
+  contacted: ['in_progress', 'cancelled'],
+  in_progress: ['completed'],
+  completed: [],
+  cancelled: [],
 }
 
 export default function BookingsManager() {
- const { hasPermission } = useAuth()
+  const { hasPermission, staffInfo } = useAuth()
+  const isSuperAdmin = staffInfo?.role === 'super_admin'
  const [bookings, setBookings] = useState<Booking[]>([])
  const [loading, setLoading] = useState(true)
  const [search, setSearch] = useState('')
@@ -285,14 +280,27 @@ export default function BookingsManager() {
   }
  }
 
- const statusBadge = (status: string) => {
- const config = STATUS_CONFIG[status] || { label: status, color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' }
- return (
- <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${config.bg} ${config.color}`}>
- {config.label}
- </span>
- )
- }
+const statusBadge = (status: string) => {
+  const config = STATUS_CONFIG[status] || { label: status, color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' }
+  return (
+  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${config.bg} ${config.color}`}>
+  {config.label}
+  </span>
+  )
+  }
+
+  const TERMINAL_STATUSES = ['completed', 'cancelled']
+
+  // Revert target for an accidentally cancelled booking: the status it was
+  // cancelled from (matching the server rule in updateBookingStatus), else 'new'.
+  const cancelRevertTarget = (booking: Booking | BookingDetail): string => {
+  if (booking.status !== 'cancelled') return 'new'
+  const history = (booking as BookingDetail).status_history
+  if (!history?.length) return 'new'
+  const lastCancel = [...history].reverse().find(h => h.new_status === 'cancelled')
+  const prev = lastCancel?.old_status
+  return prev && !TERMINAL_STATUSES.includes(prev) ? prev : 'new'
+  }
 
  const totalPages = pagination?.totalPages || 1
 
@@ -393,11 +401,12 @@ export default function BookingsManager() {
  <>
  <div className="grid gap-3">
  {bookings.map((booking) => (
- <div
- key={booking.id}
- className="group bg-white border border-[#E7E8EA] hover:border-[#E7E8EA] rounded-xl p-3 sm:p-4 flex items-center justify-between transition-all duration-200"
- >
- <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+<div
+  key={booking.id}
+  className="group bg-white border border-[#E7E8EA] hover:border-[#E7E8EA] rounded-xl p-3 sm:p-4 flex flex-col transition-all duration-200"
+  >
+  <div className="flex items-center justify-between gap-2">
+  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border ${
  booking.status === 'completed'
  ? 'bg-[#ECFDF5] border-[#A7F3D0]'
@@ -452,12 +461,47 @@ export default function BookingsManager() {
  onClick={() => handleViewBooking(booking)}
  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
  >
- <FaEye className="text-[9px] sm:text-[10px]" />
- <span className="hidden sm:inline">عرض</span>
- </button>
- </div>
- </div>
- ))}
+<FaEye className="text-[9px] sm:text-[10px]" />
+  <span className="hidden sm:inline">عرض</span>
+  </button>
+  </div>
+  </div>
+
+  {canUpdate && VALID_TRANSITIONS[booking.status]?.length > 0 && (
+  <div className="mt-3 pt-3 border-t border-[#E7E8EA] flex flex-wrap items-center gap-2">
+  <span className="text-[10px] font-bold text-[#62666D]">تغيير إلى:</span>
+  {VALID_TRANSITIONS[booking.status].map((nextStatus) => {
+  const config = STATUS_CONFIG[nextStatus]
+  return (
+  <button
+  key={nextStatus}
+  onClick={() => handleStatusUpdate(booking.id, nextStatus)}
+  disabled={updatingStatus === booking.id}
+  className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all hover:scale-105 disabled:opacity-50 ${config.bg} ${config.color}`}
+  >
+  {updatingStatus === booking.id ? <FaSpinner className="animate-spin inline" /> : null}
+  {' '}{config.label}
+  </button>
+  )
+  })}
+  </div>
+  )}
+
+  {canUpdate && isSuperAdmin && booking.status === 'cancelled' && (
+  <div className="mt-3 pt-3 border-t border-[#E7E8EA] flex flex-wrap items-center gap-2">
+  <span className="text-[10px] font-bold text-[#62666D]">استرجاع:</span>
+  <button
+  onClick={() => handleStatusUpdate(booking.id, cancelRevertTarget(booking))}
+  disabled={updatingStatus === booking.id}
+  className="px-2 py-1 rounded-md text-[10px] font-bold border transition-all hover:scale-105 disabled:opacity-50 bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]"
+  >
+  {updatingStatus === booking.id ? <FaSpinner className="animate-spin inline" /> : null}
+  {' '}إلغاء الإلغاء
+  </button>
+  </div>
+  )}
+  </div>
+  ))}
  </div>
 
  {pagination && pagination.total > 0 && (
@@ -596,29 +640,44 @@ export default function BookingsManager() {
  </div>
  </div>
 
- {canUpdate && VALID_TRANSITIONS[viewingBooking.status]?.length > 0 && (
- <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-xs font-bold text-[#62666D] mb-3">تحديث الحالة</h4>
- <div className="flex flex-wrap gap-2">
- {VALID_TRANSITIONS[viewingBooking.status].map((nextStatus) => {
- const config = STATUS_CONFIG[nextStatus]
- return (
- <button
- key={nextStatus}
- onClick={() => handleStatusUpdate(viewingBooking.id, nextStatus)}
- disabled={updatingStatus === viewingBooking.id}
- className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all hover:scale-105 disabled:opacity-50 ${config.bg} ${config.color}`}
- >
- {updatingStatus === viewingBooking.id ? (
- <FaSpinner className="animate-spin inline" />
- ) : null}
- {' '}→ {config.label}
- </button>
- )
- })}
- </div>
- </div>
- )}
+{canUpdate && VALID_TRANSITIONS[viewingBooking.status]?.length > 0 && (
+  <div className="border-t border-[#E7E8EA] pt-4">
+  <h4 className="text-xs font-bold text-[#62666D] mb-3">تحديث الحالة</h4>
+  <div className="flex flex-wrap gap-2">
+  {VALID_TRANSITIONS[viewingBooking.status].map((nextStatus) => {
+  const config = STATUS_CONFIG[nextStatus]
+  return (
+  <button
+  key={nextStatus}
+  onClick={() => handleStatusUpdate(viewingBooking.id, nextStatus)}
+  disabled={updatingStatus === viewingBooking.id}
+  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all hover:scale-105 disabled:opacity-50 ${config.bg} ${config.color}`}
+  >
+  {updatingStatus === viewingBooking.id ? (
+  <FaSpinner className="animate-spin inline" />
+  ) : null}
+  {' '}→ {config.label}
+  </button>
+  )
+  })}
+  </div>
+  </div>
+  )}
+
+  {canUpdate && isSuperAdmin && viewingBooking.status === 'cancelled' && (
+  <div className="border-t border-[#E7E8EA] pt-4">
+  <h4 className="text-xs font-bold text-[#62666D] mb-3">استرجاع الحجز</h4>
+  <button
+  onClick={() => handleStatusUpdate(viewingBooking.id, cancelRevertTarget(viewingBooking))}
+  disabled={updatingStatus === viewingBooking.id}
+  className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all hover:scale-105 disabled:opacity-50 bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]"
+  >
+  {updatingStatus === viewingBooking.id ? <FaSpinner className="animate-spin inline" /> : null}
+  {' '}إلغاء الإلغاء — الرجوع إلى {STATUS_CONFIG[cancelRevertTarget(viewingBooking)]?.label || 'جديد'}
+  </button>
+  <p className="text-[10px] text-[#62666D] mt-2">متاح للسوبر أدمن فقط، ويُرجِع الحجز للحالة التي كانت قبل الإلغاء.</p>
+  </div>
+  )}
 
  {viewingBooking.status_history && viewingBooking.status_history.length > 0 && (
  <div className="border-t border-[#E7E8EA] pt-4">
