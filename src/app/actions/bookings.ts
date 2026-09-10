@@ -476,16 +476,33 @@ export async function getDeleteTokenHash() {
   }
 }
 
-export async function setDeleteToken(newTokenHash: string) {
+export async function setDeleteToken(currentTokenHash: string, newTokenHash: string) {
   const user = await requireAuth()
   if (user.role_name !== 'super_admin') {
     return { success: false as const, error: 'غير مصرح' }
   }
+  if (!currentTokenHash || currentTokenHash.length < 8) {
+    return { success: false as const, error: 'يرجى إدخال الرمز الحالي' }
+  }
   if (!newTokenHash || newTokenHash.length < 8) {
-    return { success: false as const, error: 'الرمز غير صالح' }
+    return { success: false as const, error: 'الرمز الجديد غير صالح' }
+  }
+  if (currentTokenHash === newTokenHash) {
+    return { success: false as const, error: 'الرمز الجديد مطابق للقديم' }
   }
   try {
     const supabase = await createClient()
+
+    const { data: setting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'booking_delete_secret')
+      .maybeSingle()
+
+    if (!setting?.value || currentTokenHash !== setting.value) {
+      return { success: false as const, error: 'الرمز الحالي غير صحيح' }
+    }
+
     const { error } = await supabase
       .from('system_settings')
       .upsert({ key: 'booking_delete_secret', value: newTokenHash, updated_at: new Date().toISOString(), updated_by: user.auth_user_id })

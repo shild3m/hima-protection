@@ -104,6 +104,7 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   const [deleteError, setDeleteError] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [showTokenSettings, setShowTokenSettings] = useState(false)
+  const [currentToken, setCurrentToken] = useState('')
   const [newToken, setNewToken] = useState('')
   const [tokenSettingsLoading, setTokenSettingsLoading] = useState(false)
   const [tokenSettingsError, setTokenSettingsError] = useState('')
@@ -291,16 +292,17 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
  }
 
  const handleSaveToken = async () => {
-   if (!newToken.trim()) return
+   if (!currentToken.trim() || !newToken.trim()) return
    setTokenSettingsLoading(true)
    setTokenSettingsError('')
    setTokenSettingsSuccess('')
    try {
      const { sha256 } = await import('@/lib/crypto')
      const { setDeleteToken } = await import('@/app/actions/bookings')
-     const result = await setDeleteToken(await sha256(newToken.trim()))
+     const result = await setDeleteToken(await sha256(currentToken.trim()), await sha256(newToken.trim()))
      if (result.success) {
        setTokenSettingsSuccess('تم تحديث رمز الحذف بنجاح')
+       setCurrentToken('')
        setNewToken('')
      } else {
        setTokenSettingsError(result.error || 'حدث خطأ')
@@ -426,7 +428,7 @@ const statusBadge = (status: string, booking?: Booking) => {
  </button>
  {isSuperAdmin && (
  <button
- onClick={() => { setShowTokenSettings(true); setNewToken(''); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
+ onClick={() => { setShowTokenSettings(true); setCurrentToken(''); setNewToken(''); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
  className="px-3 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#62666D] rounded-xl text-sm font-bold transition-all flex items-center gap-2"
  title="إعدادات الحذف"
  >
@@ -1018,7 +1020,7 @@ const statusBadge = (status: string, booking?: Booking) => {
   </div>
 
   <p className="text-xs text-[#62666D] mb-4 leading-relaxed">
-  الرمز يُخزّن كـ hash فقط (لا يمكن استرجاعه). أدخل رمزًا جديدًا لاستبداله — المستخدمون يقارنون مدخلاتهم بالـhash عند الحذف.
+  لتغيير رمز الحذف: أدخل الرمز الحالي أولًا للتحقق، ثم الرمز الجديد. الرمز يُخزّن كـ hash فقط (لا يمكن استرجاعه) — وإذا نسيته يمكنك تغييره من أداة Supabase مباشرة.
   </p>
 
   {tokenSettingsSuccess && (
@@ -1033,21 +1035,32 @@ const statusBadge = (status: string, booking?: Booking) => {
   )}
 
   <div className="mb-4">
-  <label className="text-xs font-bold text-[#62666D] mb-1 block">الرمز الجديد</label>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">الرمز الحالي *</label>
+  <input
+  type="password"
+  value={currentToken}
+  onChange={e => { setCurrentToken(e.target.value); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
+  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
+  placeholder="الرمز الحالي..."
+  autoFocus
+  />
+  </div>
+
+  <div className="mb-4">
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">الرمز الجديد *</label>
   <input
   type="password"
   value={newToken}
   onChange={e => { setNewToken(e.target.value); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
   className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
   placeholder="رمز سري جديد..."
-  autoFocus
   />
   </div>
 
   <div className="flex gap-3">
   <button
   onClick={handleSaveToken}
-  disabled={!newToken.trim() || tokenSettingsLoading}
+  disabled={!currentToken.trim() || !newToken.trim() || tokenSettingsLoading}
   className="flex-1 px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
   >
   {tokenSettingsLoading ? <><FaSpinner className="animate-spin" /> جاري الحفظ...</> : 'حفظ الرمز'}
