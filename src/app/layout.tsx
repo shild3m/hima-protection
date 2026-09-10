@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
-import { Almarai, Inter } from "next/font/google";
+import { Cairo } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-const almarai = Almarai({
-  variable: "--font-almarai",
+const cairo = Cairo({
+  variable: "--font-cairo",
   subsets: ["arabic", "latin"],
-  weight: ["300", "400", "700", "800"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "900"],
 });
 
 export const metadata: Metadata = {
@@ -113,7 +108,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${almarai.variable} ${inter.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${cairo.variable} h-full antialiased`}>
       <head>
         <script
           type="application/ld+json"
