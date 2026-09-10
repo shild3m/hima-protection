@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminProviders>
+    <AdminProviders serverUser={user}>
       <div className="min-h-screen bg-[#F7F7F5] flex" dir="rtl">
         <AdminSidebar
           userName={user.name}

@@ -39,11 +39,11 @@ function hasAuthCookie() {
   }
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children, initialStaffInfo }: { children: React.ReactNode; initialStaffInfo?: StaffInfo | null }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isStaff, setIsStaff] = useState(false)
-  const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null)
+  const [isStaff, setIsStaff] = useState(!!initialStaffInfo)
+  const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(initialStaffInfo ?? null)
   const mountedRef = useRef(true)
   const subRef = useRef<{ unsubscribe: () => void } | null>(null)
   const supabasePromiseRef = useRef<Promise<typeof import('@/utils/supabase/client')> | null>(null)
@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user?.id) { setIsStaff(false); setStaffInfo(null); return }
+    if (initialStaffInfo) return
     fetch('/api/check-staff', { method: 'POST' })
       .then(r => r.json())
       .then(d => {
@@ -103,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => { if (mountedRef.current) { setIsStaff(false); setStaffInfo(null) } })
-  }, [user?.id])
+  }, [user?.id, initialStaffInfo])
 
   const signOut = useCallback(async () => {
     const { createClient } = await import('@/utils/supabase/client')
