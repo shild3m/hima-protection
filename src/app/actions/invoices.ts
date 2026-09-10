@@ -210,6 +210,8 @@ export async function createInvoice(input: InvoiceInput) {
       return { success: false as const, error: data?.error || 'تعذر إنشاء الفاتورة' }
     }
 
+    await logAudit({ userId: user.auth_user_id, action: 'create', resourceType: 'invoices', resourceId: data.data?.id || null, newValues: { customer_id: validated.customer_id } })
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -368,6 +370,8 @@ export async function updateInvoice(id: string, input: Partial<InvoiceInput>) {
     if (!data || !data.success) {
       return { success: false as const, error: data?.error || 'تعذر تحديث الفاتورة' }
     }
+
+    await logAudit({ userId: user.auth_user_id, action: 'update', resourceType: 'invoices', resourceId: id, newValues: input })
 
     return { success: true as const, data }
   } catch (err) {

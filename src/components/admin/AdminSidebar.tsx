@@ -26,6 +26,8 @@ import {
   FaUserShield,
   FaBell,
   FaClipboardCheck,
+  FaTag,
+  FaReceipt,
 } from 'react-icons/fa'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -47,14 +49,17 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/payments', label: 'المدفوعات', icon: <FaMoneyBillWave />, resource: 'payments', action: 'read' },
   { href: '/admin/materials', label: 'المواد', icon: <FaCubes />, resource: 'materials', action: 'read' },
   { href: '/admin/suppliers', label: 'الموردين', icon: <FaTruck />, resource: 'suppliers', action: 'read' },
+  { href: '/admin/expenses', label: 'المصروفات', icon: <FaReceipt />, resource: 'expenses', action: 'read' },
   { href: '/admin/purchases', label: 'المشتريات', icon: <FaShoppingCart />, resource: 'purchases', action: 'read' },
   { href: '/admin/inventory', label: 'المخزون', icon: <FaWarehouse />, resource: 'inventory', action: 'read' },
   { href: '/admin/dealers', label: 'الوكلاء', icon: <FaHandshake />, resource: 'dealers', action: 'read' },
   { href: '/admin/referrals', label: 'الإحالات', icon: <FaHandshake />, resource: 'referrals', action: 'read' },
   { href: '/admin/commissions', label: 'العمولات', icon: <FaExchangeAlt />, resource: 'commissions', action: 'read' },
+  { href: '/admin/commission-rules', label: 'قواعد العمولات', icon: <FaExchangeAlt />, resource: 'commission_rules', action: 'read' },
+  { href: '/admin/offers', label: 'العروض', icon: <FaTag />, resource: 'offers', action: 'read' },
   { href: '/admin/notifications', label: 'الإشعارات', icon: <FaBell />, resource: 'notifications', action: 'read' },
   { href: '/admin/users', label: 'المستخدمين', icon: <FaUsers />, resource: 'staff', action: 'read' },
-  { href: '/admin/roles', label: 'الأدوار', icon: <FaUserShield />, resource: 'roles', action: 'read' },
+  { href: '/admin/roles', label: 'الأدوار', icon: <FaUserShield />, resource: 'roles', action: 'manage' },
   { href: '/admin/audit-logs', label: 'سجل التدقيق', icon: <FaClipboardCheck />, resource: 'audit_logs', action: 'read' },
   { href: '/admin/reports', label: 'التقارير', icon: <FaClipboardList />, resource: 'reports', action: 'read' },
   { href: '/admin/settings', label: 'الإعدادات', icon: <FaCog />, resource: 'settings', action: 'read' },

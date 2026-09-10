@@ -4,7 +4,7 @@ import { requirePermission, getSupabaseAdmin } from '@/lib/auth'
 
 export async function getRoles() {
   try {
-    await requirePermission('roles', 'read')
+    await requirePermission('roles', 'manage')
     const admin = getSupabaseAdmin()
     const { data, error } = await admin
       .from('roles')
@@ -19,7 +19,7 @@ export async function getRoles() {
 
 export async function getRolePermissions(roleId: string) {
   try {
-    await requirePermission('roles', 'read')
+    await requirePermission('roles', 'manage')
     const admin = getSupabaseAdmin()
     const { data, error } = await admin
       .from('role_permissions')
@@ -34,7 +34,7 @@ export async function getRolePermissions(roleId: string) {
 
 export async function getAllPermissions() {
   try {
-    await requirePermission('roles', 'read')
+    await requirePermission('roles', 'manage')
     const admin = getSupabaseAdmin()
     const { data, error } = await admin
       .from('permissions')
@@ -49,7 +49,7 @@ export async function getAllPermissions() {
 
 export async function getStaffCountByRole() {
   try {
-    await requirePermission('roles', 'read')
+    await requirePermission('roles', 'manage')
     const admin = getSupabaseAdmin()
     const { data, error } = await admin
       .from('staff')

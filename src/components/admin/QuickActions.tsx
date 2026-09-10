@@ -19,9 +19,9 @@ interface QuickAction {
 }
 
 const ACTIONS: QuickAction[] = [
-  { href: '/booking', label: 'حجز جديد', icon: <FaCalendarPlus />, iconBg: 'bg-[#10B981]/8', iconColor: 'text-[#059669]', resource: 'bookings', action: 'create' },
+  { href: '/admin/bookings?create=true', label: 'حجز جديد', icon: <FaCalendarPlus />, iconBg: 'bg-[#10B981]/8', iconColor: 'text-[#059669]', resource: 'bookings', action: 'create' },
   { href: '/admin/customers?create=true', label: 'عميل جديد', icon: <FaUserPlus />, iconBg: 'bg-[#3B82F6]/8', iconColor: 'text-[#2563EB]', resource: 'customers', action: 'create' },
-  { href: '/admin/invoices', label: 'فاتورة جديدة', icon: <FaFileInvoiceDollar />, iconBg: 'bg-[#F59E0B]/8', iconColor: 'text-[#D97706]', resource: 'invoices', action: 'create' },
+  { href: '/admin/invoices?create=true', label: 'فاتورة جديدة', icon: <FaFileInvoiceDollar />, iconBg: 'bg-[#F59E0B]/8', iconColor: 'text-[#D97706]', resource: 'invoices', action: 'create' },
   { href: '/admin/purchases?create=true', label: 'مشتريات جديدة', icon: <FaShoppingCart />, iconBg: 'bg-[#8B5CF6]/8', iconColor: 'text-[#7C3AED]', resource: 'purchases', action: 'create' },
 ]
 

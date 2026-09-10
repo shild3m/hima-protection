@@ -1,5 +1,10 @@
-import UsersManager from '@/components/admin/UsersManager'
+import AdminPageGuard from '@/components/admin/AdminPageGuard'
+import StaffManager from '@/components/admin/UsersManager'
 
 export default function AdminUsersPage() {
-  return <UsersManager />
+  return (
+    <AdminPageGuard resource="staff" action="read">
+      <StaffManager />
+    </AdminPageGuard>
+  )
 }

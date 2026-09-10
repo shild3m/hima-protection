@@ -109,7 +109,7 @@ export async function requirePermission(resource: string, action: string) {
   const user = await requireAuth()
   const perm = `${resource}:${action}`
   if (!user.permissions.includes(perm)) {
-    redirect('/staff-login')
+    redirect('/admin/unauthorized')
   }
   return user
 }

@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { requireAuth, getSupabaseAdmin } from '@/lib/auth'
+import { logAudit } from '@/lib/audit'
 
 const ServiceSchema = z.object({
   name: z.string().min(1, 'اسم الخدمة مطلوب').max(200),
@@ -134,6 +135,8 @@ export async function createService(input: ServiceInput) {
       return { success: false as const, error: 'تعذر إنشاء الخدمة' }
     }
 
+    await logAudit({ userId: user.staff_id, action: 'create', resourceType: 'service', resourceId: data.id, newValues: data })
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -204,6 +207,8 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
       return { success: false as const, error: 'تعذر تحديث الخدمة' }
     }
 
+    await logAudit({ userId: user.staff_id, action: 'update', resourceType: 'service', resourceId: id, newValues: updateData })
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -238,6 +243,8 @@ export async function toggleServiceStatus(id: string) {
       console.error('Toggle service error:', error)
       return { success: false as const, error: 'تعذر تغيير حالة الخدمة' }
     }
+
+    await logAudit({ userId: user.staff_id, action: 'toggle_status', resourceType: 'service', resourceId: id, newValues: { is_active: !existing.is_active } })
 
     return { success: true as const, data }
   } catch {
@@ -282,6 +289,8 @@ export async function deleteService(id: string) {
       console.error('Delete service error:', error)
       return { success: false as const, error: 'تعذر حذف الخدمة' }
     }
+
+    await logAudit({ userId: user.staff_id, action: 'delete', resourceType: 'service', resourceId: id })
 
     return { success: true as const }
   } catch {

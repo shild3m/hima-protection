@@ -13,6 +13,7 @@ interface RateLimitResult {
 const ALLOWED_ACTIONS = new Set([
   'staff:create',
   'staff:update',
+  'bookings:create',
   'bookings:update',
   'invoices:create',
   'invoices:update',

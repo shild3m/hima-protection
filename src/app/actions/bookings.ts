@@ -7,6 +7,21 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
 import { createNotificationsForRole } from '@/app/actions/notifications'
 
+export interface AdminBookingInput {
+  customerName: string
+  customerPhone: string
+  customerEmail?: string
+  vehicleMake: string
+  vehicleModel: string
+  vehicleYear: number
+  vehicleColor?: string
+  vehiclePlate?: string
+  serviceId: string
+  preferredDate: string
+  preferredTime: string
+  notes?: string
+}
+
 const PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 50
 
@@ -282,6 +297,103 @@ export async function getBookingStats() {
       success: true as const,
       data: { counts, total },
     }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+function normalizePhone(phone: string): string {
+  return phone.replace(/[^0-9]/g, '')
+}
+
+export async function adminCreateBooking(input: AdminBookingInput) {
+  const user = await requireAuth()
+  if (!user.permissions.includes('bookings:create')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  const rl = await checkRateLimit('bookings:create')
+  if (!rl.ok) return { success: false as const, error: rl.error }
+
+  if (!input.customerName || input.customerName.trim().length < 2) {
+    return { success: false as const, error: 'اسم العميل مطلوب (حرفين على الأقل)' }
+  }
+  const normalizedPhone = normalizePhone(input.customerPhone)
+  if (normalizedPhone.length < 5) {
+    return { success: false as const, error: 'رقم الهاتف غير صحيح' }
+  }
+  if (!input.vehicleMake || input.vehicleMake.trim().length < 1) {
+    return { success: false as const, error: 'ماركة السيارة مطلوبة' }
+  }
+  if (!input.vehicleModel || input.vehicleModel.trim().length < 1) {
+    return { success: false as const, error: 'موديل السيارة مطلوب' }
+  }
+  if (!input.vehicleYear || input.vehicleYear < 1900 || input.vehicleYear > new Date().getFullYear() + 1) {
+    return { success: false as const, error: 'سنة الصنع غير صحيحة' }
+  }
+  if (!input.serviceId) {
+    return { success: false as const, error: 'يرجى اختيار الخدمة' }
+  }
+  if (!input.preferredDate) {
+    return { success: false as const, error: 'التاريخ المفضل مطلوب' }
+  }
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(input.preferredDate)) {
+    return { success: false as const, error: 'صيغة التاريخ غير صحيحة' }
+  }
+  if (!input.preferredTime) {
+    return { success: false as const, error: 'الوقت المفضل مطلوب' }
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('create_booking', {
+      p_customer_name: input.customerName.trim(),
+      p_customer_phone: normalizedPhone,
+      p_customer_email: input.customerEmail?.trim() || null,
+      p_vehicle_make: input.vehicleMake.trim(),
+      p_vehicle_model: input.vehicleModel.trim(),
+      p_vehicle_year: input.vehicleYear,
+      p_vehicle_color: input.vehicleColor?.trim() || null,
+      p_vehicle_plate: input.vehiclePlate?.trim() || null,
+      p_service_id: input.serviceId,
+      p_preferred_date: input.preferredDate,
+      p_preferred_time: input.preferredTime,
+      p_notes: input.notes?.trim() || null,
+      p_idempotency_key: null,
+    })
+
+    if (error) {
+      console.error('Admin create booking RPC error:', error)
+      return { success: false as const, error: 'حدث خطأ أثناء إنشاء الحجز' }
+    }
+
+    if (!data) {
+      return { success: false as const, error: 'حدث خطأ غير متوقع' }
+    }
+
+    const result = data as {
+      success: boolean
+      booking_id?: string
+      error?: string
+      message?: string
+    }
+
+    if (!result.success) {
+      return { success: false as const, error: result.error || 'حدث خطأ' }
+    }
+
+    await logAudit({
+      userId: user.auth_user_id,
+      action: 'admin_booking_created',
+      resourceType: 'bookings',
+      resourceId: result.booking_id || '',
+      newValues: { customer_name: input.customerName.trim(), service_id: input.serviceId },
+    })
+
+    createNotificationsForRole('bookings', 'read', 'new_booking', 'حجز جديد', `تم إنشاء حجز جديد بواسطة الأدمن`, 'bookings', result.booking_id || '').catch(() => {})
+
+    return { success: true as const, bookingId: result.booking_id }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }

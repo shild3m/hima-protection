@@ -16,6 +16,10 @@ import {
  FaChevronLeft,
  FaSync,
  FaClock,
+ FaPlus,
+ FaUser,
+ FaEnvelope,
+ FaCalendarPlus,
 } from 'react-icons/fa'
 
 interface Booking {
@@ -96,6 +100,48 @@ export default function BookingsManager() {
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
  const canUpdate = hasPermission('bookings', 'update')
+ const canCreate = hasPermission('bookings', 'create')
+ const [showCreateForm, setShowCreateForm] = useState(false)
+ const [services, setServices] = useState<{ id: string; name: string; base_price: number }[]>([])
+ const [createFormData, setCreateFormData] = useState({
+   customerName: '',
+   customerPhone: '',
+   customerEmail: '',
+   vehicleMake: '',
+   vehicleModel: '',
+   vehicleYear: new Date().getFullYear().toString(),
+   vehicleColor: '',
+   vehiclePlate: '',
+   serviceId: '',
+   preferredDate: '',
+   preferredTime: '',
+   notes: '',
+ })
+ const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
+ const [createSubmitting, setCreateSubmitting] = useState(false)
+ const [createNotification, setCreateNotification] = useState<Notification>(null)
+
+ useEffect(() => {
+   if (canCreate && window.location.search.includes('create=true')) {
+     setShowCreateForm(true)
+   }
+ }, [canCreate])
+
+ useEffect(() => {
+   if (showCreateForm && services.length === 0) {
+     import('@/app/actions/services').then(({ getServices }) => {
+       getServices().then(res => {
+         if (res.success) setServices(res.data || [])
+       })
+     })
+   }
+ }, [showCreateForm, services.length])
+
+ useEffect(() => {
+   if (!createNotification) return
+   const t = setTimeout(() => setCreateNotification(null), 4000)
+   return () => clearTimeout(t)
+ }, [createNotification])
 
  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -169,25 +215,74 @@ export default function BookingsManager() {
  }
 
  const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
- setUpdatingStatus(bookingId)
- try {
- const { updateBookingStatus } = await import('@/app/actions/bookings')
- const result = await updateBookingStatus(bookingId, newStatus)
- if (result.success) {
- setNotification({ type: 'success', message: 'تم تحديث حالة الحجز بنجاح' })
- fetchBookings()
- fetchStats()
- if (viewingBooking?.id === bookingId) {
- handleViewBooking({ id: bookingId } as Booking)
+  setUpdatingStatus(bookingId)
+  try {
+  const { updateBookingStatus } = await import('@/app/actions/bookings')
+  const result = await updateBookingStatus(bookingId, newStatus)
+  if (result.success) {
+  setNotification({ type: 'success', message: 'تم تحديث حالة الحجز بنجاح' })
+  fetchBookings()
+  fetchStats()
+  if (viewingBooking?.id === bookingId) {
+  handleViewBooking({ id: bookingId } as Booking)
+  }
+  } else {
+  setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
+  }
+  } catch {
+  setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+  } finally {
+  setUpdatingStatus(null)
+  }
  }
- } else {
- setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
- }
- } catch {
- setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
- } finally {
- setUpdatingStatus(null)
- }
+
+ const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
+
+ const handleCreateBookingSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setCreateErrors({})
+  const errs: Record<string, string> = {}
+  if (!createFormData.customerName.trim() || createFormData.customerName.trim().length < 2) errs.customerName = 'اسم العميل مطلوب (حرفين على الأقل)'
+  if (!createFormData.customerPhone.trim() || createFormData.customerPhone.trim().length < 5) errs.customerPhone = 'رقم الهاتف مطلوب'
+  if (!createFormData.vehicleMake.trim()) errs.vehicleMake = 'ماركة السيارة مطلوبة'
+  if (!createFormData.vehicleModel.trim()) errs.vehicleModel = 'موديل السيارة مطلوب'
+  const yr = parseInt(createFormData.vehicleYear)
+  if (!createFormData.vehicleYear || yr < 1900 || yr > new Date().getFullYear() + 1) errs.vehicleYear = 'سنة الصنع غير صحيحة'
+  if (!createFormData.serviceId) errs.serviceId = 'يرجى اختيار الخدمة'
+  if (!createFormData.preferredDate) errs.preferredDate = 'التاريخ المفضل مطلوب'
+  if (!createFormData.preferredTime) errs.preferredTime = 'الوقت المفضل مطلوب'
+  if (Object.keys(errs).length > 0) { setCreateErrors(errs); return }
+  setCreateSubmitting(true)
+  try {
+  const { adminCreateBooking } = await import('@/app/actions/bookings')
+  const result = await adminCreateBooking({
+  customerName: createFormData.customerName.trim(),
+  customerPhone: createFormData.customerPhone.trim(),
+  customerEmail: createFormData.customerEmail.trim() || undefined,
+  vehicleMake: createFormData.vehicleMake.trim(),
+  vehicleModel: createFormData.vehicleModel.trim(),
+  vehicleYear: parseInt(createFormData.vehicleYear),
+  vehicleColor: createFormData.vehicleColor.trim() || undefined,
+  vehiclePlate: createFormData.vehiclePlate.trim() || undefined,
+  serviceId: createFormData.serviceId,
+  preferredDate: createFormData.preferredDate,
+  preferredTime: createFormData.preferredTime,
+  notes: createFormData.notes.trim() || undefined,
+  })
+  if (result.success) {
+  setCreateNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
+  setShowCreateForm(false)
+  setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', vehicleMake: '', vehicleModel: '', vehicleYear: new Date().getFullYear().toString(), vehicleColor: '', vehiclePlate: '', serviceId: '', preferredDate: '', preferredTime: '', notes: '' })
+  fetchBookings()
+  fetchStats()
+  } else {
+  setCreateNotification({ type: 'error', message: result.error || 'حدث خطأ' })
+  }
+  } catch {
+  setCreateNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+  } finally {
+  setCreateSubmitting(false)
+  }
  }
 
  const statusBadge = (status: string) => {
@@ -231,6 +326,15 @@ export default function BookingsManager() {
  </h1>
  <p className="text-[#62666D] text-sm mt-1 mr-11">عرض وإدارة حجوزات العملاء</p>
  </div>
+ {canCreate && (
+ <button
+ onClick={() => setShowCreateForm(true)}
+ className="px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2"
+ >
+ <FaPlus className="text-xs" />
+ حجز جديد
+ </button>
+ )}
  </div>
 
  {stats && (
@@ -533,9 +637,120 @@ export default function BookingsManager() {
  )}
  </div>
  )}
- </div>
- </div>
- )}
- </div>
- )
+  </div>
+  </div>
+  )}
+
+  {showCreateForm && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setShowCreateForm(false)}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+  <div className="flex items-center justify-between mb-4">
+  <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
+  <FaCalendarPlus className="text-[#DC2626] text-sm" />
+  حجز جديد
+  </h3>
+  <button onClick={() => setShowCreateForm(false)} className="text-[#62666D] hover:text-[#111214] transition">
+  <FaTimes />
+  </button>
+  </div>
+
+  {createNotification && (
+  <div className={`p-3 rounded-xl border text-sm font-bold mb-4 ${
+  createNotification.type === 'success' ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]' : 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]'
+  }`}>
+  {createNotification.message}
+  </div>
+  )}
+
+  <form onSubmit={handleCreateBookingSubmit} className="space-y-4">
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">اسم العميل *</label>
+  <input type="text" value={createFormData.customerName} onChange={e => setCreateFormData(p => ({ ...p, customerName: e.target.value }))} className={`w-full bg-white border ${createErrors.customerName ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]`} placeholder="الاسم الكامل" />
+  {createErrors.customerName && <p className="text-[#DC2626] text-xs mt-1">{createErrors.customerName}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">رقم الهاتف *</label>
+  <input type="tel" value={createFormData.customerPhone} onChange={e => setCreateFormData(p => ({ ...p, customerPhone: e.target.value }))} className={`w-full bg-white border ${createErrors.customerPhone ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]`} placeholder="05XXXXXXXX" dir="ltr" />
+  {createErrors.customerPhone && <p className="text-[#DC2626] text-xs mt-1">{createErrors.customerPhone}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">البريد الإلكتروني (اختياري)</label>
+  <input type="email" value={createFormData.customerEmail} onChange={e => setCreateFormData(p => ({ ...p, customerEmail: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]" placeholder="email@example.com" dir="ltr" />
+  </div>
+
+  <div className="border-t border-[#E7E8EA] pt-4">
+  <h4 className="text-sm font-bold text-[#111214] mb-3">بيانات السيارة</h4>
+  <div className="grid grid-cols-2 gap-3">
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">الماركة *</label>
+  <input type="text" value={createFormData.vehicleMake} onChange={e => setCreateFormData(p => ({ ...p, vehicleMake: e.target.value }))} className={`w-full bg-white border ${createErrors.vehicleMake ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]`} placeholder="مثال: تويوتا" />
+  {createErrors.vehicleMake && <p className="text-[#DC2626] text-xs mt-1">{createErrors.vehicleMake}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">الموديل *</label>
+  <input type="text" value={createFormData.vehicleModel} onChange={e => setCreateFormData(p => ({ ...p, vehicleModel: e.target.value }))} className={`w-full bg-white border ${createErrors.vehicleModel ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]`} placeholder="مثال: كامري" />
+  {createErrors.vehicleModel && <p className="text-[#DC2626] text-xs mt-1">{createErrors.vehicleModel}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">سنة الصنع *</label>
+  <input type="number" value={createFormData.vehicleYear} onChange={e => setCreateFormData(p => ({ ...p, vehicleYear: e.target.value }))} min="1900" max={new Date().getFullYear() + 1} className={`w-full bg-white border ${createErrors.vehicleYear ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]`} dir="ltr" />
+  {createErrors.vehicleYear && <p className="text-[#DC2626] text-xs mt-1">{createErrors.vehicleYear}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">اللون</label>
+  <input type="text" value={createFormData.vehicleColor} onChange={e => setCreateFormData(p => ({ ...p, vehicleColor: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]" placeholder="مثال: أبيض" />
+  </div>
+  <div className="col-span-2">
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">رقم اللوحة</label>
+  <input type="text" value={createFormData.vehiclePlate} onChange={e => setCreateFormData(p => ({ ...p, vehiclePlate: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]" placeholder="مثال: أ ب ج 1234" />
+  </div>
+  </div>
+  </div>
+
+  <div className="border-t border-[#E7E8EA] pt-4">
+  <h4 className="text-sm font-bold text-[#111214] mb-3">الخدمة والموعد</h4>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">الخدمة *</label>
+  <select value={createFormData.serviceId} onChange={e => setCreateFormData(p => ({ ...p, serviceId: e.target.value }))} className={`w-full bg-white border ${createErrors.serviceId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] appearance-none cursor-pointer`}>
+  <option value="">اختر الخدمة</option>
+  {services.map(s => <option key={s.id} value={s.id}>{s.name}{s.base_price ? ` — ${s.base_price.toLocaleString('ar-SA')} ر.س` : ''}</option>)}
+  </select>
+  {createErrors.serviceId && <p className="text-[#DC2626] text-xs mt-1">{createErrors.serviceId}</p>}
+  </div>
+  <div className="grid grid-cols-2 gap-3 mt-3">
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">التاريخ المفضل *</label>
+  <input type="date" value={createFormData.preferredDate} onChange={e => setCreateFormData(p => ({ ...p, preferredDate: e.target.value }))} min={new Date().toISOString().split('T')[0]} className={`w-full bg-white border ${createErrors.preferredDate ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]`} />
+  {createErrors.preferredDate && <p className="text-[#DC2626] text-xs mt-1">{createErrors.preferredDate}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">الوقت المفضل *</label>
+  <select value={createFormData.preferredTime} onChange={e => setCreateFormData(p => ({ ...p, preferredTime: e.target.value }))} className={`w-full bg-white border ${createErrors.preferredTime ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] appearance-none cursor-pointer`}>
+  <option value="">اختر الوقت</option>
+  {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+  </select>
+  {createErrors.preferredTime && <p className="text-[#DC2626] text-xs mt-1">{createErrors.preferredTime}</p>}
+  </div>
+  </div>
+  </div>
+
+  <div className="border-t border-[#E7E8EA] pt-4">
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">ملاحظات</label>
+  <textarea rows={2} value={createFormData.notes} onChange={e => setCreateFormData(p => ({ ...p, notes: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] resize-none" placeholder="ملاحظات إضافية..." />
+  </div>
+
+  <div className="flex gap-3 pt-2">
+  <button type="submit" disabled={createSubmitting} className="flex-1 px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+  {createSubmitting ? <><FaSpinner className="animate-spin" /> جاري الإنشاء...</> : 'إنشاء الحجز'}
+  </button>
+  <button type="button" onClick={() => setShowCreateForm(false)} className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all">
+  إلغاء
+  </button>
+  </div>
+  </form>
+  </div>
+  </div>
+  )}
+  </div>
+  )
 }

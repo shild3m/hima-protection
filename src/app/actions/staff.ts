@@ -2,6 +2,7 @@
 
 import { requireAuth, requirePermission, getSupabaseAdmin } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
 
 const StaffCreateSchema = z.object({
@@ -9,14 +10,12 @@ const StaffCreateSchema = z.object({
   full_name: z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل').max(200),
   phone: z.string().max(20).optional(),
   role_id: z.string().uuid('معرف الدور غير صحيح'),
-  role: z.enum(['super_admin', 'admin', 'receptionist', 'inventory_manager', 'technician', 'accountant', 'dealer']),
 })
 
 const StaffUpdateSchema = z.object({
   full_name: z.string().min(2).max(200).optional(),
   phone: z.string().max(20).optional(),
   role_id: z.string().uuid().optional(),
-  role: z.enum(['super_admin', 'admin', 'receptionist', 'inventory_manager', 'technician', 'accountant', 'dealer']).optional(),
   is_active: z.boolean().optional(),
 })
 
@@ -54,7 +53,6 @@ export async function createStaff(input: {
   full_name: string
   phone?: string
   role_id: string
-  role: string
 }) {
   try {
     const user = await requirePermission('staff', 'create')
@@ -69,19 +67,21 @@ export async function createStaff(input: {
     const data = parsed.data
     const admin = getSupabaseAdmin()
 
-    // Verify role_id exists in roles table
-    const { data: roleExists } = await admin
+    // Resolve role_id to actual role name from database (do NOT trust client-provided role string)
+    const { data: roleRecord } = await admin
       .from('roles')
-      .select('id')
+      .select('id, name')
       .eq('id', data.role_id)
       .single()
 
-    if (!roleExists) {
+    if (!roleRecord) {
       return { success: false, error: 'الدور المحدد غير موجود' }
     }
 
+    const actualRoleName = roleRecord.name
+
     // Prevent creating super_admin unless caller is super_admin
-    if (data.role === 'super_admin' && user.role_name !== 'super_admin') {
+    if (actualRoleName === 'super_admin' && user.role_name !== 'super_admin') {
       return { success: false, error: 'لا يمكنك إنشاء مدير عام' }
     }
 
@@ -92,12 +92,13 @@ export async function createStaff(input: {
         full_name: data.full_name,
         phone: data.phone || null,
         role_id: data.role_id,
-        role: data.role,
+        role: actualRoleName,
         is_active: true,
       })
       .select()
       .single()
     if (error) return { success: false, error: 'تعذر إنشاء الموظف' }
+    await logAudit({ userId: user.staff_id, action: 'create', resourceType: 'staff', resourceId: result.id, newValues: { email: data.email, full_name: data.full_name, role: actualRoleName } })
     return { success: true, data: result }
   } catch {
     return { success: false, error: 'حدث خطأ غير متوقع' }
@@ -108,7 +109,6 @@ export async function updateStaff(id: string, input: {
   full_name?: string
   phone?: string
   role_id?: string
-  role?: string
   is_active?: boolean
 }) {
   try {
@@ -124,22 +124,34 @@ export async function updateStaff(id: string, input: {
     const data = parsed.data
     const admin = getSupabaseAdmin()
 
-    // Verify role_id exists if provided
-    if (data.role_id) {
-      const { data: roleExists } = await admin
-        .from('roles')
-        .select('id')
-        .eq('id', data.role_id)
-        .single()
-
-      if (!roleExists) {
-        return { success: false, error: 'الدور المحدد غير موجود' }
+    // Self-modification guard: prevent staff from modifying their own role or active status
+    if (id === user.staff_id) {
+      if (data.role_id !== undefined) {
+        return { success: false, error: 'لا يمكنك تغيير دورك الخاص' }
+      }
+      if (data.is_active !== undefined) {
+        return { success: false, error: 'لا يمكنك تعطيل حسابك الخاص' }
       }
     }
 
-    // Prevent escalating to super_admin unless caller is super_admin
-    if (data.role === 'super_admin' && user.role_name !== 'super_admin') {
-      return { success: false, error: 'لا يمكنك تعيين دور مدير عام' }
+    // Resolve role_id to actual role name from database if provided
+    let actualRoleName: string | null = null
+    if (data.role_id) {
+      const { data: roleRecord } = await admin
+        .from('roles')
+        .select('id, name')
+        .eq('id', data.role_id)
+        .single()
+
+      if (!roleRecord) {
+        return { success: false, error: 'الدور المحدد غير موجود' }
+      }
+      actualRoleName = roleRecord.name
+
+      // Prevent escalating to super_admin unless caller is super_admin
+      if (actualRoleName === 'super_admin' && user.role_name !== 'super_admin') {
+        return { success: false, error: 'لا يمكنك تعيين دور مدير عام' }
+      }
     }
 
     // Build explicit allowlist - no spread
@@ -148,8 +160,10 @@ export async function updateStaff(id: string, input: {
     }
     if (data.full_name !== undefined) updateData.full_name = data.full_name
     if (data.phone !== undefined) updateData.phone = data.phone
-    if (data.role_id !== undefined) updateData.role_id = data.role_id
-    if (data.role !== undefined) updateData.role = data.role
+    if (data.role_id !== undefined) {
+      updateData.role_id = data.role_id
+      updateData.role = actualRoleName
+    }
     if (data.is_active !== undefined) updateData.is_active = data.is_active
 
     const { data: result, error } = await admin
@@ -159,6 +173,7 @@ export async function updateStaff(id: string, input: {
       .select()
       .single()
     if (error) return { success: false, error: 'تعذر تحديث بيانات الموظف' }
+    await logAudit({ userId: user.staff_id, action: 'update', resourceType: 'staff', resourceId: id, newValues: updateData })
     return { success: true, data: result }
   } catch {
     return { success: false, error: 'حدث خطأ غير متوقع' }
@@ -172,6 +187,12 @@ export async function toggleStaffStatus(id: string) {
     if (!rl.ok) return { success: false, error: rl.error }
 
     const admin = getSupabaseAdmin()
+
+    // Self-modification guard
+    if (id === user.staff_id) {
+      return { success: false, error: 'لا يمكنك تعطيل حسابك الخاص' }
+    }
+
     const { data: current } = await admin.from('staff').select('is_active').eq('id', id).single()
     if (!current) return { success: false, error: 'الموظف غير موجود' }
     const { data, error } = await admin
@@ -181,6 +202,7 @@ export async function toggleStaffStatus(id: string) {
       .select()
       .single()
     if (error) return { success: false, error: 'تعذر تحديث حالة الموظف' }
+    await logAudit({ userId: user.staff_id, action: 'toggle_status', resourceType: 'staff', resourceId: id, newValues: { is_active: !current.is_active } })
     return { success: true, data }
   } catch {
     return { success: false, error: 'حدث خطأ غير متوقع' }
