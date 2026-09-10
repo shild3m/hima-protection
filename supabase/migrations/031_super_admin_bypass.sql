@@ -1,11 +1,8 @@
 -- ============================================================
--- PHASE: Booking Status Simplify
--- Reduce the booking state machine to:
---   new → contacted → in_progress → completed
---   cancelled reachable from new/contacted/in_progress
--- Removed: confirmed, arrived, no_show
--- Plus: super_admin may undo a cancellation (cancelled → non-terminal).
--- Mirrors src/app/actions/bookings.ts VALID_TRANSITIONS + revert rule.
+-- PHASE: Super-Admin Full Status Bypass
+-- Allow super_admin to change booking status from any
+-- non-completed status to any valid status (not just
+-- the old transition rules).
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.enforce_booking_status_transition()
@@ -15,13 +12,6 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_allowed_transitions jsonb := '{
-    "new": ["contacted", "cancelled"],
-    "contacted": ["in_progress", "cancelled"],
-    "in_progress": ["completed"],
-    "completed": [],
-    "cancelled": []
-  }'::jsonb;
   v_valid_statuses text[] := ARRAY['new','contacted','in_progress','completed','cancelled'];
   v_new_status text := NEW.status;
   v_old_status text := OLD.status;
@@ -43,7 +33,20 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF NOT (v_new_status IN (SELECT jsonb_array_elements_text(v_allowed_transitions -> v_old_status))) THEN
+  -- Normal transition check
+  IF v_old_status = 'new' AND v_new_status NOT IN ('contacted', 'cancelled') THEN
+    RAISE EXCEPTION 'Booking status transition from % to % is not allowed', v_old_status, v_new_status;
+  END IF;
+
+  IF v_old_status = 'contacted' AND v_new_status NOT IN ('in_progress', 'cancelled') THEN
+    RAISE EXCEPTION 'Booking status transition from % to % is not allowed', v_old_status, v_new_status;
+  END IF;
+
+  IF v_old_status = 'in_progress' AND v_new_status != 'completed' THEN
+    RAISE EXCEPTION 'Booking status transition from % to % is not allowed', v_old_status, v_new_status;
+  END IF;
+
+  IF v_old_status IN ('completed', 'cancelled') THEN
     RAISE EXCEPTION 'Booking status transition from % to % is not allowed', v_old_status, v_new_status;
   END IF;
 

@@ -14,6 +14,7 @@ import {
  FaPhone,
  FaChevronRight,
  FaChevronLeft,
+ FaChevronDown,
  FaSync,
  FaClock,
  FaPlus,
@@ -94,8 +95,10 @@ export default function BookingsManager() {
  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
- const canUpdate = hasPermission('bookings', 'update')
- const canCreate = hasPermission('bookings', 'create')
+const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
+
+  const canUpdate = hasPermission('bookings', 'update')
+  const canCreate = hasPermission('bookings', 'create')
  const [showCreateForm, setShowCreateForm] = useState(false)
  const [services, setServices] = useState<{ id: string; name: string; base_price: number }[]>([])
  const [createFormData, setCreateFormData] = useState({
@@ -192,9 +195,28 @@ export default function BookingsManager() {
  if (!notification) return
  const t = setTimeout(() => setNotification(null), 4000)
  return () => clearTimeout(t)
- }, [notification])
+  }, [notification])
 
- const handleViewBooking = async (booking: Booking) => {
+  const getAvailableStatuses = (booking: Booking): string[] => {
+    if (isSuperAdmin && booking.status !== 'completed') {
+      return Object.keys(STATUS_CONFIG).filter(s => s !== booking.status)
+    }
+    if (!canUpdate) return []
+    return VALID_TRANSITIONS[booking.status] || []
+  }
+
+  useEffect(() => {
+    if (!activeStatusDropdown) return
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element)?.closest('[data-status-dropdown]')) {
+        setActiveStatusDropdown(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [activeStatusDropdown])
+
+  const handleViewBooking = async (booking: Booking) => {
  setViewingBooking(booking as BookingDetail)
  setLoadingDetail(true)
  try {
@@ -280,12 +302,45 @@ export default function BookingsManager() {
   }
  }
 
-const statusBadge = (status: string) => {
+const statusBadge = (status: string, booking?: Booking) => {
   const config = STATUS_CONFIG[status] || { label: status, color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' }
+  const available = booking ? getAvailableStatuses(booking) : []
+  const isDropdownOpen = booking ? activeStatusDropdown === booking.id : false
+  const canClick = canUpdate && available.length > 0
+
   return (
-  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${config.bg} ${config.color}`}>
-  {config.label}
-  </span>
+    <div className="relative inline-block" data-status-dropdown>
+      <button
+        type="button"
+        onClick={() => canClick && booking && setActiveStatusDropdown(isDropdownOpen ? null : booking.id)}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all ${config.bg} ${config.color} ${canClick ? 'cursor-pointer hover:ring-2 hover:ring-[#006FE8]/30' : ''}`}
+      >
+        {config.label}
+        {canClick && <FaChevronDown className="text-[8px] opacity-60" />}
+      </button>
+      {isDropdownOpen && booking && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-[#E7E8EA] rounded-xl shadow-xl min-w-[180px] py-1 animate-fadeIn">
+          <div className="px-3 py-1.5 text-[10px] font-bold text-[#62666D] border-b border-[#F1F2F3]">
+            تغيير الحالة إلى:
+          </div>
+          {available.map((nextStatus) => {
+            const cfg = STATUS_CONFIG[nextStatus]
+            return (
+              <button
+                key={nextStatus}
+                onClick={() => { setActiveStatusDropdown(null); handleStatusUpdate(booking.id, nextStatus) }}
+                disabled={updatingStatus === booking.id}
+                className={`w-full text-right px-3 py-2 text-xs font-bold flex items-center gap-2 hover:bg-[#F7F7F5] transition-all disabled:opacity-50 ${cfg.color}`}
+              >
+                <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.bg.replace('border-', 'border ').split(' ')[0].replace('bg-', 'bg-')}`}></span>
+                {cfg.label}
+                {updatingStatus === booking.id && <FaSpinner className="animate-spin mr-auto text-[10px]" />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
   }
 
@@ -403,9 +458,8 @@ const statusBadge = (status: string) => {
  {bookings.map((booking) => (
 <div
   key={booking.id}
-  className="group bg-white border border-[#E7E8EA] hover:border-[#E7E8EA] rounded-xl p-3 sm:p-4 flex flex-col transition-all duration-200"
+  className="group bg-white border border-[#E7E8EA] hover:border-[#E7E8EA] rounded-xl p-3 sm:p-4 flex items-center justify-between transition-all duration-200"
   >
-  <div className="flex items-center justify-between gap-2">
   <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border ${
  booking.status === 'completed'
@@ -424,7 +478,7 @@ const statusBadge = (status: string) => {
  <h4 className="text-[#111214] font-bold text-xs sm:text-sm truncate">
  {booking.customer?.full_name || 'عميل'}
  </h4>
- {statusBadge(booking.status)}
+  {statusBadge(booking.status, booking)}
  {booking.service && (
  <span className="text-[10px] text-[#62666D] hidden sm:inline">
  {booking.service.name}
@@ -465,41 +519,6 @@ const statusBadge = (status: string) => {
   <span className="hidden sm:inline">عرض</span>
   </button>
   </div>
-  </div>
-
-  {canUpdate && VALID_TRANSITIONS[booking.status]?.length > 0 && (
-  <div className="mt-3 pt-3 border-t border-[#E7E8EA] flex flex-wrap items-center gap-2">
-  <span className="text-[10px] font-bold text-[#62666D]">تغيير إلى:</span>
-  {VALID_TRANSITIONS[booking.status].map((nextStatus) => {
-  const config = STATUS_CONFIG[nextStatus]
-  return (
-  <button
-  key={nextStatus}
-  onClick={() => handleStatusUpdate(booking.id, nextStatus)}
-  disabled={updatingStatus === booking.id}
-  className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all hover:scale-105 disabled:opacity-50 ${config.bg} ${config.color}`}
-  >
-  {updatingStatus === booking.id ? <FaSpinner className="animate-spin inline" /> : null}
-  {' '}{config.label}
-  </button>
-  )
-  })}
-  </div>
-  )}
-
-  {canUpdate && isSuperAdmin && booking.status === 'cancelled' && (
-  <div className="mt-3 pt-3 border-t border-[#E7E8EA] flex flex-wrap items-center gap-2">
-  <span className="text-[10px] font-bold text-[#62666D]">استرجاع:</span>
-  <button
-  onClick={() => handleStatusUpdate(booking.id, cancelRevertTarget(booking))}
-  disabled={updatingStatus === booking.id}
-  className="px-2 py-1 rounded-md text-[10px] font-bold border transition-all hover:scale-105 disabled:opacity-50 bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]"
-  >
-  {updatingStatus === booking.id ? <FaSpinner className="animate-spin inline" /> : null}
-  {' '}إلغاء الإلغاء
-  </button>
-  </div>
-  )}
   </div>
   ))}
  </div>
@@ -553,7 +572,7 @@ const statusBadge = (status: string) => {
  <div className="space-y-4">
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">الحالة:</span>
- {statusBadge(viewingBooking.status)}
+  {statusBadge(viewingBooking.status, viewingBooking as unknown as Booking)}
  </div>
 
  <div className="border-t border-[#E7E8EA] pt-4">

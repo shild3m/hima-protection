@@ -203,23 +203,11 @@ export async function updateBookingStatus(
 
     let allowed = VALID_TRANSITIONS[existing.status] || []
 
-    // Super-admin undo: a cancelled booking can be returned to the status it
-    // was cancelled from (recorded in booking_status_history), falling back to 'new'.
-    if (existing.status === 'cancelled' && user.role_name === 'super_admin') {
-      const { data: lastCancel } = await supabase
-        .from('booking_status_history')
-        .select('old_status')
-        .eq('booking_id', id)
-        .eq('new_status', 'cancelled')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      const TERMINAL = ['completed', 'cancelled']
-      const historyRevert =
-        lastCancel?.old_status && !TERMINAL.includes(lastCancel.old_status)
-          ? lastCancel.old_status
-          : null
-      allowed = [...allowed, ...(historyRevert ? [historyRevert, 'new'] : ['new'])]
+    // Super-admin: bypass normal transition rules — can change to any
+    // non-completed status from any status (except completed is terminal).
+    if (user.role_name === 'super_admin' && existing.status !== 'completed') {
+      const ALL = ['new', 'contacted', 'in_progress', 'completed', 'cancelled']
+      allowed = ALL.filter(s => s !== existing.status)
     }
 
     if (!allowed.includes(newStatus)) {
