@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAuth, requirePermission, getSupabaseAdmin } from '@/lib/auth'
+import { requireAuth, requirePermission, getSupabaseAdmin, invalidateUserCache } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
@@ -173,6 +173,11 @@ export async function updateStaff(id: string, input: {
       .select()
       .single()
     if (error) return { success: false, error: 'تعذر تحديث بيانات الموظف' }
+    // Invalidate permission cache when role or active status changed
+    if (data.role_id !== undefined || data.is_active !== undefined) {
+      const user_id = result?.user_id
+      if (user_id) invalidateUserCache(user_id)
+    }
     await logAudit({ userId: user.staff_id, action: 'update', resourceType: 'staff', resourceId: id, newValues: updateData })
     return { success: true, data: result }
   } catch {
@@ -202,6 +207,9 @@ export async function toggleStaffStatus(id: string) {
       .select()
       .single()
     if (error) return { success: false, error: 'تعذر تحديث حالة الموظف' }
+    // Invalidate affected user's permission cache so toggles take effect immediately
+    const user_id = data?.user_id
+    if (user_id) invalidateUserCache(user_id)
     await logAudit({ userId: user.staff_id, action: 'toggle_status', resourceType: 'staff', resourceId: id, newValues: { is_active: !current.is_active } })
     return { success: true, data }
   } catch {

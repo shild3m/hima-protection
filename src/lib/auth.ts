@@ -6,6 +6,26 @@ import type { CurrentUser } from '@/types/rbac'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+const userCache = new Map<string, { user: CurrentUser; ts: number }>()
+const CACHE_TTL = 30000
+
+function getCacheKey(user_id: string): string { return `cu_${user_id}` }
+
+export function invalidateUserCache(userId: string) {
+  userCache.delete(getCacheKey(userId))
+}
+
+function getCachedUser(user_id: string): CurrentUser | null {
+  const entry = userCache.get(getCacheKey(user_id))
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.user
+  userCache.delete(getCacheKey(user_id))
+  return null
+}
+
+function setCachedUser(user_id: string, user: CurrentUser) {
+  userCache.set(getCacheKey(user_id), { user, ts: Date.now() })
+}
+
 export function getSupabaseAdmin() {
   return createAdminClient(supabaseUrl, supabaseServiceKey)
 }
@@ -21,17 +41,20 @@ export async function getSessionUser() {
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const user = await getSessionUser()
-  if (!user?.id) return null
+  const sessionUser = await getSessionUser()
+  if (!sessionUser?.id) return null
+
+  const cached = getCachedUser(sessionUser.id)
+  if (cached) return cached
 
   const admin = getSupabaseAdmin()
 
   // 1 query: staff + roles + role_permissions (nested join)
-  const { data: staff } = await admin
-    .from('staff')
-    .select('id, email, user_id, role_id, role, is_active, roles(role_permissions(permissions(resource, action)))')
-    .eq('user_id', user.id)
-    .maybeSingle()
+const { data: staff } = await admin
+     .from('staff')
+     .select('id, email, user_id, role_id, role, is_active, roles(role_permissions(permissions(resource, action)))')
+     .eq('user_id', sessionUser.id)
+     .maybeSingle()
 
   if (staff) {
     if (staff.is_active === false) return null
@@ -44,8 +67,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       )
     }
 
-    return {
-      auth_user_id: user.id,
+    const result: CurrentUser = {
+      auth_user_id: sessionUser.id,
       email: staff.email,
       staff_id: staff.id,
       name: staff.email,
@@ -53,15 +76,17 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       role_name: staff.role,
       permissions,
       is_active: true,
-      user: { id: user.id, email: user.email! },
+      user: { id: sessionUser.id, email: sessionUser.email! },
     }
+    setCachedUser(sessionUser.id, result)
+    return result
   }
 
   // 1 query: dealer lookup
   const { data: dealer } = await admin
     .from('dealers')
     .select('id, email, user_id, is_active, status')
-    .eq('user_id', user.id)
+    .eq('user_id', sessionUser.id)
     .maybeSingle()
 
   if (dealer && dealer.is_active && dealer.status === 'active') {
@@ -81,17 +106,19 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       )
     }
 
-    return {
-      auth_user_id: user.id,
-      email: dealer.email || user.email!,
+    const result: CurrentUser = {
+      auth_user_id: sessionUser.id,
+      email: dealer.email || sessionUser.email!,
       staff_id: dealer.id,
-      name: dealer.email || user.email!,
+      name: dealer.email || sessionUser.email!,
       role_id: dealerRoleId || '',
       role_name: 'dealer',
       permissions,
       is_active: true,
-      user: { id: user.id, email: user.email! },
+      user: { id: sessionUser.id, email: sessionUser.email! },
     }
+    setCachedUser(sessionUser.id, result)
+    return result
   }
 
   return null
