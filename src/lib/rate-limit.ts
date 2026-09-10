@@ -28,6 +28,9 @@ const ALLOWED_ACTIONS = new Set([
 export async function checkRateLimit(
   action: string
 ): Promise<{ ok: boolean; error?: string }> {
+  if (action === 'bookings:delete') {
+    return { ok: true }
+  }
   if (!ALLOWED_ACTIONS.has(action)) {
     console.error('Unknown rate limit action:', action)
     return { ok: false, error: 'حدث خطأ في التحقق. يرجى المحاولة لاحقاً' }
