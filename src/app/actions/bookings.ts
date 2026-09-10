@@ -219,7 +219,7 @@ export async function updateBookingStatus(
         lastCancel?.old_status && !TERMINAL.includes(lastCancel.old_status)
           ? lastCancel.old_status
           : null
-      allowed = [...allowed, historyRevert || 'new']
+      allowed = [...allowed, ...(historyRevert ? [historyRevert, 'new'] : ['new'])]
     }
 
     if (!allowed.includes(newStatus)) {
