@@ -1,29 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server'
-
-function decodeJwtPayload(token: string): { sub?: string; exp?: number } | null {
-  try {
-    const parts = token.split('.')
-    if (parts.length < 3) return null
-    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    const padded = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '=')
-    const json = atob(padded)
-    const payload = JSON.parse(json)
-    if (typeof payload !== 'object' || payload === null) return null
-    return payload
-  } catch {
-    return null
-  }
-}
+import { readSessionCookie, isSessionCookieFresh } from '@/lib/session-cookie'
 
 // Sync check: is there a session cookie whose JWT is present and not expired?
 // This avoids a network round-trip to Supabase on every request. The layout's
 // requireAuth()/getCurrentUser() remains the authoritative verification.
 function hasFreshSessionCookie(request: NextRequest): boolean {
-  const tokenCookie = request.cookies.getAll().find((c) => c.name.includes('auth-token'))
-  if (!tokenCookie?.value) return false
-  const payload = decodeJwtPayload(String(tokenCookie.value))
-  if (!payload?.exp) return false
-  return payload.exp * 1000 > Date.now()
+  const cookies = request.cookies.getAll()
+  return isSessionCookieFresh(readSessionCookie(cookies))
 }
 
 export async function updateSession(request: NextRequest) {

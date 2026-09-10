@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import { readSessionCookie } from '@/lib/session-cookie'
 import type { CurrentUser } from '@/types/rbac'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -36,20 +37,16 @@ function setCachedUser(user_id: string, user: CurrentUser, tokenFp?: string) {
 // Return the session JWT's { sub, tokenFp } so the cache is scoped to the real,
 // current token. On a fresh token the fingerprint changes => cache miss => the
 // token is authoritatively verified by auth.getUser() before being cached.
-// An expired token returns null so stale sessions always fall through to the
-// authoritative auth.getUser() check (never served from cache).
+// The cookie is read in the @supabase/ssr format (base64-*/chunked JSON) via
+// the shared parser; an expired token returns null so stale sessions always
+// fall through to the authoritative auth.getUser() check.
 async function readSessionFromCookie(): Promise<{ sub: string; tokenFp: string } | null> {
   try {
     const store = await cookies()
-    const tokenCookie = store.getAll().find((c) => c.name.includes('auth-token'))
-    if (!tokenCookie?.value) return null
-    const parts = String(tokenCookie.value).split('.')
-    if (parts.length < 3) return null
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
-    if (typeof payload?.sub !== 'string') return null
-    if (typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now()) return null
-    const tokenFp = parts[2].slice(-8)
-    return { sub: payload.sub, tokenFp }
+    const info = readSessionCookie(store.getAll())
+    if (!info) return null
+    if (info.expMs !== null && info.expMs <= Date.now()) return null
+    return { sub: info.sub, tokenFp: info.tokenFp }
   } catch {
     return null
   }
