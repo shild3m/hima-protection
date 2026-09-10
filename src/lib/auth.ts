@@ -36,6 +36,8 @@ function setCachedUser(user_id: string, user: CurrentUser, tokenFp?: string) {
 // Return the session JWT's { sub, tokenFp } so the cache is scoped to the real,
 // current token. On a fresh token the fingerprint changes => cache miss => the
 // token is authoritatively verified by auth.getUser() before being cached.
+// An expired token returns null so stale sessions always fall through to the
+// authoritative auth.getUser() check (never served from cache).
 async function readSessionFromCookie(): Promise<{ sub: string; tokenFp: string } | null> {
   try {
     const store = await cookies()
@@ -45,6 +47,7 @@ async function readSessionFromCookie(): Promise<{ sub: string; tokenFp: string }
     if (parts.length < 3) return null
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
     if (typeof payload?.sub !== 'string') return null
+    if (typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now()) return null
     const tokenFp = parts[2].slice(-8)
     return { sub: payload.sub, tokenFp }
   } catch {

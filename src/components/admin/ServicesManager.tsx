@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { ServiceForm } from '@/components/admin/ServiceForm'
 import {
@@ -39,10 +39,10 @@ interface Service {
 
 type Notification = { type: 'success' | 'error'; message: string } | null
 
-export default function ServicesManager() {
+export default function ServicesManager({ initialServices }: { initialServices?: Service[] }) {
  const { hasPermission } = useAuth()
- const [services, setServices] = useState<Service[]>([])
- const [loading, setLoading] = useState(true)
+ const [services, setServices] = useState<Service[]>(initialServices ?? [])
+ const [loading, setLoading] = useState(!initialServices)
  const [search, setSearch] = useState('')
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
@@ -71,9 +71,16 @@ export default function ServicesManager() {
  }
  }, [search])
 
+const hasInitial = !!initialServices
+ const didInitialFetch = useRef(false)
+
  useEffect(() => {
- fetchServices()
- }, [fetchServices])
+  if (hasInitial && !didInitialFetch.current) {
+   didInitialFetch.current = true
+   return
+  }
+  fetchServices()
+ }, [fetchServices, hasInitial])
 
  useEffect(() => {
  if (!notification) return
