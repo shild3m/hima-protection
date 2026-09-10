@@ -448,14 +448,14 @@ const statusBadge = (status: string) => {
  )}
 
  {/* ===== Search ===== */}
- <div className="relative max-w-md">
+<div className="relative max-w-md">
  <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-[#62666D] text-sm" />
  <input
  type="text"
  placeholder="بحث بالاسم أو الجوال أو الماركة أو رقم اللوحة..."
  value={search}
  onChange={(e) => setSearch(e.target.value)}
- className="w-full bg-white border border-[#E7E8EA] shadow-sm shadow-black/[0.02] rounded-2xl pr-11 pl-10 py-3 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-[#62666D]"
+ className="w-full bg-white border border-[#E7E8EA] shadow-sm shadow-black/[0.02] rounded-2xl pr-11 pl-10 py-3 text-[15px] font-semibold text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-[#62666D] placeholder:font-medium"
  />
  {search && (
  <button onClick={() => setSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition">
@@ -496,12 +496,12 @@ const statusBadge = (status: string) => {
  </div>
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-2 flex-wrap">
- <h4 className="text-sm font-bold text-[#111214] truncate">
+ <h4 className="text-[15px] font-bold text-[#111214] truncate">
  {booking.customer?.full_name || 'عميل'}
  </h4>
  {statusBadge(booking.status)}
  </div>
- <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-xs text-[#62666D] font-semibold flex-wrap">
+ <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-[13px] text-[#62666D] font-semibold flex-wrap">
  {booking.customer?.phone && (
  <span className="flex items-center gap-1.5 font-bold" dir="ltr">
  <FaPhone className="text-[#059669] text-[10px]" />

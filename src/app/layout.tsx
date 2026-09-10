@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 
 const cairo = Cairo({
   variable: "--font-cairo",
-  subsets: ["arabic", "latin"],
+  subsets: ["arabic"],
   weight: ["400", "500", "600", "700", "900"],
 });
 
@@ -123,7 +123,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-[#0A0A0B] text-white">
+      <body className={`${cairo.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
