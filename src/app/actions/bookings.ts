@@ -402,22 +402,27 @@ export async function adminCreateBooking(input: AdminBookingInput) {
   }
 }
 
-export async function deleteBooking(id: string, token: string) {
+export async function deleteBooking(id: string, tokenHash: string) {
   const user = await requireAuth()
   if (user.role_name !== 'super_admin') {
     return { success: false as const, error: 'غير مصرح — السوبر أدمن فقط' }
   }
 
-  const expected = process.env.BOOKING_DELETE_SECRET
-  if (!expected || token !== expected) {
-    return { success: false as const, error: 'رمز الحذف غير صحيح' }
-  }
-
-  const rl = await checkRateLimit('bookings:delete')
-  if (!rl.ok) return { success: false as const, error: rl.error }
-
   try {
     const supabase = await createClient()
+
+    const { data: setting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'booking_delete_secret')
+      .maybeSingle()
+
+    if (!setting?.value || tokenHash !== setting.value) {
+      return { success: false as const, error: 'رمز الحذف غير صحيح' }
+    }
+
+    const rl = await checkRateLimit('bookings:delete')
+    if (!rl.ok) return { success: false as const, error: rl.error }
 
     const { data: existing } = await supabase
       .from('bookings')
@@ -450,5 +455,51 @@ export async function deleteBooking(id: string, token: string) {
     return { success: true as const }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+export async function getDeleteTokenHash() {
+  const user = await requireAuth()
+  if (user.role_name !== 'super_admin') {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'booking_delete_secret')
+      .maybeSingle()
+    return { success: true as const, hash: data?.value || null }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ' }
+  }
+}
+
+export async function setDeleteToken(newTokenHash: string) {
+  const user = await requireAuth()
+  if (user.role_name !== 'super_admin') {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+  if (!newTokenHash || newTokenHash.length < 8) {
+    return { success: false as const, error: 'الرمز غير صالح' }
+  }
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from('system_settings')
+      .upsert({ key: 'booking_delete_secret', value: newTokenHash, updated_at: new Date().toISOString(), updated_by: user.auth_user_id })
+    if (error) {
+      return { success: false as const, error: 'تعذر حفظ الرمز' }
+    }
+    await logAudit({
+      userId: user.auth_user_id,
+      action: 'admin_delete_token_changed',
+      resourceType: 'system_settings',
+      resourceId: 'booking_delete_secret',
+    })
+    return { success: true as const }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ' }
   }
 }

@@ -20,6 +20,7 @@ import {
  FaPlus,
  FaUser,
  FaTrash,
+ FaCog,
  FaEnvelope,
  FaCalendarPlus,
 } from 'react-icons/fa'
@@ -101,6 +102,11 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   const [deleteToken, setDeleteToken] = useState('')
   const [deleteError, setDeleteError] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [showTokenSettings, setShowTokenSettings] = useState(false)
+  const [newToken, setNewToken] = useState('')
+  const [tokenSettingsLoading, setTokenSettingsLoading] = useState(false)
+  const [tokenSettingsError, setTokenSettingsError] = useState('')
+  const [tokenSettingsSuccess, setTokenSettingsSuccess] = useState('')
 
   const canUpdate = hasPermission('bookings', 'update')
   const canCreate = hasPermission('bookings', 'create')
@@ -263,8 +269,10 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
    setDeleteLoading(true)
    setDeleteError('')
    try {
+     const { sha256 } = await import('@/lib/crypto')
      const { deleteBooking } = await import('@/app/actions/bookings')
-     const result = await deleteBooking(deleteTarget.id, deleteToken)
+     const tokenHash = await sha256(deleteToken)
+     const result = await deleteBooking(deleteTarget.id, tokenHash)
      if (result.success) {
        setNotification({ type: 'success', message: 'تم حذف الحجز بنجاح' })
        setDeleteTarget(null)
@@ -278,6 +286,28 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
      setDeleteError('حدث خطأ غير متوقع')
    } finally {
      setDeleteLoading(false)
+   }
+ }
+
+ const handleSaveToken = async () => {
+   if (!newToken.trim()) return
+   setTokenSettingsLoading(true)
+   setTokenSettingsError('')
+   setTokenSettingsSuccess('')
+   try {
+     const { sha256 } = await import('@/lib/crypto')
+     const { setDeleteToken } = await import('@/app/actions/bookings')
+     const result = await setDeleteToken(await sha256(newToken.trim()))
+     if (result.success) {
+       setTokenSettingsSuccess('تم تحديث رمز الحذف بنجاح')
+       setNewToken('')
+     } else {
+       setTokenSettingsError(result.error || 'حدث خطأ')
+     }
+   } catch {
+     setTokenSettingsError('حدث خطأ غير متوقع')
+   } finally {
+     setTokenSettingsLoading(false)
    }
  }
 
@@ -430,6 +460,7 @@ const statusBadge = (status: string, booking?: Booking) => {
  <p className="text-[#62666D] text-sm mt-1 mr-11">عرض وإدارة حجوزات العملاء</p>
  </div>
  {canCreate && (
+ <div className="flex gap-2">
  <button
  onClick={() => setShowCreateForm(true)}
  className="px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2"
@@ -437,6 +468,16 @@ const statusBadge = (status: string, booking?: Booking) => {
  <FaPlus className="text-xs" />
  حجز جديد
  </button>
+ {isSuperAdmin && (
+ <button
+ onClick={() => { setShowTokenSettings(true); setNewToken(''); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
+ className="px-3 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#62666D] rounded-xl text-sm font-bold transition-all flex items-center gap-2"
+ title="إعدادات الحذف"
+ >
+ <FaCog className="text-xs" />
+ </button>
+ )}
+ </div>
  )}
  </div>
 
@@ -555,10 +596,19 @@ const statusBadge = (status: string, booking?: Booking) => {
  onClick={() => handleViewBooking(booking)}
  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
  >
-<FaEye className="text-[9px] sm:text-[10px]" />
-  <span className="hidden sm:inline">عرض</span>
-  </button>
-  </div>
+ <FaEye className="text-[9px] sm:text-[10px]" />
+   <span className="hidden sm:inline">عرض</span>
+   </button>
+   {isSuperAdmin && (
+   <button
+   onClick={() => { setDeleteTarget(booking); setDeleteError('') }}
+   className="px-2 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FECACA] border border-[#FECACA] text-[#DC2626] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
+   title="حذف الحجز"
+   >
+   <FaTrash className="text-[9px] sm:text-[10px]" />
+   </button>
+   )}
+   </div>
   </div>
   ))}
  </div>
@@ -925,6 +975,65 @@ const statusBadge = (status: string, booking?: Booking) => {
   className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all"
   >
   إلغاء
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
+
+  {showTokenSettings && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setShowTokenSettings(false)}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+  <div className="flex items-center justify-between mb-4">
+  <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+  <FaCog className="text-[#62666D] text-sm" />
+  رمز الحذف السري
+  </h3>
+  <button onClick={() => setShowTokenSettings(false)} className="text-[#62666D] hover:text-[#111214] transition">
+  <FaTimes />
+  </button>
+  </div>
+
+  <p className="text-xs text-[#62666D] mb-4 leading-relaxed">
+  الرمز يُخزّن كـ hash فقط (لا يمكن استرجاعه). أدخل رمزًا جديدًا لاستبداله — المستخدمون يقارنون مدخلاتهم بالـhash عند الحذف.
+  </p>
+
+  {tokenSettingsSuccess && (
+  <div className="mb-4 p-3 bg-[#ECFDF5] rounded-xl border border-[#A7F3D0] text-xs text-[#059669] font-bold">
+  {tokenSettingsSuccess}
+  </div>
+  )}
+  {tokenSettingsError && (
+  <div className="mb-4 p-3 bg-[#FEF2F2] rounded-xl border border-[#FECACA] text-xs text-[#DC2626] font-bold">
+  {tokenSettingsError}
+  </div>
+  )}
+
+  <div className="mb-4">
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">الرمز الجديد</label>
+  <input
+  type="password"
+  value={newToken}
+  onChange={e => { setNewToken(e.target.value); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
+  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
+  placeholder="رمز سري جديد..."
+  autoFocus
+  />
+  </div>
+
+  <div className="flex gap-3">
+  <button
+  onClick={handleSaveToken}
+  disabled={!newToken.trim() || tokenSettingsLoading}
+  className="flex-1 px-4 py-2.5 bg-[#DC2626] hover:bg-[#9B1B30] text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+  >
+  {tokenSettingsLoading ? <><FaSpinner className="animate-spin" /> جاري الحفظ...</> : 'حفظ الرمز'}
+  </button>
+  <button
+  onClick={() => setShowTokenSettings(false)}
+  className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all"
+  >
+  إغلاق
   </button>
   </div>
   </div>
