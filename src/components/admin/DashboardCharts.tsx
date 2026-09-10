@@ -1,12 +1,17 @@
 'use client'
 
-import { use, useMemo, useState, useCallback, useTransition } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   getRevenueChartData,
   getBookingsChartData,
   getServicesChartData,
   getDealerPerformanceData,
   getInventoryChartData,
+  type RevenueChartData,
+  type BookingsChartData,
+  type ServicesChartData,
+  type DealerPerformanceData,
+  type InventoryChartData,
 } from '@/app/actions/dashboard'
 
 interface DateRange {
@@ -263,85 +268,6 @@ interface DashboardChartsProps {
   permissions: string[]
 }
 
-function ChartsInner({ permissions, from, to }: DashboardChartsProps & { from: string; to: string }) {
-  const canViewBookings = permissions.includes('bookings:read')
-  const canViewInvoices = permissions.includes('invoices:read')
-  const canViewReferrals = permissions.includes('referrals:read')
-  const canViewMaterials = permissions.includes('materials:read')
-
-  const promise = useMemo(() => {
-    return Promise.all([
-      canViewInvoices ? getRevenueChartData(from, to) : null,
-      canViewBookings ? getBookingsChartData(from, to) : null,
-      canViewBookings ? getServicesChartData(from, to) : null,
-      canViewReferrals ? getDealerPerformanceData() : null,
-      canViewMaterials ? getInventoryChartData() : null,
-    ]).then(results => ({
-      revenue: results[0]?.success ? results[0]!.data! : null,
-      bookings: results[1]?.success ? results[1]!.data! : null,
-      services: results[2]?.success ? results[2]!.data! : null,
-      dealerPerf: results[3]?.success ? results[3]!.data! : null,
-      inventory: results[4]?.success ? results[4]!.data! : null,
-    }))
-  }, [canViewBookings, canViewInvoices, canViewReferrals, canViewMaterials, from, to])
-
-  const bundle = use(promise)
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {canViewInvoices && bundle.revenue && (
-        <BarChart
-          labels={bundle.revenue.labels.map(l => l.slice(5))}
-          values={bundle.revenue.values}
-          color="#C4121A"
-          title="الإيرادات اليومية (ر.س)"
-        />
-      )}
-
-      {canViewBookings && bundle.bookings && (
-        <PieChart
-          labels={bundle.bookings.labels}
-          values={bundle.bookings.values}
-          title="الحجوزات حسب الحالة"
-        />
-      )}
-
-      {canViewBookings && bundle.services && (
-        <BarChart
-          labels={bundle.services.labels}
-          values={bundle.services.values}
-          color="#10B981"
-          title="الخدمات المكتملة"
-          height={140}
-        />
-      )}
-
-      {canViewReferrals && bundle.dealerPerf && bundle.dealerPerf.names.length > 0 && (
-        <HorizontalBarChart
-          labels={bundle.dealerPerf.names}
-          values={bundle.dealerPerf.referralCounts}
-          color="#F59E0B"
-          title="أداء الوكلاء (إحالات)"
-        />
-      )}
-
-      {canViewMaterials && bundle.inventory && bundle.inventory.names.length > 0 && (
-        <DualBarChart
-          labels={bundle.inventory.names.map(n => n.length > 10 ? n.slice(0, 9) + '…' : n)}
-          series1={bundle.inventory.currentStock}
-          series2={bundle.inventory.minStock}
-          label1="المخزون الحالي"
-          label2="الحد الأدنى"
-          color1="#3B82F6"
-          color2="#EF4444"
-          title="مستويات المخزون"
-          height={140}
-        />
-      )}
-    </div>
-  )
-}
-
 function ChartsSkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" role="status" aria-label="جاري تحميل الرسوم البيانية">
@@ -357,12 +283,47 @@ function ChartsSkeleton() {
 
 export default function DashboardCharts({ permissions }: DashboardChartsProps) {
   const [rangeIdx, setRangeIdx] = useState(1)
-  const [isPending, startTransition] = useTransition()
+  const [bundle, setBundle] = useState<{
+    revenue: RevenueChartData | null
+    bookings: BookingsChartData | null
+    services: ServicesChartData | null
+    dealerPerf: DealerPerformanceData | null
+    inventory: InventoryChartData | null
+  } | null>(null)
+  const [isPending, setIsPending] = useState(false)
+
+  const canViewBookings = permissions.includes('bookings:read')
+  const canViewInvoices = permissions.includes('invoices:read')
+  const canViewReferrals = permissions.includes('referrals:read')
+  const canViewMaterials = permissions.includes('materials:read')
 
   const range = DATE_RANGES[rangeIdx]
 
+  const load = useCallback(async (from: string, to: string) => {
+    setIsPending(true)
+    const results = await Promise.all([
+      canViewInvoices ? getRevenueChartData(from, to) : null,
+      canViewBookings ? getBookingsChartData(from, to) : null,
+      canViewBookings ? getServicesChartData(from, to) : null,
+      canViewReferrals ? getDealerPerformanceData() : null,
+      canViewMaterials ? getInventoryChartData() : null,
+    ])
+    setBundle({
+      revenue: results[0]?.success ? results[0]!.data! : null,
+      bookings: results[1]?.success ? results[1]!.data! : null,
+      services: results[2]?.success ? results[2]!.data! : null,
+      dealerPerf: results[3]?.success ? results[3]!.data! : null,
+      inventory: results[4]?.success ? results[4]!.data! : null,
+    })
+    setIsPending(false)
+  }, [canViewBookings, canViewInvoices, canViewReferrals, canViewMaterials])
+
+  useEffect(() => {
+    load(range.from, range.to)
+  }, [load, range.from, range.to])
+
   const handleRangeChange = useCallback((idx: number) => {
-    startTransition(() => setRangeIdx(idx))
+    setRangeIdx(idx)
   }, [])
 
   return (
@@ -388,10 +349,60 @@ export default function DashboardCharts({ permissions }: DashboardChartsProps) {
         </div>
       </div>
 
-      {isPending ? (
+      {!bundle ? (
         <ChartsSkeleton />
       ) : (
-        <ChartsInner permissions={permissions} from={range.from} to={range.to} />
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+          {canViewInvoices && bundle.revenue && (
+            <BarChart
+              labels={bundle.revenue.labels.map(l => l.slice(5))}
+              values={bundle.revenue.values}
+              color="#C4121A"
+              title="الإيرادات اليومية (ر.س)"
+            />
+          )}
+
+          {canViewBookings && bundle.bookings && (
+            <PieChart
+              labels={bundle.bookings.labels}
+              values={bundle.bookings.values}
+              title="الحجوزات حسب الحالة"
+            />
+          )}
+
+          {canViewBookings && bundle.services && (
+            <BarChart
+              labels={bundle.services.labels}
+              values={bundle.services.values}
+              color="#10B981"
+              title="الخدمات المكتملة"
+              height={140}
+            />
+          )}
+
+          {canViewReferrals && bundle.dealerPerf && bundle.dealerPerf.names.length > 0 && (
+            <HorizontalBarChart
+              labels={bundle.dealerPerf.names}
+              values={bundle.dealerPerf.referralCounts}
+              color="#F59E0B"
+              title="أداء الوكلاء (إحالات)"
+            />
+          )}
+
+          {canViewMaterials && bundle.inventory && bundle.inventory.names.length > 0 && (
+            <DualBarChart
+              labels={bundle.inventory.names.map(n => n.length > 10 ? n.slice(0, 9) + '…' : n)}
+              series1={bundle.inventory.currentStock}
+              series2={bundle.inventory.minStock}
+              label1="المخزون الحالي"
+              label2="الحد الأدنى"
+              color1="#3B82F6"
+              color2="#EF4444"
+              title="مستويات المخزون"
+              height={140}
+            />
+          )}
+        </div>
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useTransition } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   FaCalendarCheck,
   FaUsers,
@@ -70,10 +70,23 @@ function formatValue(value: number, format?: string) {
 }
 
 export default function DashboardKPI({ permissions }: DashboardKPIProps) {
-  const [promise, setPromise] = useState(() => getDashboardKPIs())
-  const [isPending, startTransition] = useTransition()
+  const [res, setRes] = useState<{ success: boolean; data?: DashboardKPIs; error?: string } | null>(null)
+  const [isPending, setIsPending] = useState(false)
 
-  const res = use(promise)
+  const load = useCallback(async () => {
+    setIsPending(true)
+    const r = await getDashboardKPIs()
+    setRes(r)
+    setIsPending(false)
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (!res) {
+    return <Skeleton permissions={permissions} />
+  }
 
   if (!res.success) {
     return (
@@ -81,7 +94,7 @@ export default function DashboardKPI({ permissions }: DashboardKPIProps) {
         <FaExclamationTriangle className="text-[#DC2626] text-2xl mx-auto mb-2" />
         <p className="text-[#DC2626] text-sm font-bold">{res.error || 'Failed to load KPIs'}</p>
         <button
-          onClick={() => startTransition(() => setPromise(getDashboardKPIs()))}
+          onClick={load}
           className="mt-3 text-[#DC2626] hover:text-[#B91C1C] text-xs font-bold flex items-center gap-1 mx-auto"
           aria-label="إعادة تحميل مؤشرات الأداء"
         >

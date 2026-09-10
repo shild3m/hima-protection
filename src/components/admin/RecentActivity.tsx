@@ -1,8 +1,8 @@
 'use client'
 
-import { use, useState, useTransition } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaUsers, FaFileInvoiceDollar, FaSync, FaInbox } from 'react-icons/fa'
-import { getRecentActivity } from '@/app/actions/dashboard'
+import { getRecentActivity, type RecentActivityItem } from '@/app/actions/dashboard'
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   calendar: <FaCalendarCheck />,
@@ -50,10 +50,23 @@ function ActivitySkeleton() {
 }
 
 export default function RecentActivity() {
-  const [promise, setPromise] = useState(() => getRecentActivity(10))
-  const [isPending, startTransition] = useTransition()
+  const [res, setRes] = useState<{ success: boolean; data?: RecentActivityItem[]; error?: string } | null>(null)
+  const [isPending, setIsPending] = useState(false)
 
-  const res = use(promise)
+  const load = useCallback(async () => {
+    setIsPending(true)
+    const r = await getRecentActivity(10)
+    setRes(r)
+    setIsPending(false)
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (!res) {
+    return <ActivitySkeleton />
+  }
 
   if (!res.success) {
     return (
@@ -64,7 +77,7 @@ export default function RecentActivity() {
         <div className="text-center py-6" role="alert">
           <p className="text-[#DC2626] text-xs font-bold mb-2">{res.error || 'فشل تحميل النشاط'}</p>
           <button
-            onClick={() => startTransition(() => setPromise(getRecentActivity(10)))}
+            onClick={load}
             className="text-[#DC2626] hover:text-[#B91C1C] text-xs font-bold flex items-center gap-1 mx-auto"
             aria-label="إعادة تحميل النشاطات"
           >
@@ -82,7 +95,7 @@ export default function RecentActivity() {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-[#111214] font-black text-sm">آخر النشاطات</h3>
         <button
-          onClick={() => startTransition(() => setPromise(getRecentActivity(10)))}
+          onClick={load}
           className="text-[#62666D] hover:text-[#111214] transition-colors"
           aria-label="تحديث النشاطات"
         >
