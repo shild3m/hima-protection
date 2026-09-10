@@ -496,7 +496,7 @@ const statusBadge = (status: string) => {
  </div>
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-2 flex-wrap">
- <h4 className="text-sm font-black text-[#111214] truncate">
+ <h4 className="text-sm font-bold text-[#111214] truncate">
  {booking.customer?.full_name || 'عميل'}
  </h4>
  {statusBadge(booking.status)}
