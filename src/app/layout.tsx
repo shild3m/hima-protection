@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
-import { El_Messiri } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-
-const messiri = El_Messiri({
-  variable: "--font-messiri",
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "عنوان الحماية — حماية سياراتك هي أولويتنا",
@@ -108,7 +101,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${messiri.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className="h-full antialiased">
       <head>
         <script
           type="application/ld+json"
@@ -123,7 +116,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
       </head>
-      <body className={`${messiri.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
+      <body className="min-h-full flex flex-col bg-[#0A0A0B] text-white">
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
