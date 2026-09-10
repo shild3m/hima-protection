@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import type { CurrentUser } from '@/types/rbac'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -9,21 +10,46 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const userCache = new Map<string, { user: CurrentUser; ts: number }>()
 const CACHE_TTL = 30000
 
-function getCacheKey(user_id: string): string { return `cu_${user_id}` }
-
-export function invalidateUserCache(userId: string) {
-  userCache.delete(getCacheKey(userId))
+function getCacheKey(user_id: string, tokenFp?: string): string {
+  return tokenFp ? `cu_${user_id}_${tokenFp}` : `cu_${user_id}`
 }
 
-function getCachedUser(user_id: string): CurrentUser | null {
-  const entry = userCache.get(getCacheKey(user_id))
+export function invalidateUserCache(userId: string) {
+  // Drop every cache entry belonging to this user (any token fingerprint)
+  for (const key of userCache.keys()) {
+    if (key === `cu_${userId}` || key.startsWith(`cu_${userId}_`)) userCache.delete(key)
+  }
+}
+
+function getCachedUser(user_id: string | null, tokenFp?: string): CurrentUser | null {
+  if (!user_id) return null
+  const entry = userCache.get(getCacheKey(user_id, tokenFp))
   if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.user
-  userCache.delete(getCacheKey(user_id))
+  userCache.delete(getCacheKey(user_id, tokenFp))
   return null
 }
 
-function setCachedUser(user_id: string, user: CurrentUser) {
-  userCache.set(getCacheKey(user_id), { user, ts: Date.now() })
+function setCachedUser(user_id: string, user: CurrentUser, tokenFp?: string) {
+  userCache.set(getCacheKey(user_id, tokenFp), { user, ts: Date.now() })
+}
+
+// Return the session JWT's { sub, tokenFp } so the cache is scoped to the real,
+// current token. On a fresh token the fingerprint changes => cache miss => the
+// token is authoritatively verified by auth.getUser() before being cached.
+async function readSessionFromCookie(): Promise<{ sub: string; tokenFp: string } | null> {
+  try {
+    const store = await cookies()
+    const tokenCookie = store.getAll().find((c) => c.name.includes('auth-token'))
+    if (!tokenCookie?.value) return null
+    const parts = String(tokenCookie.value).split('.')
+    if (parts.length < 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
+    if (typeof payload?.sub !== 'string') return null
+    const tokenFp = parts[2].slice(-8)
+    return { sub: payload.sub, tokenFp }
+  } catch {
+    return null
+  }
 }
 
 export function getSupabaseAdmin() {
@@ -41,17 +67,22 @@ export async function getSessionUser() {
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
+  // Fast path: cache hit using cookie-derived session scoped to the current token.
+  const session = await readSessionFromCookie()
+  const cachedById = getCachedUser(session?.sub ?? null, session?.tokenFp)
+  if (cachedById) return cachedById
+
   const sessionUser = await getSessionUser()
   if (!sessionUser?.id) return null
 
-  const cached = getCachedUser(sessionUser.id)
+  const cached = getCachedUser(sessionUser.id, session?.tokenFp)
   if (cached) return cached
 
   const admin = getSupabaseAdmin()
 
   // 1 query: staff + roles + role_permissions (nested join)
-const { data: staff } = await admin
-     .from('staff')
+  const { data: staff } = await admin
+    .from('staff')
      .select('id, email, user_id, role_id, role, is_active, roles(role_permissions(permissions(resource, action)))')
      .eq('user_id', sessionUser.id)
      .maybeSingle()
@@ -78,7 +109,7 @@ const { data: staff } = await admin
       is_active: true,
       user: { id: sessionUser.id, email: sessionUser.email! },
     }
-    setCachedUser(sessionUser.id, result)
+    setCachedUser(sessionUser.id, result, session?.tokenFp)
     return result
   }
 
@@ -117,7 +148,7 @@ const { data: staff } = await admin
       is_active: true,
       user: { id: sessionUser.id, email: sessionUser.email! },
     }
-    setCachedUser(sessionUser.id, result)
+    setCachedUser(sessionUser.id, result, session?.tokenFp)
     return result
   }
 
