@@ -15,6 +15,7 @@ const ALLOWED_ACTIONS = new Set([
   'staff:update',
   'bookings:create',
   'bookings:update',
+  'bookings:delete',
   'invoices:create',
   'invoices:update',
   'payments:create',
