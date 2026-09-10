@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Rubik } from "next/font/google";
+import { Readex_Pro } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-const rubik = Rubik({
-  variable: "--font-rubik",
+const readex = Readex_Pro({
+  variable: "--font-readex",
   subsets: ["arabic", "latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -108,7 +108,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${rubik.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${readex.variable} h-full antialiased`}>
       <head>
         <script
           type="application/ld+json"
@@ -123,7 +123,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
       </head>
-      <body className={`${rubik.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
+      <body className={`${readex.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
