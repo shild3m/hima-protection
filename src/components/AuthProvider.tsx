@@ -53,8 +53,12 @@ export function AuthProvider({ children, initialStaffInfo }: { children: React.R
 
     async function sync() {
       if (!hasAuthCookie()) {
-        if (subRef.current) { subRef.current.unsubscribe(); subRef.current = null }
-        if (mountedRef.current) { setUser(null); setIsStaff(false); setStaffInfo(null); setLoading(false) }
+        if (!initialStaffInfo) {
+          if (subRef.current) { subRef.current.unsubscribe(); subRef.current = null }
+          if (mountedRef.current) { setUser(null); setIsStaff(false); setStaffInfo(null); setLoading(false) }
+        } else {
+          if (mountedRef.current) { setUser(null); setLoading(false) }
+        }
         return
       }
       if (subRef.current) return
@@ -93,8 +97,8 @@ export function AuthProvider({ children, initialStaffInfo }: { children: React.R
   }, [])
 
   useEffect(() => {
-    if (!user?.id) { setIsStaff(false); setStaffInfo(null); return }
     if (initialStaffInfo) return
+    if (!user?.id) { setIsStaff(false); setStaffInfo(null); return }
     fetch('/api/check-staff', { method: 'POST' })
       .then(r => r.json())
       .then(d => {
