@@ -109,11 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { createClient } = await import('@/utils/supabase/client')
     const supabase = createClient()
     try {
-      await Promise.race([
-        supabase.auth.signOut({ scope: 'global' }),
-        new Promise<void>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-      ])
-    } catch {}
+      await supabase.auth.signOut({ scope: 'global' })
+    } catch (e) {
+      console.error('signOut error:', e)
+    }
     try {
       const keys = Object.keys(localStorage)
       for (const k of keys) { if (k.startsWith('sb-')) localStorage.removeItem(k) }
