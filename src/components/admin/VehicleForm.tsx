@@ -208,7 +208,7 @@ export function VehicleForm({ initialData, onCancel, onSaved }: VehicleFormProps
  }
  }}
  onFocus={() => { setShowCustomerDropdown(true); setCustomerSearch('') }}
- className={`w-full px-4 py-3 bg-[#F7F7F5] border ${errors.customerId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} text-[#111214] rounded-xl focus:border-[#FECACA] focus:ring-2 focus:ring-red-500/20 outline-none transition-all placeholder:text-[#62666D] text-sm pr-10`}
+ className={`w-full px-4 py-3 bg-[#F7F7F5] border ${errors.customerId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} text-[#111214] rounded-xl focus:border-[#FECACA] focus:ring-2 focus:ring-red-500/20 outline-none transition-all placeholder:text-[15px] placeholder:text-[#62666D] text-[15px] pr-10`}
  placeholder="بحث بالاسم أو رقم الجوال..."
  />
  {searchingCustomers && (

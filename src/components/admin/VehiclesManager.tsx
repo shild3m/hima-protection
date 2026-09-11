@@ -213,7 +213,7 @@ export default function VehiclesManager() {
  placeholder="بحث بالماركة أو الموديل أو رقم اللوحة..."
  value={search}
  onChange={(e) => setSearch(e.target.value)}
- className="w-full bg-white border border-[#E7E8EA] shadow-sm rounded-xl pr-10 pl-4 py-2.5 text-[#111214] text-sm focus:outline-none focus:border-[#FECACA] placeholder:text-[#62666D]"
+ className="w-full bg-white border border-[#E7E8EA] shadow-sm rounded-xl pr-10 pl-4 py-3 text-[#111214] text-[16px] focus:outline-none focus:border-[#FECACA] placeholder:text-[16px] placeholder:text-[#62666D]"
  />
  {search && (
  <button onClick={() => setSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition">

@@ -455,7 +455,7 @@ const statusBadge = (status: string) => {
  placeholder="بحث بالاسم أو الجوال أو الماركة أو رقم اللوحة..."
  value={search}
  onChange={(e) => setSearch(e.target.value)}
- className="w-full bg-white border border-[#E7E8EA] shadow-sm shadow-black/[0.02] rounded-2xl pr-11 pl-10 py-3 text-[15px] font-semibold text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-[#62666D] placeholder:font-medium"
+ className="w-full bg-white border border-[#E7E8EA] shadow-sm shadow-black/[0.02] rounded-2xl pr-11 pl-10 py-3.5 text-[16px] font-semibold text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-[16px] placeholder:text-[#62666D] placeholder:font-medium"
  />
  {search && (
  <button onClick={() => setSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition">

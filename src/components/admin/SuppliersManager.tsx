@@ -134,7 +134,7 @@ export default function SuppliersManager() {
  <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-[#62666D] text-sm" />
  <input type="text" placeholder="بحث بالاسم أو الجوال أو البريد..." value={search}
  onChange={e => setSearch(e.target.value)}
- className="w-full pr-10 pl-4 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm placeholder:text-[#62666D] focus:outline-none focus:border-[#DC2626]" />
+ className="w-full pr-10 pl-4 py-3 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-[16px] placeholder:text-[16px] placeholder:text-[#62666D] focus:outline-none focus:border-[#DC2626]" />
  </div>
 
  <div className="bg-white border border-[#E7E8EA] shadow-sm rounded-2xl overflow-hidden">
