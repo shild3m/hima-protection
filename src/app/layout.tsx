@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Kufi_Arabic } from "next/font/google";
+import { Inter, Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -7,6 +7,13 @@ import Footer from "@/components/Footer";
 const kufi = Noto_Kufi_Arabic({
   variable: "--font-kufi",
   subsets: ["arabic"],
+  weight: ["400", "500", "600", "700", "900"],
+  display: "swap",
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
   weight: ["400", "500", "600", "700", "900"],
   display: "swap",
 });
@@ -109,7 +116,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${kufi.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${inter.variable} ${kufi.variable} h-full antialiased`}>
       <head>
         <script
           type="application/ld+json"
@@ -124,7 +131,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
       </head>
-      <body className={`${kufi.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
+      <body className="min-h-full flex flex-col bg-[#0A0A0B] text-white">
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

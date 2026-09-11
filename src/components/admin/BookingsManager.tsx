@@ -70,11 +70,11 @@ interface Stats {
 type Notification = { type: 'success' | 'error'; message: string } | null
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  new: { label: 'New', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
-  contacted: { label: 'Contacted', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
-  in_progress: { label: 'In Progress', color: 'text-[#EA580C]', bg: 'bg-[#FFF7ED] border-orange-500/20' },
-  completed: { label: 'Completed', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
-  cancelled: { label: 'Cancelled', color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' },
+  new: { label: 'جديد', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
+  contacted: { label: 'تم التواصل', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
+  in_progress: { label: 'قيد التنفيذ', color: 'text-[#EA580C]', bg: 'bg-[#FFF7ED] border-orange-500/20' },
+  completed: { label: 'مكتمل', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
+  cancelled: { label: 'ملغي', color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' },
 }
 
 const STATUS_META: Record<string, { icon: React.ReactNode; iconBg: string; iconColor: string }> = {
@@ -627,7 +627,7 @@ const statusBadge = (status: string) => {
  <FaCalendarAlt className="text-white" />
  </div>
  <div>
- <h3 className="font-bold text-[#111214]">Booking Details</h3>
+ <h3 className="font-bold text-[#111214]">تفاصيل الحجز</h3>
  <p className="text-xs text-[#62666D] mt-0.5">{viewingBooking.customer?.full_name || 'عميل'}</p>
  </div>
  </div>
@@ -636,7 +636,7 @@ const statusBadge = (status: string) => {
  <button
  onClick={() => { setDeleteTarget(viewingBooking); setDeleteError('') }}
  className="text-[#DC2626] hover:bg-[#FEF2F2] p-2.5 rounded-xl transition-all"
- title="Delete booking"
+ title="حذف الحجز"
  >
  <FaTrash className="text-sm" />
  </button>
@@ -657,7 +657,7 @@ const statusBadge = (status: string) => {
  <div className="px-5 sm:px-6 py-4 bg-gradient-to-l from-[#FBFBFA] to-white border-b border-[#E7E8EA] flex items-center justify-between gap-3 flex-wrap">
  <span className="text-xs font-bold text-[#62666D] flex items-center gap-1.5">
  <FaInfoCircle className="text-[#DC2626]/60" />
-Current Status
+الحالة الحالية
   </span>
   <div className="flex items-center gap-2">
   {statusBadge(viewingBooking.status)}
@@ -675,7 +675,7 @@ Current Status
   <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-[#E7E8EA] rounded-2xl shadow-2xl shadow-black/10 min-w-[190px] py-1.5 animate-fadeIn overflow-hidden">
   <div className="px-3.5 py-2 text-[10px] font-bold text-[#62666D] bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-1.5">
   <FaExchangeAlt className="text-[9px]" />
-  Change status to
+  تغيير الحالة إلى
   </div>
  {getAvailableStatuses(viewingBooking as unknown as Booking).map((nextStatus) => {
  const cfg = STATUS_CONFIG[nextStatus]
@@ -704,20 +704,20 @@ Current Status
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaUser className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">Customer Info</h4>
+ <h4 className="text-xs font-bold text-[#111214]">بيانات العميل</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Name:</span>
+ <span className="text-[#62666D]">الاسم:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.customer?.full_name || '---'}</span>
  </div>
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Phone:</span>
+ <span className="text-[#62666D]">الجوال:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.customer?.phone || '---'}</span>
  </div>
  {viewingBooking.customer?.email && (
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Email:</span>
+ <span className="text-[#62666D]">البريد:</span>
  <span className="text-[#111214] font-bold break-all" dir="ltr">{viewingBooking.customer.email}</span>
  </div>
  )}
@@ -727,22 +727,22 @@ Current Status
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCar className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">Vehicle Info</h4>
+ <h4 className="text-xs font-bold text-[#111214]">بيانات السيارة</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Vehicle:</span>
+ <span className="text-[#62666D]">المركبة:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.vehicle?.make} {viewingBooking.vehicle?.model}</span>
  </div>
  {viewingBooking.vehicle?.year && (
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Year:</span>
+ <span className="text-[#62666D]">السنة:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.year}</span>
  </div>
  )}
  {viewingBooking.vehicle?.plate_number && (
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Plate No:</span>
+ <span className="text-[#62666D]">رقم اللوحة:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.plate_number}</span>
  </div>
  )}
@@ -752,45 +752,45 @@ Current Status
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCalendarAlt className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">Service Details</h4>
+ <h4 className="text-xs font-bold text-[#111214]">تفاصيل الحجز</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Service:</span>
+ <span className="text-[#62666D]">الخدمة:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.service?.name || '---'}</span>
  </div>
  {viewingBooking.service?.base_price && (
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Price:</span>
- <span className="text-[#DC2626] font-bold" dir="ltr">{viewingBooking.service.base_price.toLocaleString('en-US')} SAR</span>
+ <span className="text-[#62666D]">السعر:</span>
+ <span className="text-[#DC2626] font-bold" dir="ltr">{viewingBooking.service.base_price.toLocaleString('en-US')} ر.س</span>
  </div>
  )}
  {viewingBooking.preferred_date && (
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Preferred Date:</span>
+ <span className="text-[#62666D]">التاريخ المفضل:</span>
  <span className="text-[#111214] font-bold">{new Date(viewingBooking.preferred_date).toLocaleDateString('en-GB')}</span>
  </div>
  )}
  {viewingBooking.preferred_time && (
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Preferred Time:</span>
+ <span className="text-[#62666D]">الوقت المفضل:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.preferred_time}</span>
  </div>
  )}
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Source:</span>
+ <span className="text-[#62666D]">المصدر:</span>
  <span className="text-[#111214] font-bold flex items-center gap-1.5">
  <FaUserTag className="text-[#62666D] text-[10px]" />
- {viewingBooking.source === 'online' ? 'Online' : viewingBooking.source || '---'}
+ {viewingBooking.source === 'online' ? 'أونلاين' : viewingBooking.source || '---'}
  </span>
  </div>
  <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">Created:</span>
+ <span className="text-[#62666D]">تاريخ الإنشاء:</span>
  <span className="text-[#111214] font-bold">{new Date(viewingBooking.created_at).toLocaleDateString('en-GB')}</span>
  </div>
  {viewingBooking.customer_notes && (
  <div className="text-sm pt-1 border-t border-[#F1F2F3]">
- <span className="text-[#62666D]">Customer Notes:</span>
+ <span className="text-[#62666D]">ملاحظات العميل:</span>
  <p className="text-[#111214] mt-1.5 bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl p-3 text-xs leading-relaxed">{viewingBooking.customer_notes}</p>
  </div>
  )}
@@ -801,7 +801,7 @@ Current Status
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaExchangeAlt className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">Update Status</h4>
+ <h4 className="text-xs font-bold text-[#111214]">تحديث الحالة</h4>
  </div>
  <div className="px-4 py-3.5 flex flex-wrap gap-2">
  {VALID_TRANSITIONS[viewingBooking.status].map((nextStatus) => {
