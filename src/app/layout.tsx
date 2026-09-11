@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { Cairo } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+
+const cairo = Cairo({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700", "900"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "عنوان الحماية — حماية سياراتك هي أولويتنا",
@@ -116,7 +123,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-[#0A0A0B] text-white">
+      <body className={`${cairo.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
