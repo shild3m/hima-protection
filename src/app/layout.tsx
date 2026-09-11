@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Roboto, Tajawal } from "next/font/google";
+import { Cairo, Roboto } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-const tajawal = Tajawal({
-  variable: "--font-tajawal",
+const cairo = Cairo({
+  variable: "--font-cairo",
   subsets: ["arabic"],
-  weight: ["400", "500", "700", "800", "900"],
+  weight: ["400", "500", "600", "700", "900"],
   display: "swap",
 });
 
@@ -116,7 +116,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${roboto.variable} ${tajawal.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${roboto.variable} ${cairo.variable} h-full antialiased`}>
       <head>
         <script
           type="application/ld+json"

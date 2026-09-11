@@ -44,7 +44,9 @@
   --color-foreground: #FFFFFF;
 
   /* ── Font ── */
-  --font-sans: var(--font-roboto), var(--font-tajawal);
+  --font-display: var(--font-cairo, "Cairo"), sans-serif;
+  --font-body: var(--font-cairo, "Cairo"), sans-serif;
+  --font-sans: var(--font-roboto), var(--font-cairo, "Cairo"), sans-serif;
 
   /* ── Shadows ── */
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -90,7 +92,7 @@ html {
 body {
   background: #0A0A0B;
   color: #FFFFFF;
-  font-family: var(--font-roboto), var(--font-tajawal), sans-serif;
+  font-family: var(--font-roboto), var(--font-cairo, "Cairo"), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
