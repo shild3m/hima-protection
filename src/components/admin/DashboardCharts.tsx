@@ -38,7 +38,7 @@ interface BarChartProps {
 
 function BarChart({ labels, values, color = '#C4121A', title, height = 160 }: BarChartProps) {
   const maxVal = Math.max(...values, 1)
-  const summary = labels.map((l, i) => `${l}: ${values[i].toLocaleString('ar-SA')}`).join('، ')
+  const summary = labels.map((l, i) => `${l}: ${values[i].toLocaleString('en-GB')}`).join(', ')
 
   return (
     <div className="bg-[#F7F7F5] border border-white/[0.06] rounded-2xl p-5" role="figure" aria-label={`${title}: ${summary}`}>
@@ -50,7 +50,7 @@ function BarChart({ labels, values, color = '#C4121A', title, height = 160 }: Ba
           <div className="flex items-end gap-1.5" style={{ height }} aria-hidden="true">
             {values.map((val, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-[#62666D] text-[10px] font-bold">{val.toLocaleString('ar-SA')}</span>
+                <span className="text-[#62666D] text-[10px] font-bold">{val.toLocaleString('en-GB')}</span>
                 <div
                   className="w-full rounded-t-md transition-all duration-500"
                   style={{
@@ -107,7 +107,7 @@ function PieChart({ labels, values, title }: PieChartProps) {
     return parts
   }, [segments])
 
-  const summary = labels.map((l, i) => `${l}: ${values[i]}`).join('، ')
+  const summary = labels.map((l, i) => `${l}: ${values[i]}`).join(', ')
 
   return (
     <div className="bg-[#F7F7F5] border border-white/[0.06] rounded-2xl p-5" role="figure" aria-label={`${title}: ${summary}`}>
@@ -154,7 +154,7 @@ interface HorizontalBarChartProps {
 
 function HorizontalBarChart({ labels, values, color = '#3B82F6', title }: HorizontalBarChartProps) {
   const maxVal = Math.max(...values, 1)
-  const summary = labels.map((l, i) => `${l}: ${values[i].toLocaleString('ar-SA')}`).join('، ')
+  const summary = labels.map((l, i) => `${l}: ${values[i].toLocaleString('en-GB')}`).join(', ')
 
   return (
     <div className="bg-[#F7F7F5] border border-white/[0.06] rounded-2xl p-5" role="figure" aria-label={`${title}: ${summary}`}>
@@ -167,7 +167,7 @@ function HorizontalBarChart({ labels, values, color = '#3B82F6', title }: Horizo
             <div key={i} role="listitem">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[#62666D] text-xs truncate max-w-[60%]">{label}</span>
-                <span className="text-white text-xs font-bold">{values[i].toLocaleString('ar-SA')}</span>
+                <span className="text-white text-xs font-bold">{values[i].toLocaleString('en-GB')}</span>
               </div>
               <div className="w-full h-2 bg-[#F7F7F5] rounded-full overflow-hidden" aria-hidden="true">
                 <div

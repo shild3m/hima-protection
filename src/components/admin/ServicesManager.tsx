@@ -251,7 +251,7 @@ const hasInitial = !!initialServices
  {service.short_description && <span className="w-1 h-1 rounded-full bg-[#E7E8EA]"></span>}
  <span className="flex items-center gap-1">
  <FaMoneyBillWave className="text-[#059669]/60 text-[10px]" />
- <span className="font-bold text-[#111214]">{Number(service.base_price).toLocaleString()}</span>
+ <span className="font-bold text-[#111214]">{Number(service.base_price).toLocaleString('en-US')}</span>
  <span className="text-[10px] text-[#62666D] font-normal">ر.س</span>
  </span>
  {service.duration_minutes && (
@@ -355,7 +355,7 @@ const hasInitial = !!initialServices
  )}
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">السعر:</span>
- <span className="text-[#111214] font-bold">{Number(viewingService.base_price).toLocaleString()} ر.س</span>
+ <span className="text-[#111214] font-bold">{Number(viewingService.base_price).toLocaleString('en-US')} ر.س</span>
  </div>
  {viewingService.duration_minutes && (
  <div className="flex justify-between text-sm">
@@ -375,11 +375,11 @@ const hasInitial = !!initialServices
  </div>
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">تاريخ الإنشاء:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingService.created_at).toLocaleDateString('ar-SA')}</span>
+ <span className="text-[#111214] font-bold">{new Date(viewingService.created_at).toLocaleDateString('en-GB')}</span>
  </div>
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">آخر تحديث:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingService.updated_at).toLocaleDateString('ar-SA')}</span>
+ <span className="text-[#111214] font-bold">{new Date(viewingService.updated_at).toLocaleDateString('en-GB')}</span>
  </div>
  </div>
  </div>

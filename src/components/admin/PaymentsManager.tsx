@@ -54,7 +54,7 @@ const PAYMENT_METHOD_CONFIG: Record<string, { label: string; color: string; bg: 
 }
 
 function formatCurrency(amount: number): string {
- return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+ return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
 export default function PaymentsManager() {
@@ -266,7 +266,7 @@ export default function PaymentsManager() {
  {payment.paid_at && (
  <span className="flex items-center gap-1">
  <FaCalendarAlt className="text-[8px]" />
- {new Date(payment.paid_at).toLocaleDateString('ar-SA')}
+ {new Date(payment.paid_at).toLocaleDateString('en-GB')}
  </span>
  )}
  {payment.reference_number && (
@@ -349,7 +349,7 @@ export default function PaymentsManager() {
  {viewingPayment.paid_at && (
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">تاريخ الدفع:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingPayment.paid_at).toLocaleDateString('ar-SA')}</span>
+ <span className="text-[#111214] font-bold">{new Date(viewingPayment.paid_at).toLocaleDateString('en-GB')}</span>
  </div>
  )}
 

@@ -14,11 +14,11 @@ function formatOfferValue(offer: OfferWithService): string {
   if (offer.value === null || offer.value === undefined) return "";
   switch (offer.offer_type) {
     case "fixed_discount":
-      return `${offer.value.toLocaleString("ar-SA")} ر.س`;
+      return `${offer.value.toLocaleString("en-GB")} ر.س`;
     case "percentage_discount":
       return `${offer.value}%`;
     case "special_price":
-      return `${offer.value.toLocaleString("ar-SA")} ر.س`;
+      return `${offer.value.toLocaleString("en-GB")} ر.س`;
     default:
       return "";
   }
@@ -104,8 +104,8 @@ export default function OffersContent({ offers }: { offers: OfferWithService[] }
                     )}
                     {offer.start_date && offer.end_date && (
                       <div className="text-center mb-4 text-xs text-[#6B6B80]">
-                        من {new Date(offer.start_date).toLocaleDateString("ar-SA")} إلى{" "}
-                        {new Date(offer.end_date).toLocaleDateString("ar-SA")}
+                        من {new Date(offer.start_date).toLocaleDateString("en-GB")} إلى{" "}
+                        {new Date(offer.end_date).toLocaleDateString("en-GB")}
                       </div>
                     )}
                     <a

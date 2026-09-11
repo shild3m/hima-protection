@@ -249,7 +249,7 @@ export default function DealersPage() {
                       {dealer.referral_count || 0}
                     </td>
                     <td className="px-6 py-4 text-[#62666D] text-sm">
-                      {new Date(dealer.created_at).toLocaleDateString("ar-SA")}
+                      {new Date(dealer.created_at).toLocaleDateString("en-GB")}
                     </td>
                   </tr>
                 ))}

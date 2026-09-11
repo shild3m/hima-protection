@@ -218,7 +218,7 @@ export default function PurchasesManager() {
  return (
  <tr key={p.id} className="border-b border-[#E7E8EA] hover:bg-[#F1F2F3]">
  <td className="px-4 py-3 text-[#111214] font-bold">{p.supplier?.name || '—'}</td>
- <td className="px-4 py-3 text-[#111214]">{new Date(p.purchase_date).toLocaleDateString('ar-SA')}</td>
+ <td className="px-4 py-3 text-[#111214]">{new Date(p.purchase_date).toLocaleDateString('en-GB')}</td>
  <td className="px-4 py-3 text-[#111214] font-bold">{p.total_amount.toFixed(2)}</td>
  <td className="px-4 py-3"><span className={`px-2 py-1 rounded-lg text-xs font-bold ${st.color}`}>{st.label}</span></td>
  <td className="px-4 py-3">
@@ -346,7 +346,7 @@ export default function PurchasesManager() {
  ) : (
  <div className="space-y-3 text-sm">
  <div className="flex justify-between"><span className="text-[#62666D]">المورد</span><span className="text-[#111214] font-bold">{viewingPurchase.supplier?.name || '—'}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">التاريخ</span><span className="text-[#111214]">{new Date(viewingPurchase.purchase_date).toLocaleDateString('ar-SA')}</span></div>
+ <div className="flex justify-between"><span className="text-[#62666D]">التاريخ</span><span className="text-[#111214]">{new Date(viewingPurchase.purchase_date).toLocaleDateString('en-GB')}</span></div>
  <div className="flex justify-between"><span className="text-[#62666D]">الإجمالي</span><span className="text-[#111214] font-bold">{viewingPurchase.total_amount.toFixed(2)}</span></div>
  <div className="flex justify-between">
  <span className="text-[#62666D]">الحالة</span>

@@ -117,7 +117,7 @@ export default function GlobalSearch({ permissions }: GlobalSearchProps) {
                 id: inv.id,
                 type: 'invoice',
                 title: inv.invoice_number,
-                subtitle: `${inv.total.toLocaleString('ar-SA')} ر.س — ${inv.status}`,
+                subtitle: `${inv.total.toLocaleString('en-GB')} ر.س — ${inv.status}`,
                 href: `/admin/invoices?id=${inv.id}`,
               })
             }

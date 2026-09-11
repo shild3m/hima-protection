@@ -259,7 +259,7 @@ export default function CommissionRulesManager() {
  </span>
  </td>
  <td className="px-4 py-3 text-[#111214] font-bold">
- {rule.calculation_type === 'percentage' ? `${rule.rate_value}%` : `${rule.rate_value.toLocaleString('ar-SA')} ر.س`}
+ {rule.calculation_type === 'percentage' ? `${rule.rate_value}%` : `${rule.rate_value.toLocaleString('en-GB')} ر.س`}
  </td>
  <td className="px-4 py-3 text-[#62666D]">{rule.dealer?.business_name || 'جميع الوكلاء'}</td>
  <td className="px-4 py-3 text-[#62666D]">{rule.service?.name || 'جميع الخدمات'}</td>

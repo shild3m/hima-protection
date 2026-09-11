@@ -454,11 +454,11 @@ export default function VehiclesManager() {
  )}
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">تاريخ الإنشاء:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingVehicle.created_at).toLocaleDateString('ar-SA')}</span>
+ <span className="text-[#111214] font-bold">{new Date(viewingVehicle.created_at).toLocaleDateString('en-GB')}</span>
  </div>
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">آخر تحديث:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingVehicle.updated_at).toLocaleDateString('ar-SA')}</span>
+ <span className="text-[#111214] font-bold">{new Date(viewingVehicle.updated_at).toLocaleDateString('en-GB')}</span>
  </div>
  </div>
  </div>

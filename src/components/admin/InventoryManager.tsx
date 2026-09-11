@@ -215,7 +215,7 @@ export default function InventoryManager() {
  </span>
  </td>
  <td className="px-4 py-3 text-[#111214]">{m.material?.current_stock ?? '—'}</td>
- <td className="px-4 py-3 text-[#111214] text-xs">{new Date(m.created_at).toLocaleDateString('ar-SA')}</td>
+ <td className="px-4 py-3 text-[#111214] text-xs">{new Date(m.created_at).toLocaleDateString('en-GB')}</td>
  <td className="px-4 py-3 text-[#62666D] text-xs max-w-[200px] truncate">{m.notes || '—'}</td>
  </tr>
  )

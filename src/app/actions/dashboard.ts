@@ -711,7 +711,7 @@ export async function getRecentActivity(
               items.push({
                 id: p.id,
                 type: 'payment',
-                title: `دفعة ${p.amount.toLocaleString('ar-SA')} ر.س`,
+                title: `دفعة ${p.amount.toLocaleString('en-GB')} ر.س`,
                 description: invoice ? `فاتورة ${invoice.invoice_number} — ${invoice.customers?.[0]?.full_name || ''}` : '',
                 timestamp: p.created_at,
                 icon: 'money',

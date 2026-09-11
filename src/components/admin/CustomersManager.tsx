@@ -340,7 +340,7 @@ export default function CustomersManager() {
  <span className="w-1 h-1 rounded-full bg-[#E7E8EA]"></span>
  <span className="flex items-center gap-1">
  <FaCalendarAlt className="text-[#7C3AED]/60 text-[10px]" />
- {new Date(customer.created_at).toLocaleDateString('ar-SA')}
+ {new Date(customer.created_at).toLocaleDateString('en-GB')}
  </span>
  </div>
  </div>
@@ -479,7 +479,7 @@ export default function CustomersManager() {
  )}
  <div className="flex justify-between text-sm">
  <span className="text-[#62666D]">تاريخ الإنشاء:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingCustomer.created_at).toLocaleDateString('ar-SA')}</span>
+ <span className="text-[#111214] font-bold">{new Date(viewingCustomer.created_at).toLocaleDateString('en-GB')}</span>
  </div>
  </div>
 

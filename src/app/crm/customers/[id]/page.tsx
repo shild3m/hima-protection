@@ -278,7 +278,7 @@ export default function CustomerDetailPage() {
           <div>
             <span className="text-[#62666D]">تاريخ التسجيل</span>
             <p className="mt-1">
-              {new Date(customer.created_at).toLocaleDateString("ar-SA")}
+              {new Date(customer.created_at).toLocaleDateString("en-GB")}
             </p>
           </div>
           <div>
@@ -406,7 +406,7 @@ export default function CustomerDetailPage() {
                 <div>
                   <p>{note.content}</p>
                   <p className="text-[#62666D] text-xs mt-2">
-                    {new Date(note.created_at).toLocaleString("ar-SA")}
+                    {new Date(note.created_at).toLocaleString("en-GB")}
                   </p>
                 </div>
                 <button

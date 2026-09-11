@@ -103,7 +103,7 @@ export default function AuditLogsManager() {
  {log.resource_id ? log.resource_id.substring(0, 8) + '...' : '—'}
  </td>
  <td className="px-4 py-3 text-[#62666D] text-xs">
- {new Date(log.created_at).toLocaleString('ar-SA')}
+ {new Date(log.created_at).toLocaleString('en-GB')}
  </td>
  </tr>
  ))}

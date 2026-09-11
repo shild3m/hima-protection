@@ -290,7 +290,7 @@ export default function DealerDetailPage({ params }: { params: Promise<{ id: str
             <div className="space-y-4">
               <InfoRow icon={<FaBuilding />} label="النوع" value={dealer.commission_type === "fixed" ? "ثابت" : "نسبة"} />
               <InfoRow icon={<FaBuilding />} label="القيمة" value={String(dealer.commission_value)} />
-              <InfoRow icon={<FaBuilding />} label="أنشئ في" value={new Date(dealer.created_at).toLocaleDateString("ar-SA")} />
+              <InfoRow icon={<FaBuilding />} label="أنشئ في" value={new Date(dealer.created_at).toLocaleDateString("en-GB")} />
             </div>
             {dealer.notes && (
               <div className="sm:col-span-2">

@@ -50,7 +50,7 @@ const OFFER_TYPE_CONFIG: Record<string, { label: string; color: string; bg: stri
 }
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+  return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
 export default function OffersManager() {
@@ -313,7 +313,7 @@ export default function OffersManager() {
                     <td className="px-4 py-3 text-[#62666D] text-xs">
                       <div className="flex items-center gap-1">
                         <FaCalendarAlt className="text-[9px]" />
-                        {new Date(offer.created_at).toLocaleDateString('ar-SA')}
+                        {new Date(offer.created_at).toLocaleDateString('en-GB')}
                       </div>
                     </td>
                     <td className="px-4 py-3">

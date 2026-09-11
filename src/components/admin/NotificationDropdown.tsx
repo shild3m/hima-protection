@@ -147,7 +147,7 @@ export default function NotificationDropdown({ className = '' }: NotificationDro
                           <p className="text-[#62666D] text-xs mt-0.5 truncate">{n.message}</p>
                         )}
                         <p className="text-[#62666D] text-[10px] mt-1">
-                          {new Date(n.created_at).toLocaleDateString('ar-SA', {
+                          {new Date(n.created_at).toLocaleDateString('en-GB', {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}

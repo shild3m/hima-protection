@@ -15,7 +15,7 @@ export interface Service {
 
 export function formatPrice(price: number | null): string | null {
   if (price === null || price === undefined) return null;
-  return `${price.toLocaleString("ar-SA")} ر.س`;
+  return `${price.toLocaleString("en-GB")} ر.س`;
 }
 
 export function formatDuration(minutes: number | null): string | null {

@@ -39,7 +39,7 @@ interface Pagination {
 type Notification = { type: 'success' | 'error'; message: string } | null
 
 function formatCurrency(amount: number): string {
- return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+ return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
 export default function ExpensesManager() {
@@ -325,7 +325,7 @@ export default function ExpensesManager() {
  <span className="text-[#111214] font-bold">{formatCurrency(expense.amount)} ر.س</span>
  <span className="flex items-center gap-1">
  <FaCalendarAlt className="text-[8px]" />
- {new Date(expense.expense_date).toLocaleDateString('ar-SA')}
+ {new Date(expense.expense_date).toLocaleDateString('en-GB')}
  </span>
  </div>
  {expense.notes && (

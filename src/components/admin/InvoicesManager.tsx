@@ -92,7 +92,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 }
 
 function formatCurrency(amount: number): string {
- return new Intl.NumberFormat('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+ return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
 export default function InvoicesManager() {
@@ -710,7 +710,7 @@ export default function InvoicesManager() {
  <span className="text-[#111214] font-bold">{formatCurrency(payment.amount)} ر.س</span>
  <span className="text-[#62666D] mr-2">({PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method})</span>
  </div>
- <span className="text-[#62666D]">{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('ar-SA') : '---'}</span>
+ <span className="text-[#62666D]">{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('en-GB') : '---'}</span>
  </div>
  ))}
  </div>

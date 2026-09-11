@@ -136,7 +136,7 @@ export default function NotificationsManager() {
  <p className="text-[#62666D] text-xs mb-1">{n.message}</p>
  )}
  <p className="text-[#62666D] text-[10px]">
- {new Date(n.created_at).toLocaleString('ar-SA')}
+ {new Date(n.created_at).toLocaleString('en-GB')}
  </p>
  </div>
  {!n.is_read && (

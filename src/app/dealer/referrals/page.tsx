@@ -234,7 +234,7 @@ export default function DealerReferralsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-[#62666D] text-sm">
-                      {new Date(r.created_at).toLocaleDateString("ar-SA")}
+                      {new Date(r.created_at).toLocaleDateString("en-GB")}
                     </td>
                   </tr>
                 ))}

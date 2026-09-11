@@ -522,7 +522,7 @@ const statusBadge = (status: string) => {
  )}
  <span className="flex items-center gap-1.5 font-bold">
  <FaClock className="text-[#62666D] text-[10px]" />
- {new Date(booking.created_at).toLocaleDateString('ar-SA')}
+ {new Date(booking.created_at).toLocaleDateString('en-GB')}
  </span>
  </div>
  </div>
@@ -960,7 +960,7 @@ const statusBadge = (status: string) => {
  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الخدمة *</label>
  <select value={createFormData.serviceId} onChange={e => setCreateFormData(p => ({ ...p, serviceId: e.target.value }))} className={`w-full bg-white border ${createErrors.serviceId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none appearance-none cursor-pointer transition-all`}>
  <option value="">اختر الخدمة</option>
- {services.map(s => <option key={s.id} value={s.id}>{s.name}{s.base_price ? ` — ${s.base_price.toLocaleString('ar-SA')} ر.س` : ''}</option>)}
+ {services.map(s => <option key={s.id} value={s.id}>{s.name}{s.base_price ? ` — ${s.base_price.toLocaleString('en-GB')} ر.س` : ''}</option>)}
  </select>
  {createErrors.serviceId && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.serviceId}</p>}
  </div>

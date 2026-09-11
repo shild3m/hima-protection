@@ -297,7 +297,7 @@ export default function VehicleDetailPage() {
                     </span>
                   </div>
                   <span className="text-[#62666D] text-xs">
-                    {new Date(h.created_at).toLocaleString("ar-SA")}
+                    {new Date(h.created_at).toLocaleString("en-GB")}
                   </span>
                 </div>
                 {h.notes && (

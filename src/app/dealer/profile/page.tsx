@@ -213,7 +213,7 @@ export default function DealerProfilePage() {
             <InfoRow icon={<FaPhone />} label="الهاتف" value={dealer.phone} />
             <InfoRow icon={<FaEnvelope />} label="البريد" value={dealer.email || "—"} />
             <InfoRow icon={<FaMapMarkerAlt />} label="العنوان" value={dealer.address || "—"} />
-            <InfoRow icon={<FaBuilding />} label="تاريخ الانضمام" value={new Date(dealer.created_at).toLocaleDateString("ar-SA")} />
+            <InfoRow icon={<FaBuilding />} label="تاريخ الانضمام" value={new Date(dealer.created_at).toLocaleDateString("en-GB")} />
           </div>
         )}
       </div>

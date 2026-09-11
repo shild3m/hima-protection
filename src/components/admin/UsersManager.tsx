@@ -240,7 +240,7 @@ export default function UsersManager() {
  )}
  </td>
  <td className="px-4 py-3 text-[#62666D] text-xs">
- {new Date(s.created_at).toLocaleDateString('ar-SA')}
+ {new Date(s.created_at).toLocaleDateString('en-GB')}
  </td>
  <td className="px-4 py-3">
  <div className="flex items-center gap-1">

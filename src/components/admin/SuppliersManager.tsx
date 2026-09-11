@@ -281,7 +281,7 @@ export default function SuppliersManager() {
  </div>
  </div>
  {supplierHistory.last_purchase && (
- <p className="text-[#62666D] text-xs mt-2">آخر شراء: {new Date(supplierHistory.last_purchase).toLocaleDateString('ar-SA')}</p>
+ <p className="text-[#62666D] text-xs mt-2">آخر شراء: {new Date(supplierHistory.last_purchase).toLocaleDateString('en-GB')}</p>
  )}
  </div>
  )}

@@ -108,7 +108,7 @@ function DealerStats({ dealerId }: { dealerId: string }) {
           <div>
             <div className="text-[#62666D] text-sm">العمولات</div>
             <div className="text-2xl font-bold text-[#111214]">
-              {loading ? "—" : commStats.total_amount.toLocaleString("ar-SA")} <span className="text-sm font-normal text-[#62666D]">ر.س</span>
+              {loading ? "—" : commStats.total_amount.toLocaleString("en-GB")} <span className="text-sm font-normal text-[#62666D]">ر.س</span>
             </div>
           </div>
         </div>
@@ -272,7 +272,7 @@ export default function DealerDashboardPage() {
             </div>
             <div>
               <div className="text-xs text-[#62666D]">تاريخ الانضمام</div>
-              <div className="text-[#111214]">{new Date(dealer.created_at).toLocaleDateString("ar-SA")}</div>
+              <div className="text-[#111214]">{new Date(dealer.created_at).toLocaleDateString("en-GB")}</div>
             </div>
           </div>
         </div>

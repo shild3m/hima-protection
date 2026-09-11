@@ -64,9 +64,9 @@ function Skeleton({ permissions }: DashboardKPIProps) {
 
 function formatValue(value: number, format?: string) {
   if (format === 'currency') {
-    return `${value.toLocaleString('ar-SA')} ر.س`
+    return `${value.toLocaleString('en-GB')} ر.س`
   }
-  return value.toLocaleString('ar-SA')
+  return value.toLocaleString('en-GB')
 }
 
 export default function DashboardKPI({ permissions }: DashboardKPIProps) {
