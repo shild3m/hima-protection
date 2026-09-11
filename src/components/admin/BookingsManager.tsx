@@ -415,7 +415,7 @@ const statusBadge = (status: string) => {
 
  {/* ===== Stats ===== */}
  {stats && (
- <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+ <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
  {Object.entries(STATUS_CONFIG).map(([key, config]) => {
  const meta = STATUS_META[key] || STATUS_META.new
  const active = statusFilter === key
@@ -423,24 +423,24 @@ const statusBadge = (status: string) => {
  <button
  key={key}
  onClick={() => { setStatusFilter(active ? 'all' : key); setPage(1) }}
- className={`relative overflow-hidden rounded-2xl p-4 border-2 text-right transition-all duration-200 ${
+ className={`group relative overflow-hidden rounded-2xl p-5 border-2 text-right transition-all duration-200 ${
  active
- ? `${config.bg} ${config.color} border-current shadow-lg`
- : 'bg-white border-[#E7E8EA] hover:border-[#D4D6DA] hover:shadow-md hover:shadow-black/[0.03]'
+ ? `${config.bg} ${config.color} border-current shadow-lg shadow-black/[0.06] -translate-y-0.5`
+ : 'bg-white border-[#E7E8EA] hover:border-[#D4D6DA] hover:shadow-lg hover:shadow-black/[0.05] hover:-translate-y-0.5'
  }`}
  >
- <div className="flex items-start justify-between gap-2">
+ {active && (
+ <div className="absolute top-0 right-0 left-0 h-1 bg-current opacity-70"></div>
+ )}
+ <div className="flex items-start justify-between gap-3">
  <div>
- <div className="text-2xl font-black leading-none">{stats.counts[key] || 0}</div>
- <div className={`text-xs font-black mt-2 ${active ? config.color : 'text-[#62666D]'}`}>{config.label}</div>
+ <div className="text-3xl sm:text-[34px] font-black leading-none tracking-tight">{stats.counts[key] || 0}</div>
+ <div className={`text-sm sm:text-[15px] font-black mt-3 ${active ? config.color : 'text-[#62666D]'}`}>{config.label}</div>
  </div>
- <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-opacity duration-200 ${meta.iconBg} ${meta.iconColor} ${active ? 'opacity-100' : 'opacity-50'}`}>
+ <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl transition-all duration-200 ${meta.iconBg} ${meta.iconColor} ${active ? 'opacity-100 scale-105' : 'opacity-60 group-hover:opacity-100 group-hover:scale-105'}`}>
  {meta.icon}
  </div>
  </div>
- {active && (
- <div className="absolute bottom-0 right-0 left-0 h-0.5 bg-current opacity-40"></div>
- )}
  </button>
  )
  })}
