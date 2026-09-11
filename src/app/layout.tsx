@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Kufi_Arabic } from "next/font/google";
+import { Cairo, Roboto } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-const kufi = Noto_Kufi_Arabic({
-  variable: "--font-kufi",
+const cairo = Cairo({
+  variable: "--font-cairo",
   subsets: ["arabic"],
   weight: ["400", "500", "600", "700", "900"],
   display: "swap",
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const roboto = Roboto({
+  variable: "--font-roboto",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "900"],
+  weight: ["400", "500", "700", "900"],
   display: "swap",
 });
 
@@ -116,7 +116,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${inter.variable} ${kufi.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${roboto.variable} ${cairo.variable} h-full antialiased`}>
       <head>
         <script
           type="application/ld+json"
