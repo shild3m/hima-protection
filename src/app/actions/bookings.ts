@@ -120,12 +120,33 @@ export async function getBookings(
       return { success: false as const, error: 'تعذر جلب الحجوزات' }
     }
 
-    const mapped = (data || []).map((b) => {
-      return { ...b, linked_invoice: null }
+    const rows = data || []
+    const createdByIds = [...new Set(rows.map(b => (b.created_by as string | null)).filter(Boolean))] as string[]
+    let creatorNames: Record<string, string> = {}
+    if (createdByIds.length > 0) {
+      const admin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const { data: staffRows } = await admin
+        .from('staff')
+        .select('user_id, full_name')
+        .in('user_id', createdByIds)
+      if (staffRows) {
+        creatorNames = Object.fromEntries(staffRows.map(s => [s.user_id, s.full_name]))
+      }
+    }
+
+    const mapped = rows.map((b) => {
+      return {
+        ...b,
+        created_by_name: b.created_by ? creatorNames[b.created_by] || null : null,
+        linked_invoice: null,
+      }
     })
 
-    if ((data || []).length > 0) {
-      const ids = (data || []).map(b => b.id as string)
+    if (rows.length > 0) {
+      const ids = rows.map(b => b.id as string)
       const { data: invData, error: invErr } = await supabase
         .from('invoices')
         .select('id, invoice_number, status, booking_id')
@@ -196,7 +217,10 @@ export async function getBooking(id: string) {
       .order('created_at', { ascending: true })
 
     const historyRows = history || []
-    const changedByIds = [...new Set(historyRows.map(h => h.changed_by).filter(Boolean))] as string[]
+    const changedByIds = [...new Set([
+      ...historyRows.map(h => h.changed_by).filter(Boolean),
+      data.created_by,
+    ].filter(Boolean))] as string[]
     let staffNames: Record<string, string> = {}
     if (changedByIds.length > 0) {
       const admin = createAdminClient(
@@ -222,7 +246,7 @@ export async function getBooking(id: string) {
       .eq('booking_id', id)
       .maybeSingle()
 
-    return { success: true as const, data: { ...data, status_history: enrichedHistory, linked_invoice: linkedInvoice || null } }
+    return { success: true as const, data: { ...data, status_history: enrichedHistory, created_by_name: data.created_by ? staffNames[data.created_by] || null : null, linked_invoice: linkedInvoice || null } }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
@@ -532,6 +556,21 @@ export async function adminCreateBooking(input: AdminBookingInput) {
           .update({ service_name_snapshot: svc.name })
           .eq('id', result.booking_id)
       }
+
+      const admin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const { data: staffRow } = await admin
+        .from('staff')
+        .select('full_name')
+        .eq('user_id', user.auth_user_id)
+        .maybeSingle()
+      const creatorName = staffRow?.full_name || user.email || user.name
+      await admin
+        .from('bookings')
+        .update({ created_by: user.auth_user_id, created_by_name: creatorName })
+        .eq('id', result.booking_id)
     }
 
     await logAudit({

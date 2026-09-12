@@ -26,8 +26,9 @@ import {
  FaWrench,
  FaHistory,
  FaInfoCircle,
- FaUserTag,
- FaFileInvoiceDollar,
+FaUserTag,
+  FaGlobe,
+  FaFileInvoiceDollar,
 FaShieldAlt,
  FaEdit,
  FaCheck,
@@ -38,14 +39,16 @@ interface Booking {
  customer_id: string
  vehicle_id: string
  service_id: string
- status: string
- preferred_date: string | null
- preferred_time: string | null
- customer_notes: string | null
- admin_notes: string | null
- source: string | null
- created_at: string
- updated_at: string
+status: string
+  preferred_date: string | null
+  preferred_time: string | null
+  customer_notes: string | null
+  admin_notes: string | null
+  source: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  created_by_name?: string | null
  customer?: { id: string; full_name: string; phone: string }
  vehicle?: { id: string; make: string; model: string; year: number | null; plate_number: string | null }
  service?: { id: string; name: string; base_price: number }
@@ -698,11 +701,22 @@ return (
  {booking.service.name}
  </span>
  )}
- <span className="flex items-center gap-1.5 font-bold">
- <FaClock className="text-[#62666D] text-[10px]" />
- {new Date(booking.created_at).toLocaleDateString('en-GB')}
- </span>
- </div>
+<span className="flex items-center gap-1.5 font-bold">
+  <FaClock className="text-[#62666D] text-[10px]" />
+  {new Date(booking.created_at).toLocaleDateString('en-GB')}
+  </span>
+  {booking.created_by_name ? (
+  <span className="flex items-center gap-1.5 font-bold">
+  <FaUserTag className="text-[#059669] text-[10px]" />
+  {booking.created_by_name}
+  </span>
+  ) : booking.source === 'online' ? (
+  <span className="flex items-center gap-1.5 font-bold">
+  <FaGlobe className="text-[#62666D] text-[10px]" />
+  عبر الموقع
+  </span>
+  ) : null}
+  </div>
  </div>
 
  <div className="flex items-center gap-2 shrink-0">
@@ -950,13 +964,22 @@ return (
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.preferred_time}</span>
  </div>
  )}
- <div className="flex justify-between text-[16px]">
- <span className="text-[#4B4F55] font-bold">المصدر:</span>
- <span className="text-[#111214] font-bold flex items-center gap-1.5">
- <FaUserTag className="text-[#62666D] text-[10px]" />
- {viewingBooking.source === 'online' ? 'أونلاين' : viewingBooking.source || '---'}
- </span>
- </div>
+<div className="flex justify-between text-[16px]">
+  <span className="text-[#4B4F55] font-bold">المصدر:</span>
+  <span className="text-[#111214] font-bold flex items-center gap-1.5">
+  <FaUserTag className="text-[#62666D] text-[10px]" />
+  {viewingBooking.source === 'online' ? 'أونلاين' : viewingBooking.source || '---'}
+  </span>
+  </div>
+  {viewingBooking.created_by_name && (
+  <div className="flex justify-between text-[16px]">
+  <span className="text-[#4B4F55] font-bold">تم الحجز بواسطة:</span>
+  <span className="text-[#111214] font-bold flex items-center gap-1.5">
+  <FaUser className="text-[#059669] text-[12px]" />
+  {viewingBooking.created_by_name}
+  </span>
+  </div>
+  )}
  <div className="flex justify-between text-[16px]">
  <span className="text-[#4B4F55] font-bold">تاريخ الإنشاء:</span>
  <span className="text-[#111214] font-bold">{new Date(viewingBooking.created_at).toLocaleDateString('en-GB')}</span>
