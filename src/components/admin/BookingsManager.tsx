@@ -349,7 +349,7 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
 const statusBadge = (status: string) => {
   const config = STATUS_CONFIG[status] || { label: status, color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' }
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black border ${config.bg} ${config.color}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black border ${config.bg} ${config.color}`}>
       <span className="w-2 h-2 rounded-full bg-current opacity-70"></span>
       {config.label}
     </span>
@@ -507,12 +507,12 @@ const statusIcon = (status: string) => {
  </div>
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-2 flex-wrap">
- <h4 className="text-[15px] font-bold text-[#111214] truncate">
+ <h4 className="text-[17px] font-bold text-[#111214] truncate">
  {booking.customer?.full_name || 'عميل'}
  </h4>
  {statusBadge(booking.status)}
  </div>
- <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-[13px] text-[#62666D] font-semibold flex-wrap">
+ <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-[14px] text-[#62666D] font-semibold flex-wrap">
  {booking.customer?.phone && (
  <span className="flex items-center gap-1.5 font-bold" dir="ltr">
  <FaPhone className="text-[#059669] text-[10px]" />
@@ -688,16 +688,16 @@ const statusIcon = (status: string) => {
  <h4 className="text-xs font-bold text-[#111214]">بيانات العميل</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">الاسم:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.customer?.full_name || '---'}</span>
  </div>
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">الجوال:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.customer?.phone || '---'}</span>
  </div>
  {viewingBooking.customer?.email && (
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">البريد:</span>
  <span className="text-[#111214] font-bold break-all" dir="ltr">{viewingBooking.customer.email}</span>
  </div>
@@ -711,18 +711,18 @@ const statusIcon = (status: string) => {
  <h4 className="text-xs font-bold text-[#111214]">بيانات السيارة</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">المركبة:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.vehicle?.make} {viewingBooking.vehicle?.model}</span>
  </div>
  {viewingBooking.vehicle?.year && (
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">السنة:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.year}</span>
  </div>
  )}
  {viewingBooking.vehicle?.plate_number && (
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">رقم اللوحة:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.plate_number}</span>
  </div>
@@ -736,43 +736,43 @@ const statusIcon = (status: string) => {
  <h4 className="text-xs font-bold text-[#111214]">تفاصيل الحجز</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">الخدمة:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.service?.name || '---'}</span>
  </div>
  {viewingBooking.service?.base_price && (
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">السعر:</span>
  <span className="text-[#DC2626] font-bold" dir="ltr">{viewingBooking.service.base_price.toLocaleString('en-US')} ر.س</span>
  </div>
  )}
  {viewingBooking.preferred_date && (
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">التاريخ المفضل:</span>
  <span className="text-[#111214] font-bold">{new Date(viewingBooking.preferred_date).toLocaleDateString('en-GB')}</span>
  </div>
  )}
  {viewingBooking.preferred_time && (
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">الوقت المفضل:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.preferred_time}</span>
  </div>
  )}
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">المصدر:</span>
  <span className="text-[#111214] font-bold flex items-center gap-1.5">
  <FaUserTag className="text-[#62666D] text-[10px]" />
  {viewingBooking.source === 'online' ? 'أونلاين' : viewingBooking.source || '---'}
  </span>
  </div>
- <div className="flex justify-between text-sm">
+ <div className="flex justify-between text-[16px]">
  <span className="text-[#62666D]">تاريخ الإنشاء:</span>
  <span className="text-[#111214] font-bold">{new Date(viewingBooking.created_at).toLocaleDateString('en-GB')}</span>
  </div>
  {viewingBooking.customer_notes && (
  <div className="text-sm pt-1 border-t border-[#F1F2F3]">
  <span className="text-[#62666D]">ملاحظات العميل:</span>
- <p className="text-[#111214] mt-1.5 bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl p-3 text-xs leading-relaxed">{viewingBooking.customer_notes}</p>
+ <p className="text-[#111214] mt-1.5 bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl p-3 text-sm leading-relaxed">{viewingBooking.customer_notes}</p>
  </div>
  )}
  </div>
@@ -805,7 +805,7 @@ const statusIcon = (status: string) => {
  </div>
  <div className="px-4 py-3.5 space-y-2.5">
  {viewingBooking.status_history.map((h) => (
- <div key={h.id} className="flex items-center gap-2.5 text-xs bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl px-3 py-2 flex-wrap">
+ <div key={h.id} className="flex items-center gap-2.5 text-sm bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl px-3 py-2 flex-wrap">
  <span className="text-[#62666D] font-medium">{new Date(h.created_at).toLocaleDateString('en-GB')}</span>
  <span className="text-[#62666D]">→</span>
  {statusBadge(h.new_status)}
