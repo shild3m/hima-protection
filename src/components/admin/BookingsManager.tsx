@@ -154,6 +154,7 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
  const [warrantyYears, setWarrantyYears] = useState(1)
  const [warrantyEditing, setWarrantyEditing] = useState(false)
  const [savingWarranty, setSavingWarranty] = useState(false)
+ const [warrantyCalOpen, setWarrantyCalOpen] = useState(false)
  const [calYear, setCalYear] = useState(new Date().getFullYear())
  const [calMonth, setCalMonth] = useState(new Date().getMonth())
  const [calMode, setCalMode] = useState<'miladi' | 'hijri'>('miladi')
@@ -1026,8 +1027,21 @@ const statusIcon = (status: string) => {
   {warrantyEditing ? (
   <div className="mt-2.5 space-y-3">
   <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1 block text-center">بداية الضمان</label>
-  <div className="flex justify-center">
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">بداية الضمان</label>
+  <button type="button" onClick={() => {
+    const d = new Date((warrantyStart || new Date().toISOString().slice(0, 10)) + 'T00:00:00')
+    setCalYear(d.getFullYear())
+    setCalMonth(d.getMonth())
+    setWarrantyCalOpen(v => !v)
+  }} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] font-bold flex items-center justify-between gap-2 focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all">
+  <span className="flex items-center gap-2">
+  <FaCalendarAlt className="text-[#DC2626]/70 text-xs" />
+  {warrantyStart ? formatStartDisplay(warrantyStart) : 'اضغط لاختيار التاريخ'}
+  </span>
+  <FaChevronDown className={`text-[10px] text-[#9CA1A6] transition-transform ${warrantyCalOpen ? 'rotate-180' : ''}`} />
+  </button>
+  {warrantyCalOpen && (
+  <div className="mt-2 flex justify-center">
   <div className="w-[270px] bg-white border border-[#E7E8EA] rounded-2xl shadow-md p-3">
   <div className="flex items-center p-0.5 bg-[#F7F7F5] rounded-[10px] mb-2">
   <button type="button" onClick={() => setCalMode('miladi')} className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${calMode === 'miladi' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>ميلادي</button>
@@ -1058,7 +1072,7 @@ const statusIcon = (status: string) => {
     const hijriCell = calMode === 'hijri' ? toHijri(iso) : null
     const dayNum = hijriCell ? hijriCell.d : Number(iso.split('-')[2])
     return (
-    <button key={iso} type="button" onClick={() => handleWarrantyStartChange(iso)} className="p-0.5">
+    <button key={iso} type="button" onClick={() => { handleWarrantyStartChange(iso); setWarrantyCalOpen(false) }} className="p-0.5">
     <div className={`w-8 h-8 mx-auto flex flex-col items-center justify-center rounded-full text-xs font-bold transition-all ${isSel ? 'bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white shadow-md shadow-red-500/25' : isToday ? 'text-[#DC2626] ring-1 ring-[#FECACA] bg-[#FFF1F2]' : 'text-[#111214] hover:bg-[#FEE2E2] hover:text-[#DC2626]'}`}>
     <span className="leading-none pt-1">{dayNum}</span>
     {isToday && <span className={`leading-none mt-0.5 text-[7px] font-black ${isSel ? 'text-white' : 'text-[#DC2626]'}`}>اليوم</span>}
@@ -1069,6 +1083,7 @@ const statusIcon = (status: string) => {
   </div>
   </div>
   </div>
+  )}
   <p className="text-center mt-2 text-sm font-black text-[#111214]">{warrantyStart ? formatStartDisplay(warrantyStart) : 'لم يُحدَّد بعد'}</p>
   </div>
   <div>
