@@ -123,7 +123,7 @@ export default function SettingsManager() {
  <div className="flex items-center justify-between mb-4">
  <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
  <FaTrash className="text-[#DC2626] text-sm" />
- رمز الحذف السري
+ الرمز الخاص
  </h3>
  <button onClick={() => setShowTokenSettings(false)} className="text-[#62666D] hover:text-[#111214] transition">
  <FaTimes />

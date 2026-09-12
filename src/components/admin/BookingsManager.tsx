@@ -986,7 +986,7 @@ const statusIcon = (status: string) => {
  </div>
 
  <div className="px-6 mb-3">
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">أدخل رمز الحذف السري</label>
+ <label className="text-xs font-bold text-[#62666D] mb-1.5 block">أدخل الرمز الخاص</label>
  <input
  type="password"
  value={deleteToken}
