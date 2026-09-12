@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Cairo } from "next/font/google";
+import { Almarai } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-const cairo = Cairo({
-  variable: "--font-cairo",
+const almarai = Almarai({
+  variable: "--font-almarai",
   subsets: ["arabic"],
-  weight: ["400", "500", "600", "700", "900"],
+  weight: ["300", "400", "700", "800"],
   display: "swap",
 });
 
@@ -109,7 +109,7 @@ function isPublicPath(pathname: string) {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} h-full antialiased`}>
+    <html lang="ar" dir="rtl" className={`${almarai.variable} h-full antialiased`}>
       <head>
         <script
           type="application/ld+json"
@@ -124,7 +124,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
         />
       </head>
-      <body className={`${cairo.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
+      <body className={`${almarai.className} min-h-full flex flex-col bg-[#0A0A0B] text-white`}>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
