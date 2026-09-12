@@ -959,17 +959,13 @@ const statusIcon = (status: string) => {
   </div>
 
   {warrantyEditing ? (
-  <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+  <div className="mt-2.5 space-y-3">
   <div>
   <label className="text-xs font-bold text-[#62666D] mb-1 block">بداية الضمان</label>
   <input type="date" value={warrantyStart} onChange={e => handleWarrantyStartChange(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
   </div>
   <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1 block">نهاية الضمان <span className="text-[#9CA1A6] font-medium">— تلقائياً</span></label>
-  <input type="date" value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)} className="w-full bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
-  </div>
-  <div className="col-span-2">
-  <label className="text-xs font-bold text-[#62666D] mb-1 block text-center">مدة الضمان (السنة)</label>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block text-center">مدة الضمان</label>
   <div className="flex items-center justify-center gap-1 bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-2 pt-3 pb-8">
   <button type="button" onClick={() => handleWarrantyYearsChange(Math.max(1, warrantyYears - 1))} disabled={warrantyYears <= 1} title="السنة السابقة" className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-[#E7E8EA] text-[#62666D] shadow-sm hover:text-[#DC2626] disabled:opacity-25 transition-all">
   <FaChevronRight className="text-[10px]" />
@@ -995,7 +991,17 @@ const statusIcon = (status: string) => {
   </div>
   <p className="text-center mt-1 text-sm font-black text-[#DC2626]">{warrantyYears} {warrantyYears === 1 ? 'سنة' : warrantyYears === 2 ? 'سنتان' : 'سنوات'}</p>
   </div>
-  <div className="col-span-2 flex gap-2">
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">نهاية الضمان</label>
+  <div className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 flex items-center justify-between select-none">
+  <span className="flex items-center gap-2 text-sm text-[#111214] font-bold">
+  <FaCalendarAlt className="text-[#DC2626]/70 text-xs" />
+  {warrantyEnd ? (() => { const [y, m, d] = warrantyEnd.split('-'); return `${d}/${m}/${y}` })() : '—'}
+  </span>
+  <span className="flex items-center gap-1 text-[10px] font-bold text-[#62666D]"><FaCheck className="text-[#059669] text-[9px]" /> تلقائياً</span>
+  </div>
+  </div>
+  <div className="flex gap-2">
   <button onClick={handleSaveWarranty} disabled={savingWarranty} className="flex-1 bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white rounded-xl px-3 py-2 text-sm font-bold flex items-center justify-center gap-2 hover:from-[#9B1B30] hover:to-[#7A1526] disabled:opacity-60 transition-all">
   {savingWarranty ? <FaSpinner className="animate-spin" /> : <FaCheck />} حفظ الضمان
   </button>

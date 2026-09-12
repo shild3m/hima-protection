@@ -335,7 +335,7 @@ export async function updateBookingWarranty(
   if (!user.permissions.includes('bookings:manage')) {
     return { success: false as const, error: 'غير مصرح' }
   }
-  const rl = await checkRateLimit('bookings:warranty')
+  const rl = await checkRateLimit('bookings:update')
   if (!rl.ok) return { success: false as const, error: rl.error }
 
   try {
