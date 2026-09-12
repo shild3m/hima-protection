@@ -53,6 +53,8 @@ status: string
  vehicle?: { id: string; make: string; model: string; year: number | null; plate_number: string | null }
  service?: { id: string; name: string; base_price: number }
  service_name_snapshot?: string | null
+ warranty_start_date?: string | null
+ warranty_end_date?: string | null
  linked_invoice?: { id: string; invoice_number: string; status: string } | null
 }
 
@@ -664,9 +666,12 @@ return (
  ) : (
  <>
  <div className="grid gap-3">
- {bookings.map((booking) => {
- const meta = STATUS_META[booking.status] || STATUS_META.new
- return (
+{bookings.map((booking) => {
+  const meta = STATUS_META[booking.status] || STATUS_META.new
+  const warrantyYears = booking.warranty_start_date && booking.warranty_end_date
+  ? yearsFromDates(booking.warranty_start_date, booking.warranty_end_date)
+  : 0
+  return (
  <div
  key={booking.id}
  className="group relative bg-white rounded-2xl border border-[#E7E8EA] hover:border-[#D4D6DA] hover:shadow-lg hover:shadow-black/[0.04] p-4 transition-all duration-200"
@@ -776,7 +781,8 @@ return (
   </div>
 
   {booking.status === 'completed' && (
-  <div className="mt-3 pt-3 border-t border-[#F1F2F3] flex items-center justify-between gap-3 flex-wrap">
+  <div className="mt-3 pt-3 border-t border-[#F1F2F3] space-y-2.5">
+  <div className="flex items-center justify-between gap-3 flex-wrap">
   <div className="flex items-center gap-2 flex-wrap">
   <span className="text-[#4B4F55] font-bold text-sm flex items-center gap-1.5"><FaCheckCircle className="text-[#059669] text-xs" /> الخدمة:</span>
   <span className="text-[#111214] font-bold text-sm">{booking.service_name_snapshot || booking.service?.name || '---'}</span>
@@ -796,6 +802,23 @@ return (
   <FaFileInvoiceDollar className="text-[11px]" />
   عرض الفاتورة
   </button>
+  )}
+  </div>
+  {booking.warranty_start_date && booking.warranty_end_date && (
+  <div className="flex items-center justify-between gap-x-4 gap-y-1.5 flex-wrap bg-[#FFFBEB] border border-[#FDE68A] rounded-xl px-3.5 py-2.5">
+  <span className="text-[#B45309] font-black text-xs flex items-center gap-1.5">
+  <FaShieldAlt className="text-[13px]" />
+  مدة الضمان: {warrantyYears === 1 ? 'سنة واحدة' : warrantyYears === 2 ? 'سنتان' : `${warrantyYears} سنوات`}
+  </span>
+  <span className="text-[#78350F] text-xs font-bold flex items-center gap-1.5">
+  <FaCalendarAlt className="text-[11px]" />
+  من {toArabicDate(booking.warranty_start_date)}
+  </span>
+  <span className="text-[#DC2626] text-xs font-black flex items-center gap-1.5">
+  <FaClock className="text-[11px]" />
+  إلى {toArabicDate(booking.warranty_end_date)}
+  </span>
+  </div>
   )}
   </div>
   )}
