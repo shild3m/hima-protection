@@ -135,6 +135,7 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   const [deleteLoading, setDeleteLoading] = useState(false)
  const [warrantyStart, setWarrantyStart] = useState('')
  const [warrantyEnd, setWarrantyEnd] = useState('')
+ const [warrantyYears, setWarrantyYears] = useState(1)
  const [warrantyEditing, setWarrantyEditing] = useState(false)
  const [savingWarranty, setSavingWarranty] = useState(false)
  const [invoiceView, setInvoiceView] = useState<{ loading: boolean; data: { id: string; invoice_number: string; status: string; total: number; paid_amount: number; created_at: string; items?: { id: string; description: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string } }[]; payments?: { id: string; amount: number; payment_method: string | null; paid_at: string | null }[] } | null }>({ loading: false, data: null })
@@ -317,6 +318,33 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   setSavingWarranty(false)
   }
  }
+
+ const computeWarrantyEnd = (start: string, years: number) => {
+  if (!start || !years || years <= 0) return ''
+  const [y, m, d] = start.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  date.setUTCFullYear(date.getUTCFullYear() + years)
+  date.setUTCDate(date.getUTCDate() - 1)
+  return date.toISOString().slice(0, 10)
+}
+
+const yearsFromDates = (start: string, end: string) => {
+  if (!start || !end) return 1
+  const s = Date.parse(start)
+  const e = Date.parse(end)
+  const years = Math.max(1, Math.round((e - s) / (365.25 * 24 * 3600 * 1000)))
+  return Math.min(10, years)
+}
+
+const handleWarrantyStartChange = (v: string) => {
+  setWarrantyStart(v)
+  setWarrantyEnd(computeWarrantyEnd(v, warrantyYears))
+}
+
+const handleWarrantyYearsChange = (y: number) => {
+  setWarrantyYears(y)
+  setWarrantyEnd(computeWarrantyEnd(warrantyStart, y))
+}
 
  const handleOpenInvoice = async (invoiceIdArg?: string) => {
  const id = invoiceIdArg || viewingBooking?.linked_invoice?.id
@@ -924,7 +952,7 @@ const statusIcon = (status: string) => {
   <div className="flex items-center justify-between gap-2 px-1">
   <span className="text-[#4B4F55] font-bold flex items-center gap-1.5"><FaShieldAlt className="text-[#059669]" /> الضمان:</span>
   {canManage && (
-  <button onClick={() => { setWarrantyStart(viewingBooking.warranty_start_date || ''); setWarrantyEnd(viewingBooking.warranty_end_date || ''); setWarrantyEditing(v => !v) }} className="text-xs font-bold text-[#2563EB] flex items-center gap-1 hover:text-[#1D4ED8] transition-all">
+  <button onClick={() => { setWarrantyStart(viewingBooking.warranty_start_date || ''); setWarrantyEnd(viewingBooking.warranty_end_date || ''); setWarrantyYears(yearsFromDates(viewingBooking.warranty_start_date || '', viewingBooking.warranty_end_date || '')); setWarrantyEditing(v => !v) }} className="text-xs font-bold text-[#2563EB] flex items-center gap-1 hover:text-[#1D4ED8] transition-all">
   <FaEdit /> {warrantyEditing ? 'إغلاق' : 'تعديل'}
   </button>
   )}
@@ -934,11 +962,19 @@ const statusIcon = (status: string) => {
   <div className="mt-2.5 grid grid-cols-2 gap-2.5">
   <div>
   <label className="text-xs font-bold text-[#62666D] mb-1 block">بداية الضمان</label>
-  <input type="date" value={warrantyStart} onChange={e => setWarrantyStart(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
+  <input type="date" value={warrantyStart} onChange={e => handleWarrantyStartChange(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
   </div>
   <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1 block">نهاية الضمان</label>
-  <input type="date" value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">عدد السنوات</label>
+  <select value={warrantyYears} onChange={e => handleWarrantyYearsChange(Number(e.target.value))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all">
+  {[1, 2, 3, 5, 10].map(y => (
+  <option key={y} value={y}>{y} {y === 1 ? 'سنة' : y === 2 ? 'سنتان' : 'سنوات'}</option>
+  ))}
+  </select>
+  </div>
+  <div className="col-span-2">
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">نهاية الضمان <span className="text-[#9CA1A6] font-medium">— تُحسب تلقائياً</span></label>
+  <input type="date" value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)} className="w-full bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
   </div>
   <div className="col-span-2 flex gap-2">
   <button onClick={handleSaveWarranty} disabled={savingWarranty} className="flex-1 bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white rounded-xl px-3 py-2 text-sm font-bold flex items-center justify-center gap-2 hover:from-[#9B1B30] hover:to-[#7A1526] disabled:opacity-60 transition-all">
