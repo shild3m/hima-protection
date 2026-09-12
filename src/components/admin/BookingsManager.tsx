@@ -781,14 +781,20 @@ return (
   </div>
 
   {booking.status === 'completed' && (
-  <div className="mt-3 pt-3 border-t border-[#F1F2F3] space-y-2.5">
+  <div className="mt-3 pt-3 border-t border-[#F1F2F3] space-y-2">
   <div className="flex items-center justify-between gap-3 flex-wrap">
-  <div className="flex items-center gap-2 flex-wrap">
-  <span className="text-[#4B4F55] font-bold text-sm flex items-center gap-1.5"><FaCheckCircle className="text-[#059669] text-xs" /> الخدمة:</span>
-  <span className="text-[#111214] font-bold text-sm">{booking.service_name_snapshot || booking.service?.name || '---'}</span>
+  <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
+  <span className="text-[#111214] font-bold text-sm flex items-center gap-1.5">
+  <FaCheckCircle className="text-[#059669] text-xs" />
+  {booking.service_name_snapshot || booking.service?.name || '---'}
+  </span>
   {typeof booking.service?.base_price === 'number' && (
+  <>
+  <span className="h-4 w-px bg-[#E7E8EA]"></span>
   <span className="text-[#DC2626] font-black text-sm" dir="ltr">{booking.service.base_price.toLocaleString('en-US')} ر.س</span>
+  </>
   )}
+  <span className="h-4 w-px bg-[#E7E8EA]"></span>
   <span className="text-[#62666D] text-xs font-semibold flex items-center gap-1">
   <FaClock className="text-[#059669] text-[10px]" />
   {new Date(booking.preferred_date || booking.created_at.slice(0, 10)).toLocaleDateString('en-GB')}
@@ -805,17 +811,19 @@ return (
   )}
   </div>
   {booking.warranty_start_date && booking.warranty_end_date && (
-  <div className="flex items-center justify-between gap-x-4 gap-y-1.5 flex-wrap bg-[#FFFBEB] border border-[#FDE68A] rounded-xl px-3.5 py-2.5">
+  <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
   <span className="text-[#B45309] font-black text-xs flex items-center gap-1.5">
   <FaShieldAlt className="text-[13px]" />
   مدة الضمان: {warrantyYears === 1 ? 'سنة واحدة' : warrantyYears === 2 ? 'سنتان' : `${warrantyYears} سنوات`}
   </span>
-  <span className="text-[#78350F] text-xs font-bold flex items-center gap-1.5">
-  <FaCalendarAlt className="text-[11px]" />
+  <span className="h-3.5 w-px bg-[#E7E8EA]"></span>
+  <span className="text-[#62666D] font-bold text-xs flex items-center gap-1.5">
+  <FaCalendarAlt className="text-[#B45309] text-[11px]" />
   من {toArabicDate(booking.warranty_start_date)}
   </span>
-  <span className="text-[#DC2626] text-xs font-black flex items-center gap-1.5">
-  <FaClock className="text-[11px]" />
+  <span className="h-3.5 w-px bg-[#E7E8EA]"></span>
+  <span className="text-[#62666D] font-bold text-xs flex items-center gap-1.5">
+  <FaClock className="text-[#B45309] text-[11px]" />
   إلى {toArabicDate(booking.warranty_end_date)}
   </span>
   </div>
