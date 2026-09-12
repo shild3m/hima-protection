@@ -409,8 +409,8 @@ const statusIcon = (status: string) => {
  <FaCalendarAlt className="text-white text-lg" />
  </div>
  <div>
- <h1 className="text-xl md:text-2xl font-black text-[#111214]">إدارة الحجوزات</h1>
- <p className="text-[#62666D] text-xs md:text-sm mt-0.5 font-medium">عرض وإدارة حجوزات العملاء</p>
+<h1 className="text-2xl md:text-3xl font-black text-[#111214]">إدارة الحجوزات</h1>
+  <p className="text-[#62666D] text-sm md:text-base mt-1 font-medium">عرض وإدارة حجوزات العملاء</p>
  </div>
  </div>
  {canCreate && (
@@ -458,22 +458,22 @@ const statusIcon = (status: string) => {
  </div>
  )}
 
- {/* ===== Search ===== */}
-<div className="relative max-w-md">
- <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-[#62666D] text-sm" />
- <input
- type="text"
- placeholder="بحث بالاسم أو الجوال أو الماركة أو رقم اللوحة..."
- value={search}
- onChange={(e) => setSearch(e.target.value)}
- className="w-full bg-white border border-[#E7E8EA] shadow-sm shadow-black/[0.02] rounded-2xl pr-11 pl-10 py-3.5 text-[16px] font-semibold text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-[16px] placeholder:text-[#62666D] placeholder:font-medium"
- />
- {search && (
- <button onClick={() => setSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition">
- <FaTimes className="text-xs" />
- </button>
- )}
- </div>
+{/* ===== Search ===== */}
+<div className="relative max-w-xl w-full">
+  <FaSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-[#62666D] text-base" />
+  <input
+  type="text"
+  placeholder="بحث بالاسم أو الجوال أو الماركة أو رقم اللوحة..."
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+  className="w-full bg-white border border-[#E7E8EA] shadow-sm shadow-black/[0.02] rounded-2xl pr-11 pl-11 py-4 text-[17px] font-semibold text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-[17px] placeholder:text-[#62666D] placeholder:font-medium"
+  />
+  {search && (
+  <button onClick={() => setSearch('')} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition">
+  <FaTimes className="text-sm" />
+  </button>
+  )}
+  </div>
 
  {/* ===== List ===== */}
  {loading ? (
