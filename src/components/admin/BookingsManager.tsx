@@ -546,30 +546,10 @@ const statusIcon = (status: string) => {
 
  const totalPages = pagination?.totalPages || 1
 
- return (
- <div className="space-y-6">
-{notification && (
-  <div className={`fixed top-6 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-sm px-5 py-4 rounded-2xl shadow-2xl border font-bold text-sm overflow-hidden animate-toast-in ${
-  notification.type === 'success'
-  ? 'bg-white border-[#A7F3D0] text-[#059669]'
-  : 'bg-white border-[#FECACA] text-[#DC2626]'
-  }`}>
-  <div className="flex items-start gap-3">
-  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-  notification.type === 'success' ? 'bg-[#ECFDF5] text-[#059669]' : 'bg-[#FEF2F2] text-[#DC2626]'
-  }`}>
-  {notification.type === 'success' ? <FaCheckCircle /> : <FaExclamationTriangle />}
-  </div>
-  <p className="flex-1 min-w-0 font-black text-[#111214] pt-1">{notification.message}</p>
-  <button onClick={() => setNotification(null)} className="opacity-40 hover:opacity-100 transition pt-1">
-  <FaTimes className="text-xs" />
-  </button>
-  </div>
-  <span className={`absolute bottom-0 left-0 h-0.5 ${notification.type === 'success' ? 'bg-[#059669]' : 'bg-[#DC2626]'} animate-toast-progress`} />
-  </div>
-  )}
+return (
+  <div className="space-y-6">
 
- {/* ===== Header ===== */}
+  {/* ===== Header ===== */}
  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
  <div className="flex items-center gap-3.5">
  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#DC2626] to-[#9B1B30] flex items-center justify-center shadow-lg shadow-red-500/20 shrink-0">
@@ -635,14 +615,34 @@ const statusIcon = (status: string) => {
   onChange={(e) => setSearch(e.target.value)}
   className="w-full bg-white border border-[#E7E8EA] shadow-sm shadow-black/[0.02] rounded-2xl pr-11 pl-11 py-4 text-[17px] font-semibold text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-[17px] placeholder:text-[#62666D] placeholder:font-medium"
   />
-  {search && (
+{search && (
   <button onClick={() => setSearch('')} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition">
   <FaTimes className="text-sm" />
   </button>
   )}
   </div>
 
- {/* ===== List ===== */}
+  {/* ===== Toast (under search, above list) ===== */}
+  {notification && (
+  <div className={`relative overflow-hidden rounded-2xl border-2 px-5 py-4 shadow-lg shadow-black/[0.04] animate-slide-up ${
+  notification.type === 'success' ? 'bg-[#F0FDF4] border-[#A7F3D0]' : 'bg-[#FEF2F2] border-[#FECACA]'
+  }`}>
+  <div className="flex items-center gap-3">
+  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+  notification.type === 'success' ? 'bg-[#A7F3D0]/40 text-[#059669]' : 'bg-[#FECACA]/40 text-[#DC2626]'
+  }`}>
+  {notification.type === 'success' ? <FaCheckCircle className="text-lg" /> : <FaExclamationTriangle className="text-lg" />}
+  </div>
+  <p className="flex-1 min-w-0 font-black text-[15px] text-[#111214]">{notification.message}</p>
+  <button onClick={() => setNotification(null)} className="opacity-40 hover:opacity-100 transition shrink-0">
+  <FaTimes className="text-sm" />
+  </button>
+  </div>
+  <span className={`absolute bottom-0 left-0 right-0 h-1 ${notification.type === 'success' ? 'bg-[#34D399]' : 'bg-[#F87171]'} animate-toast-progress`} />
+  </div>
+  )}
+
+  {/* ===== List ===== */}
  {loading ? (
  <div className="flex items-center justify-center py-24">
  <div className="flex flex-col items-center gap-4">
