@@ -53,6 +53,7 @@ status: string
  vehicle?: { id: string; make: string; model: string; year: number | null; plate_number: string | null }
  service?: { id: string; name: string; base_price: number }
  service_name_snapshot?: string | null
+ service_date?: string | null
  warranty_start_date?: string | null
  warranty_end_date?: string | null
  linked_invoice?: { id: string; invoice_number: string; status: string } | null
@@ -146,8 +147,12 @@ export default function BookingsManager() {
  const [notification, setNotification] = useState<Notification>(null)
  const [viewingBooking, setViewingBooking] = useState<BookingDetail | null>(null)
  const [loadingDetail, setLoadingDetail] = useState(false)
- const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
- const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+ const [completePrompt, setCompletePrompt] = useState<{ bookingId: string } | null>(null)
+ const [completeWarrantyYears, setCompleteWarrantyYears] = useState(1)
+ const [completeNoWarranty, setCompleteNoWarranty] = useState(false)
+ const [completeSubmitting, setCompleteSubmitting] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null)
@@ -306,13 +311,13 @@ useEffect(() => {
  }
  }
 
- const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
+const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyInput?: { years?: number; noWarranty?: boolean }) => {
   setUpdatingStatus(bookingId)
   try {
   const { updateBookingStatus } = await import('@/app/actions/bookings')
-  const result = await updateBookingStatus(bookingId, newStatus)
+  const result = await updateBookingStatus(bookingId, newStatus, undefined, warrantyInput)
   if (result.success) {
-  setNotification({ type: 'success', message: 'تم تحديث حالة الحجز بنجاح' })
+  setNotification({ type: 'success', message: newStatus === 'completed' ? 'تم إكمال الحجز وتسجيل الضمان' : 'تم تحديث حالة الحجز بنجاح' })
   fetchBookings()
   fetchStats()
   if (viewingBooking?.id === bookingId) {
@@ -326,7 +331,29 @@ useEffect(() => {
   } finally {
   setUpdatingStatus(null)
   }
- }
+  }
+
+  const handleStatusUpdate = (bookingId: string, newStatus: string) => {
+  if (newStatus === 'completed') {
+  setCompleteWarrantyYears(1)
+  setCompleteNoWarranty(false)
+  setCompletePrompt({ bookingId })
+  return
+  }
+  applyStatusUpdate(bookingId, newStatus)
+  }
+
+  const confirmComplete = async () => {
+  if (!completePrompt) return
+  setCompleteSubmitting(true)
+  await applyStatusUpdate(
+  completePrompt.bookingId,
+  'completed',
+  completeNoWarranty ? { noWarranty: true } : { years: completeWarrantyYears }
+  )
+  setCompleteSubmitting(false)
+  setCompletePrompt(null)
+  }
 
  const handleSaveWarranty = async () => {
   if (!viewingBooking) return
@@ -671,6 +698,7 @@ return (
   const warrantyYears = booking.warranty_start_date && booking.warranty_end_date
   ? yearsFromDates(booking.warranty_start_date, booking.warranty_end_date)
   : 0
+  const serviceDate = booking.warranty_start_date || booking.service_date || booking.preferred_date || booking.created_at.slice(0, 10)
   return (
  <div
  key={booking.id}
@@ -796,7 +824,7 @@ return (
   <span className="h-4 w-px bg-[#E7E8EA]"></span>
   <span className="text-[#62666D] text-xs font-semibold flex items-center gap-1">
   <FaClock className="text-[#059669] text-[10px]" />
-  {new Date(booking.preferred_date || booking.created_at.slice(0, 10)).toLocaleDateString('en-GB')}
+  {new Date(serviceDate).toLocaleDateString('en-GB')}
   </span>
   {booking.warranty_start_date && booking.warranty_end_date && (
   <>
@@ -1481,6 +1509,53 @@ type="password"
   </div>
   </div>
   ) : null}
+  </div>
+  </div>
+  )}
+
+  {completePrompt && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => { if (!completeSubmitting) setCompletePrompt(null) }}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+  <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
+  <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+  <FaCheckCircle className="text-[#059669] text-sm" />
+  إكمال الحجز
+  </h3>
+  <button onClick={() => { if (!completeSubmitting) setCompletePrompt(null) }} className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F7F7F5] transition-all">
+  <FaTimes className="text-sm" />
+  </button>
+  </div>
+  <div className="px-5 py-5 space-y-4">
+  <p className="text-sm text-[#4B4F55] font-semibold">تم تنفيذ الخدمة. اختر مدة الضمان (يبدأ من تاريخ الإكمال):</p>
+  <div className="space-y-2.5">
+  <label className="flex items-center gap-2.5 text-sm font-bold text-[#111214] cursor-pointer">
+  <input type="radio" checked={!completeNoWarranty} onChange={() => setCompleteNoWarranty(false)} className="accent-[#059669] w-4 h-4" />
+  يوجد ضمان
+  </label>
+  {!completeNoWarranty && (
+  <div className="flex items-center gap-3 ps-7">
+  <span className="text-xs font-bold text-[#62666D]">المدة:</span>
+  <select value={completeWarrantyYears} onChange={e => setCompleteWarrantyYears(Number(e.target.value))} className="flex-1 bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2 text-sm font-bold text-[#111214] focus:outline-none focus:border-[#059669] transition-all">
+  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(y => (
+  <option key={y} value={y}>{y === 1 ? 'سنة واحدة' : y === 2 ? 'سنتان' : `${y} سنوات`}</option>
+  ))}
+  </select>
+  </div>
+  )}
+  <label className="flex items-center gap-2.5 text-sm font-bold text-[#111214] cursor-pointer">
+  <input type="radio" checked={completeNoWarranty} onChange={() => setCompleteNoWarranty(true)} className="accent-[#059669] w-4 h-4" />
+  لا يوجد ضمان
+  </label>
+  </div>
+  </div>
+  <div className="px-6 pb-6 pt-2 flex gap-3">
+  <button onClick={confirmComplete} disabled={completeSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+  {completeSubmitting ? <><FaSpinner className="animate-spin" /> جاري الإكمال...</> : 'تأكيد الإكمال'}
+  </button>
+  <button onClick={() => { if (!completeSubmitting) setCompletePrompt(null) }} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+  إلغاء
+  </button>
+  </div>
   </div>
   </div>
   )}

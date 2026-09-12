@@ -145,6 +145,30 @@ export async function getBookings(
       }
     })
 
+    const completedIds = mapped.filter(b => b.status === 'completed' && b.id).map(b => b.id as string)
+    if (completedIds.length > 0) {
+      const { data: hist } = await supabase
+        .from('booking_status_history')
+        .select('booking_id, created_at')
+        .in('booking_id', completedIds)
+        .eq('new_status', 'completed')
+      if (hist && hist.length > 0) {
+        const completedAt = new Map<string, string>()
+        for (const h of hist) {
+          const bid = h.booking_id as string
+          const t = h.created_at as string
+          if (!completedAt.has(bid) || t > completedAt.get(bid)!) {
+            completedAt.set(bid, t)
+          }
+        }
+        for (const b of mapped) {
+          if (b.status === 'completed' && completedAt.has(b.id as string)) {
+            b.service_date = (completedAt.get(b.id as string) as string).slice(0, 10)
+          }
+        }
+      }
+    }
+
     if (rows.length > 0) {
       const ids = rows.map(b => b.id as string)
       const { data: invData, error: invErr } = await supabase
@@ -256,6 +280,7 @@ export async function updateBookingStatus(
   id: string,
   newStatus: string,
   notes?: string,
+  warrantyInput?: { years?: number; noWarranty?: boolean },
 ) {
   const user = await requireAuth()
   if (!user.permissions.includes('bookings:update')) {
@@ -299,9 +324,21 @@ export async function updateBookingStatus(
       }
     }
 
+    const updatePayload: Record<string, unknown> = { status: newStatus }
+    if (newStatus === 'completed' && warrantyInput) {
+      if (warrantyInput.years && warrantyInput.years >= 1 && warrantyInput.years <= 10) {
+        const start = todayIso()
+        updatePayload.warranty_start_date = start
+        updatePayload.warranty_end_date = addYears(start, warrantyInput.years)
+      } else if (warrantyInput.noWarranty) {
+        updatePayload.warranty_start_date = null
+        updatePayload.warranty_end_date = null
+      }
+    }
+
     const { data, error } = await supabase
       .from('bookings')
-      .update({ status: newStatus })
+      .update(updatePayload)
       .eq('id', id)
       .eq('status', existing.status)
       .select()
@@ -465,6 +502,19 @@ export async function getBookingStats() {
 
 function normalizePhone(phone: string): string {
   return phone.replace(/[^0-9]/g, '')
+}
+
+function todayIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function addYears(iso: string, years: number): string {
+  const [y, m, dd] = iso.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, dd))
+  date.setUTCFullYear(date.getUTCFullYear() + years)
+  date.setUTCDate(date.getUTCDate() - 1)
+  return date.toISOString().slice(0, 10)
 }
 
 export async function adminCreateBooking(input: AdminBookingInput) {
