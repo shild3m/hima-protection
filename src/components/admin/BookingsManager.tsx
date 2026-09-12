@@ -152,6 +152,7 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const [completeWarrantyYears, setCompleteWarrantyYears] = useState(1)
  const [completeNoWarranty, setCompleteNoWarranty] = useState(false)
  const [completeSubmitting, setCompleteSubmitting] = useState(false)
+ const [completeYearsOpen, setCompleteYearsOpen] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
@@ -293,6 +294,17 @@ useEffect(() => {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [activeStatusDropdown])
+
+  useEffect(() => {
+    if (!completeYearsOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element)?.closest('[data-complete-years-menu]')) {
+        setCompleteYearsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [completeYearsOpen])
 
   const handleViewBooking = async (booking: Booking) => {
  setViewingBooking(booking as BookingDetail)
@@ -1535,11 +1547,30 @@ type="password"
   {!completeNoWarranty && (
   <div className="flex items-center gap-3 ps-7">
   <span className="text-xs font-bold text-[#62666D]">المدة:</span>
-  <select value={completeWarrantyYears} onChange={e => setCompleteWarrantyYears(Number(e.target.value))} className="flex-1 bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2 text-sm font-bold text-[#111214] focus:outline-none focus:border-[#059669] transition-all">
+  <div className="flex-1 relative" data-complete-years-menu>
+  <button
+  type="button"
+  onClick={() => setCompleteYearsOpen(v => !v)}
+  className="w-full flex items-center justify-between gap-2 bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2 text-sm font-bold text-[#111214] hover:border-[#059669] transition-all"
+  >
+  <span>{completeWarrantyYears === 1 ? 'سنة واحدة' : completeWarrantyYears === 2 ? 'سنتان' : `${completeWarrantyYears} سنوات`}</span>
+  <FaChevronDown className={`text-[#9CA1A6] text-[10px] transition-transform duration-200 ${completeYearsOpen ? 'rotate-180' : ''}`} />
+  </button>
+  {completeYearsOpen && (
+  <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white border border-[#E7E8EA] rounded-xl shadow-xl shadow-black/10 py-1 max-h-48 overflow-y-auto">
   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(y => (
-  <option key={y} value={y}>{y === 1 ? 'سنة واحدة' : y === 2 ? 'سنتان' : `${y} سنوات`}</option>
+  <button
+  key={y}
+  type="button"
+  onClick={() => { setCompleteWarrantyYears(y); setCompleteYearsOpen(false) }}
+  className={`w-full text-right px-3 py-2 text-sm font-bold transition-colors ${completeWarrantyYears === y ? 'text-[#059669] bg-[#ECFDF5]' : 'text-[#111214] hover:bg-[#F7F7F5]'}`}
+  >
+  {y === 1 ? 'سنة واحدة' : y === 2 ? 'سنتان' : `${y} سنوات`}
+  </button>
   ))}
-  </select>
+  </div>
+  )}
+  </div>
   </div>
   )}
   <label className="flex items-center gap-2.5 text-sm font-bold text-[#111214] cursor-pointer">
