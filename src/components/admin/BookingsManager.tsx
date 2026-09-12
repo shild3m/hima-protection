@@ -78,6 +78,22 @@ interface Stats {
 
 type Notification = { type: 'success' | 'error'; message: string } | null
 
+const ARABIC_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+const WEEKDAY_HEADERS = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
+const toArabicDate = (iso: string) => {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+const HIJRI_MONTHS = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة']
+const hijriIntl = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { year: 'numeric', month: 'numeric', day: 'numeric' })
+const toHijri = (iso: string) => {
+  if (!iso) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  const parts = hijriIntl.formatToParts(new Date(y, m - 1, d))
+  const num = (t: string) => Number(parts.find(p => p.type === t)?.value || 0)
+  return { y: num('year'), m: num('month'), d: num('day') }
+}
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   new: { label: 'جديد', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
   contacted: { label: 'تم التواصل', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
@@ -138,6 +154,10 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
  const [warrantyYears, setWarrantyYears] = useState(1)
  const [warrantyEditing, setWarrantyEditing] = useState(false)
  const [savingWarranty, setSavingWarranty] = useState(false)
+ const [warrantyCalOpen, setWarrantyCalOpen] = useState(false)
+ const [calYear, setCalYear] = useState(new Date().getFullYear())
+ const [calMonth, setCalMonth] = useState(new Date().getMonth())
+ const [calMode, setCalMode] = useState<'miladi' | 'hijri'>('miladi')
  const [invoiceView, setInvoiceView] = useState<{ loading: boolean; data: { id: string; invoice_number: string; status: string; total: number; paid_amount: number; created_at: string; items?: { id: string; description: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string } }[]; payments?: { id: string; amount: number; payment_method: string | null; paid_at: string | null }[] } | null }>({ loading: false, data: null })
 
  const canUpdate = hasPermission('bookings', 'update')
@@ -345,6 +365,51 @@ const handleWarrantyYearsChange = (y: number) => {
   setWarrantyYears(y)
   setWarrantyEnd(computeWarrantyEnd(warrantyStart, y))
 }
+
+ const openWarrantyCal = () => {
+  const base = warrantyStart ? new Date(warrantyStart + 'T00:00:00') : new Date()
+  setCalYear(base.getFullYear())
+  setCalMonth(base.getMonth())
+  setWarrantyCalOpen(v => !v)
+ }
+
+ const moveCal = (delta: number) => {
+  const d = new Date(calYear, calMonth + delta, 1)
+  setCalYear(d.getFullYear())
+  setCalMonth(d.getMonth())
+ }
+
+ const calDays: (string | null)[] = (() => {
+  const first = new Date(calYear, calMonth, 1)
+  const offset = first.getDay()
+  const total = new Date(calYear, calMonth + 1, 0).getDate()
+  const cells: (string | null)[] = []
+  for (let i = 0; i < offset; i++) cells.push(null)
+  for (let d = 1; d <= total; d++) cells.push(`${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
+  return cells
+ })()
+
+ const now = new Date()
+ const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+ const calFirstIso = calDays.find(Boolean) || ''
+ const formatStartDisplay = (iso: string) => {
+  if (!iso) return 'اختر التاريخ'
+  if (calMode === 'hijri') {
+   const h = toHijri(iso)
+   return h ? `${h.d}/${h.m}/${h.y} هـ` : toArabicDate(iso)
+  }
+  return toArabicDate(iso)
+ }
+
+ const formatEndDisplay = (iso: string) => {
+  if (!iso) return '—'
+  if (calMode === 'hijri') {
+   const h = toHijri(iso)
+   return h ? `${h.d}/${h.m}/${h.y} هـ` : toArabicDate(iso)
+  }
+  return toArabicDate(iso)
+ }
 
  const handleOpenInvoice = async (invoiceIdArg?: string) => {
  const id = invoiceIdArg || viewingBooking?.linked_invoice?.id
@@ -962,7 +1027,60 @@ const statusIcon = (status: string) => {
   <div className="mt-2.5 space-y-3">
   <div>
   <label className="text-xs font-bold text-[#62666D] mb-1 block">بداية الضمان</label>
-  <input type="date" value={warrantyStart} onChange={e => handleWarrantyStartChange(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
+  <div className="relative">
+  <button type="button" onClick={openWarrantyCal} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] font-bold flex items-center justify-between gap-2 focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all">
+  <span className="flex items-center gap-2">
+  <FaCalendarAlt className="text-[#DC2626]/70 text-xs" />
+  {warrantyStart ? formatStartDisplay(warrantyStart) : 'اختر التاريخ'}
+  </span>
+  <FaChevronDown className="text-[10px] text-[#9CA1A6]" />
+  </button>
+  {warrantyCalOpen && (
+  <>
+  <div className="fixed inset-0 z-20" onClick={() => setWarrantyCalOpen(false)} />
+  <div className="absolute z-30 mt-2 w-[290px] bg-white border border-[#E7E8EA] rounded-2xl shadow-2xl p-3.5">
+  <div className="flex items-center p-0.5 bg-[#F7F7F5] rounded-[10px] mb-2">
+  <button type="button" onClick={() => setCalMode('miladi')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${calMode === 'miladi' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>ميلادي</button>
+  <button type="button" onClick={() => setCalMode('hijri')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${calMode === 'hijri' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>هجري</button>
+  </div>
+  <div className="flex items-center justify-between mb-2">
+  <button type="button" onClick={() => moveCal(-1)} title="الشهر السابق" className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#DC2626] hover:border-[#FECACA] transition-all">
+  <FaChevronRight className="text-[11px]" />
+  </button>
+  <span className="text-sm font-black text-[#111214]">{calMode === 'hijri'
+    ? (() => {
+      const h = toHijri(calFirstIso)
+      return h ? `${HIJRI_MONTHS[h.m - 1]} ${h.y} هـ` : `${ARABIC_MONTHS[calMonth]} ${calYear}`
+    })()
+    : `${ARABIC_MONTHS[calMonth]} ${calYear}`}</span>
+  <button type="button" onClick={() => moveCal(1)} title="الشهر التالي" className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#DC2626] hover:border-[#FECACA] transition-all">
+  <FaChevronLeft className="text-[11px]" />
+  </button>
+  </div>
+  <div className="grid grid-cols-7 gap-0.5 text-center">
+  {WEEKDAY_HEADERS.map((w, i) => (
+  <span key={i} className="text-[10px] font-black text-[#9CA1A6] py-1">{w}</span>
+  ))}
+  {calDays.map((iso, i) => {
+    if (!iso) return <span key={`e${i}`} />
+    const isSel = iso === warrantyStart
+    const isToday = iso === todayIso
+    const hijriCell = calMode === 'hijri' ? toHijri(iso) : null
+    const dayNum = hijriCell ? hijriCell.d : Number(iso.split('-')[2])
+    return (
+    <button key={iso} type="button" onClick={() => { handleWarrantyStartChange(iso); setWarrantyCalOpen(false) }} className="p-0.5">
+    <div className={`w-9 h-9 mx-auto flex flex-col items-center justify-center rounded-full text-[13px] font-bold transition-all ${isSel ? 'bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white shadow-md shadow-red-500/25' : isToday ? 'text-[#DC2626] ring-1 ring-[#FECACA] bg-[#FFF1F2]' : 'text-[#111214] hover:bg-[#FEE2E2] hover:text-[#DC2626]'}`}>
+    <span className="leading-none pt-0.5">{dayNum}</span>
+    {isToday && <span className={`leading-none mt-0.5 text-[8px] font-black ${isSel ? 'text-white' : 'text-[#DC2626]'}`}>اليوم</span>}
+    </div>
+    </button>
+    )
+  })}
+  </div>
+  </div>
+  </>
+  )}
+  </div>
   </div>
   <div>
   <label className="text-xs font-bold text-[#62666D] mb-1 block text-center">مدة الضمان</label>
@@ -996,7 +1114,7 @@ const statusIcon = (status: string) => {
   <div className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 flex items-center justify-between select-none">
   <span className="flex items-center gap-2 text-sm text-[#111214] font-bold">
   <FaCalendarAlt className="text-[#DC2626]/70 text-xs" />
-  {warrantyEnd ? (() => { const [y, m, d] = warrantyEnd.split('-'); return `${d}/${m}/${y}` })() : '—'}
+  {formatEndDisplay(warrantyEnd)}
   </span>
   <span className="flex items-center gap-1 text-[10px] font-bold text-[#62666D]"><FaCheck className="text-[#059669] text-[9px]" /> تلقائياً</span>
   </div>
