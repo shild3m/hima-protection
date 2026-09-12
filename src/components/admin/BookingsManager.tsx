@@ -349,8 +349,8 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
 const statusBadge = (status: string) => {
   const config = STATUS_CONFIG[status] || { label: status, color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' }
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black border ${config.bg} ${config.color}`}>
-      <span className="w-2 h-2 rounded-full bg-current opacity-70"></span>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black border ${config.bg} ${config.color}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70"></span>
       {config.label}
     </span>
   )
@@ -685,20 +685,20 @@ const statusIcon = (status: string) => {
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaUser className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">بيانات العميل</h4>
+ <h4 className="text-sm font-bold text-[#111214]">بيانات العميل</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">الاسم:</span>
+ <span className="text-[#4B4F55] font-bold">الاسم:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.customer?.full_name || '---'}</span>
  </div>
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">الجوال:</span>
+ <span className="text-[#4B4F55] font-bold">الجوال:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.customer?.phone || '---'}</span>
  </div>
  {viewingBooking.customer?.email && (
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">البريد:</span>
+ <span className="text-[#4B4F55] font-bold">البريد:</span>
  <span className="text-[#111214] font-bold break-all" dir="ltr">{viewingBooking.customer.email}</span>
  </div>
  )}
@@ -708,22 +708,22 @@ const statusIcon = (status: string) => {
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCar className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">بيانات السيارة</h4>
+ <h4 className="text-sm font-bold text-[#111214]">بيانات السيارة</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">المركبة:</span>
+ <span className="text-[#4B4F55] font-bold">المركبة:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.vehicle?.make} {viewingBooking.vehicle?.model}</span>
  </div>
  {viewingBooking.vehicle?.year && (
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">السنة:</span>
+ <span className="text-[#4B4F55] font-bold">السنة:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.year}</span>
  </div>
  )}
  {viewingBooking.vehicle?.plate_number && (
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">رقم اللوحة:</span>
+ <span className="text-[#4B4F55] font-bold">رقم اللوحة:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.plate_number}</span>
  </div>
  )}
@@ -733,45 +733,45 @@ const statusIcon = (status: string) => {
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCalendarAlt className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">تفاصيل الحجز</h4>
+ <h4 className="text-sm font-bold text-[#111214]">تفاصيل الحجز</h4>
  </div>
  <div className="px-4 py-3 space-y-2.5">
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">الخدمة:</span>
+ <span className="text-[#4B4F55] font-bold">الخدمة:</span>
  <span className="text-[#111214] font-bold">{viewingBooking.service?.name || '---'}</span>
  </div>
  {viewingBooking.service?.base_price && (
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">السعر:</span>
+ <span className="text-[#4B4F55] font-bold">السعر:</span>
  <span className="text-[#DC2626] font-bold" dir="ltr">{viewingBooking.service.base_price.toLocaleString('en-US')} ر.س</span>
  </div>
  )}
  {viewingBooking.preferred_date && (
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">التاريخ المفضل:</span>
+ <span className="text-[#4B4F55] font-bold">التاريخ المفضل:</span>
  <span className="text-[#111214] font-bold">{new Date(viewingBooking.preferred_date).toLocaleDateString('en-GB')}</span>
  </div>
  )}
  {viewingBooking.preferred_time && (
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">الوقت المفضل:</span>
+ <span className="text-[#4B4F55] font-bold">الوقت المفضل:</span>
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.preferred_time}</span>
  </div>
  )}
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">المصدر:</span>
+ <span className="text-[#4B4F55] font-bold">المصدر:</span>
  <span className="text-[#111214] font-bold flex items-center gap-1.5">
  <FaUserTag className="text-[#62666D] text-[10px]" />
  {viewingBooking.source === 'online' ? 'أونلاين' : viewingBooking.source || '---'}
  </span>
  </div>
  <div className="flex justify-between text-[16px]">
- <span className="text-[#62666D]">تاريخ الإنشاء:</span>
+ <span className="text-[#4B4F55] font-bold">تاريخ الإنشاء:</span>
  <span className="text-[#111214] font-bold">{new Date(viewingBooking.created_at).toLocaleDateString('en-GB')}</span>
  </div>
  {viewingBooking.customer_notes && (
  <div className="text-sm pt-1 border-t border-[#F1F2F3]">
- <span className="text-[#62666D]">ملاحظات العميل:</span>
+ <span className="text-[#4B4F55] font-bold">ملاحظات العميل:</span>
  <p className="text-[#111214] mt-1.5 bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl p-3 text-sm leading-relaxed">{viewingBooking.customer_notes}</p>
  </div>
  )}
@@ -801,7 +801,7 @@ const statusIcon = (status: string) => {
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaHistory className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">سجل الحالة</h4>
+ <h4 className="text-sm font-bold text-[#111214]">سجل الحالة</h4>
  </div>
  <div className="px-4 py-3.5 space-y-2.5">
  {viewingBooking.status_history.map((h) => (
@@ -852,7 +852,7 @@ const statusIcon = (status: string) => {
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaUser className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">بيانات العميل</h4>
+ <h4 className="text-sm font-bold text-[#111214]">بيانات العميل</h4>
  </div>
  <div className="px-4 py-4 space-y-3">
  <div>
@@ -875,7 +875,7 @@ const statusIcon = (status: string) => {
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCar className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">بيانات السيارة</h4>
+ <h4 className="text-sm font-bold text-[#111214]">بيانات السيارة</h4>
  </div>
  <div className="px-4 py-4 grid grid-cols-2 gap-3">
  <div>
