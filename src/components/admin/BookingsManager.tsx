@@ -190,15 +190,19 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
    }
  }, [canCreate])
 
- useEffect(() => {
-   if (showCreateForm && services.length === 0) {
-     import('@/app/actions/services').then(({ getServices }) => {
-       getServices().then(res => {
-         if (res.success) setServices(res.data || [])
-       })
-     })
-   }
- }, [showCreateForm, services.length])
+useEffect(() => {
+    if (showCreateForm) {
+      setCreateNotification(null)
+      setCreateErrors({})
+      if (services.length === 0) {
+        import('@/app/actions/services').then(({ getServices }) => {
+          getServices().then(res => {
+            if (res.success) setServices(res.data || [])
+          })
+        })
+      }
+    }
+  }, [showCreateForm, services.length])
 
  useEffect(() => {
    if (!createNotification) return
@@ -1191,14 +1195,12 @@ const statusIcon = (status: string) => {
  </div>
 
  <div className="px-6 py-5">
- {createNotification && (
- <div className={`p-3.5 rounded-2xl border text-sm font-bold mb-4 flex items-center gap-2 ${
- createNotification.type === 'success' ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]' : 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]'
- }`}>
- {createNotification.type === 'success' ? <FaCheckCircle /> : <FaExclamationTriangle />}
- {createNotification.message}
- </div>
- )}
+{createNotification?.type === 'success' && (
+  <div className="p-3.5 rounded-2xl border text-sm font-bold mb-4 flex items-center gap-2 bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]">
+  <FaCheckCircle />
+  {createNotification.message}
+  </div>
+  )}
 
  <form onSubmit={handleCreateBookingSubmit} className="space-y-4">
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
@@ -1301,11 +1303,14 @@ const statusIcon = (status: string) => {
  <button type="submit" disabled={createSubmitting} className="flex-1 px-4 py-3 bg-gradient-to-br from-[#DC2626] to-[#9B1B30] hover:from-[#9B1B30] hover:to-[#7A1526] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-red-500/25 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2">
  {createSubmitting ? <><FaSpinner className="animate-spin" /> جاري الإنشاء...</> : 'إنشاء الحجز'}
  </button>
- <button type="button" onClick={() => setShowCreateForm(false)} className="px-5 py-3 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
- إلغاء
- </button>
- </div>
- </form>
+<button type="button" onClick={() => setShowCreateForm(false)} className="px-5 py-3 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+  إلغاء
+  </button>
+  </div>
+  {createNotification?.type === 'error' && (
+  <p className="text-[#DC2626] text-sm font-bold mt-3 flex items-center justify-center gap-1.5"><FaExclamationTriangle /> {createNotification.message}</p>
+  )}
+  </form>
  </div>
  </div>
  </div>

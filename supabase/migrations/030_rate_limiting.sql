@@ -54,6 +54,7 @@ BEGIN
   CASE p_action
     WHEN 'staff:create'      THEN v_window_seconds := 60;  v_max_requests := 10;
     WHEN 'staff:update'      THEN v_window_seconds := 60;  v_max_requests := 10;
+    WHEN 'bookings:create'   THEN v_window_seconds := 60;  v_max_requests := 15;
     WHEN 'bookings:update'   THEN v_window_seconds := 60;  v_max_requests := 30;
     WHEN 'invoices:create'   THEN v_window_seconds := 60;  v_max_requests := 15;
     WHEN 'invoices:update'   THEN v_window_seconds := 60;  v_max_requests := 15;
