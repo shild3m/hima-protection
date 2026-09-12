@@ -29,7 +29,7 @@ import {
  FaInfoCircle,
  FaUserTag,
  FaFileInvoiceDollar,
- FaShieldAlt,
+FaShieldAlt,
  FaEdit,
  FaCheck,
 } from 'react-icons/fa'
@@ -965,16 +965,35 @@ const statusIcon = (status: string) => {
   <input type="date" value={warrantyStart} onChange={e => handleWarrantyStartChange(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
   </div>
   <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1 block">عدد السنوات</label>
-  <select value={warrantyYears} onChange={e => handleWarrantyYearsChange(Number(e.target.value))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all">
-  {[1, 2, 3, 5, 10].map(y => (
-  <option key={y} value={y}>{y} {y === 1 ? 'سنة' : y === 2 ? 'سنتان' : 'سنوات'}</option>
-  ))}
-  </select>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">نهاية الضمان <span className="text-[#9CA1A6] font-medium">— تلقائياً</span></label>
+  <input type="date" value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)} className="w-full bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
   </div>
   <div className="col-span-2">
-  <label className="text-xs font-bold text-[#62666D] mb-1 block">نهاية الضمان <span className="text-[#9CA1A6] font-medium">— تُحسب تلقائياً</span></label>
-  <input type="date" value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)} className="w-full bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
+  <label className="text-xs font-bold text-[#62666D] mb-1 block text-center">مدة الضمان (السنة)</label>
+  <div className="flex items-center justify-center gap-1 bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-2 pt-3 pb-8">
+  <button type="button" onClick={() => handleWarrantyYearsChange(Math.max(1, warrantyYears - 1))} disabled={warrantyYears <= 1} title="السنة السابقة" className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-[#E7E8EA] text-[#62666D] shadow-sm hover:text-[#DC2626] disabled:opacity-25 transition-all">
+  <FaChevronRight className="text-[10px]" />
+  </button>
+  {[-2, -1, 0, 1, 2].map(offset => {
+    const val = warrantyYears + offset
+    if (val < 1 || val > 10) return null
+    const dist = Math.abs(offset)
+    return (
+    <button
+    key={val}
+    type="button"
+    onClick={() => handleWarrantyYearsChange(val)}
+    className={`relative flex flex-col items-center justify-center rounded-full transition-all duration-300 ${dist === 0 ? 'w-16 h-16 bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white shadow-lg shadow-red-500/30 scale-110' : dist === 1 ? 'w-10 h-10 text-[#4B4F55] opacity-60' : 'w-8 h-8 text-[#9CA1A6] opacity-25'}`}
+    >
+    <span className={dist === 0 ? 'text-xl font-black leading-none' : 'text-xs font-bold leading-none'}>{val}</span>
+    </button>
+    )
+  })}
+  <button type="button" onClick={() => handleWarrantyYearsChange(Math.min(10, warrantyYears + 1))} disabled={warrantyYears >= 10} title="السنة التالية" className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-[#E7E8EA] text-[#62666D] shadow-sm hover:text-[#DC2626] disabled:opacity-25 transition-all">
+  <FaChevronLeft className="text-[10px]" />
+  </button>
+  </div>
+  <p className="text-center mt-1 text-sm font-black text-[#DC2626]">{warrantyYears} {warrantyYears === 1 ? 'سنة' : warrantyYears === 2 ? 'سنتان' : 'سنوات'}</p>
   </div>
   <div className="col-span-2 flex gap-2">
   <button onClick={handleSaveWarranty} disabled={savingWarranty} className="flex-1 bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white rounded-xl px-3 py-2 text-sm font-bold flex items-center justify-center gap-2 hover:from-[#9B1B30] hover:to-[#7A1526] disabled:opacity-60 transition-all">
