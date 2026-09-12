@@ -520,6 +520,20 @@ export async function adminCreateBooking(input: AdminBookingInput) {
       return { success: false as const, error: result.error || 'حدث خطأ' }
     }
 
+    if (result.booking_id) {
+      const { data: svc } = await supabase
+        .from('services')
+        .select('name')
+        .eq('id', input.serviceId)
+        .maybeSingle()
+      if (svc?.name) {
+        await supabase
+          .from('bookings')
+          .update({ service_name_snapshot: svc.name })
+          .eq('id', result.booking_id)
+      }
+    }
+
     await logAudit({
       userId: user.auth_user_id,
       action: 'admin_booking_created',

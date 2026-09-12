@@ -77,10 +77,24 @@ export async function createGuestBooking(input: GuestBookingInput) {
 
     if (data && typeof data === 'object' && 'success' in data) {
       if (data.success) {
+        const bookingId = (data as { booking_id?: string }).booking_id
+        if (bookingId) {
+          const { data: svc } = await supabaseAdmin
+            .from('services')
+            .select('name')
+            .eq('id', validated.serviceId)
+            .maybeSingle()
+          if (svc?.name) {
+            await supabaseAdmin
+              .from('bookings')
+              .update({ service_name_snapshot: svc.name })
+              .eq('id', bookingId)
+          }
+        }
         return {
           success: true,
           message: 'تم استلام طلب حجزك بنجاح. سيتواصل معك فريقنا قريباً لتأكيد الحجز.',
-          bookingId: data.booking_id,
+          bookingId,
         }
       } else {
         return { success: false, error: (data as Record<string, unknown>).error as string || 'حدث خطأ أثناء إنشاء الحجز' }

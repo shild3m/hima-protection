@@ -50,6 +50,7 @@ interface Booking {
  customer?: { id: string; full_name: string; phone: string }
  vehicle?: { id: string; make: string; model: string; year: number | null; plate_number: string | null }
  service?: { id: string; name: string; base_price: number }
+ service_name_snapshot?: string | null
  linked_invoice?: { id: string; invoice_number: string; status: string } | null
 }
 
@@ -58,7 +59,7 @@ interface BookingDetail extends Booking {
  vehicle?: { id: string; make: string; model: string; year: number | null; color: string | null; plate_number: string | null; vin: string | null }
  service?: { id: string; name: string; base_price: number; duration_minutes: number | null }
  status_history?: { id: string; old_status: string | null; new_status: string; changed_by: string | null; changed_by_name: string | null; notes: string | null; created_at: string }[]
- booking_items?: { id: string; service_id: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string; base_price: number } }[]
+ booking_items?: { id: string; service_id: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string; base_price: number }; service_name_snapshot?: string | null }[]
  linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number; created_at: string } | null
  warranty_start_date?: string | null
  warranty_end_date?: string | null
@@ -757,7 +758,7 @@ const statusIcon = (status: string) => {
   <div className="mt-3 pt-3 border-t border-[#F1F2F3] flex items-center justify-between gap-3 flex-wrap">
   <div className="flex items-center gap-2 flex-wrap">
   <span className="text-[#4B4F55] font-bold text-sm flex items-center gap-1.5"><FaCheckCircle className="text-[#059669] text-xs" /> الخدمة:</span>
-  <span className="text-[#111214] font-bold text-sm">{booking.service?.name || '---'}</span>
+  <span className="text-[#111214] font-bold text-sm">{booking.service_name_snapshot || booking.service?.name || '---'}</span>
   {typeof booking.service?.base_price === 'number' && (
   <span className="text-[#DC2626] font-black text-sm" dir="ltr">{booking.service.base_price.toLocaleString('en-US')} ر.س</span>
   )}
@@ -922,7 +923,7 @@ const statusIcon = (status: string) => {
  <div className="px-4 py-3 space-y-2.5">
  <div className="flex justify-between text-[16px]">
  <span className="text-[#4B4F55] font-bold">الخدمة:</span>
- <span className="text-[#111214] font-bold">{viewingBooking.service?.name || '---'}</span>
+ <span className="text-[#111214] font-bold">{viewingBooking.service_name_snapshot || viewingBooking.service?.name || '---'}</span>
  </div>
  {viewingBooking.service?.base_price && (
  <div className="flex justify-between text-[16px]">
@@ -997,8 +998,8 @@ const statusIcon = (status: string) => {
   </div>
   <div className="px-4 py-3 space-y-2.5">
   {[
-  ...(viewingBooking.service ? [{ key: 'main', name: viewingBooking.service.name, price: viewingBooking.service.base_price, total: viewingBooking.service.base_price, qty: 1 }] : []),
-  ...(viewingBooking.booking_items || []).map(i => ({ key: i.id, name: i.service?.name || 'خدمة إضافية', price: Number(i.unit_price), total: Number(i.total), qty: Number(i.quantity) })),
+  ...(viewingBooking.service ? [{ key: 'main', name: viewingBooking.service_name_snapshot || viewingBooking.service.name, price: viewingBooking.service.base_price, total: viewingBooking.service.base_price, qty: 1 }] : []),
+  ...(viewingBooking.booking_items || []).map(i => ({ key: i.id, name: i.service_name_snapshot || i.service?.name || 'خدمة إضافية', price: Number(i.unit_price), total: Number(i.total), qty: Number(i.quantity) })),
   ].map(s => (
   <div key={s.key} className="flex items-center justify-between gap-2 text-[14px] bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl px-3 py-2.5">
   <div className="flex items-center gap-2 min-w-0">
