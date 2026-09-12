@@ -445,7 +445,7 @@ const statusIcon = (status: string) => {
  )}
  <div className="flex items-start justify-between gap-3">
  <div>
- <div className="text-3xl sm:text-[34px] font-black leading-none tracking-tight text-[#111214]">{stats.counts[key] || 0}</div>
+ <div className={`text-3xl sm:text-[34px] font-black leading-none tracking-tight ${active ? config.color : 'text-[#62666D]'}`}>{stats.counts[key] || 0}</div>
  <div className={`text-sm sm:text-[15px] font-black mt-3 ${active ? config.color : 'text-[#62666D]'}`}>{config.label}</div>
  </div>
  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl transition-all duration-200 ${meta.iconBg} ${meta.iconColor} ${active ? 'opacity-100 scale-105' : 'opacity-60 group-hover:opacity-100 group-hover:scale-105'}`}>
