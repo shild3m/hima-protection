@@ -120,9 +120,39 @@ export async function getBookings(
       return { success: false as const, error: 'تعذر جلب الحجوزات' }
     }
 
+    const mapped = (data || []).map((b) => {
+      return { ...b, linked_invoice: null }
+    })
+
+    if ((data || []).length > 0) {
+      const ids = (data || []).map(b => b.id as string)
+      const { data: invData, error: invErr } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, status, booking_id')
+        .in('booking_id', ids)
+      if (invErr) {
+        console.error('Get bookings invoice lookup error:', invErr)
+      } else if (invData) {
+        const invByBooking = new Map(invData.map(iv => [iv.booking_id as string, iv]))
+        return {
+          success: true as const,
+          data: mapped.map(b => {
+            const iv = invByBooking.get(b.id as string)
+            return { ...b, linked_invoice: iv ? { id: iv.id, invoice_number: iv.invoice_number, status: iv.status } : null }
+          }),
+          pagination: {
+            page: currentPage,
+            pageSize: size,
+            total: count || 0,
+            totalPages: Math.ceil((count || 0) / size),
+          },
+        }
+      }
+    }
+
     return {
       success: true as const,
-      data: data || [],
+      data: mapped,
       pagination: {
         page: currentPage,
         pageSize: size,
@@ -186,7 +216,13 @@ export async function getBooking(id: string) {
       changed_by_name: h.changed_by ? staffNames[h.changed_by] || null : null,
     }))
 
-    return { success: true as const, data: { ...data, status_history: enrichedHistory } }
+    const { data: linkedInvoice } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, status, total, paid_amount, created_at')
+      .eq('booking_id', id)
+      .maybeSingle()
+
+    return { success: true as const, data: { ...data, status_history: enrichedHistory, linked_invoice: linkedInvoice || null } }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
@@ -283,6 +319,82 @@ export async function updateBookingStatus(
     if (notif) {
       createNotificationsForRole('bookings', 'read', notif.type, notif.title, notif.msg, 'bookings', id).catch(() => {})
     }
+
+    return { success: true as const, data }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+export async function updateBookingWarranty(
+  id: string,
+  warrantyStart: string | null,
+  warrantyEnd: string | null,
+) {
+  const user = await requireAuth()
+  if (!user.permissions.includes('bookings:manage')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+  const rl = await checkRateLimit('bookings:warranty')
+  if (!rl.ok) return { success: false as const, error: rl.error }
+
+  try {
+    const supabase = await createClient()
+    const { data: existing } = await supabase
+      .from('bookings')
+      .select('id, status')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) {
+      return { success: false as const, error: 'الحجز غير موجود' }
+    }
+    if (existing.status !== 'completed') {
+      return { success: false as const, error: 'الضمان يُضاف فقط للحجوزات المكتملة' }
+    }
+
+    const start = warrantyStart && warrantyStart.trim() ? warrantyStart.trim() : null
+    const end = warrantyEnd && warrantyEnd.trim() ? warrantyEnd.trim() : null
+
+    if (end) {
+      const endMs = new Date(end + 'T00:00:00').getTime()
+      const startMs = start ? new Date(start + 'T00:00:00').getTime() : NaN
+      if (Number.isNaN(endMs)) {
+        return { success: false as const, error: 'تاريخ نهاية الضمان غير صحيح' }
+      }
+      if (!start || Number.isNaN(startMs) || startMs > endMs) {
+        return { success: false as const, error: 'تاريخ بداية الضمان يجب أن يكون قبل تاريخ النهاية' }
+      }
+    } else if (start) {
+      const startMs = new Date(start + 'T00:00:00').getTime()
+      if (Number.isNaN(startMs)) {
+        return { success: false as const, error: 'تاريخ بداية الضمان غير صحيح' }
+      }
+    }
+
+    const admin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data, error } = await admin
+      .from('bookings')
+      .update({ warranty_start_date: start, warranty_end_date: end })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Update booking warranty error:', error)
+      return { success: false as const, error: 'تعذر تحديث الضمان' }
+    }
+
+    await logAudit({
+      userId: user.auth_user_id,
+      action: 'booking_warranty_updated',
+      resourceType: 'bookings',
+      resourceId: id,
+      newValues: { warranty_start_date: start, warranty_end_date: end },
+    })
 
     return { success: true as const, data }
   } catch {

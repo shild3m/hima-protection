@@ -28,6 +28,10 @@ import {
  FaHistory,
  FaInfoCircle,
  FaUserTag,
+ FaFileInvoiceDollar,
+ FaShieldAlt,
+ FaEdit,
+ FaCheck,
 } from 'react-icons/fa'
 
 interface Booking {
@@ -46,6 +50,7 @@ interface Booking {
  customer?: { id: string; full_name: string; phone: string }
  vehicle?: { id: string; make: string; model: string; year: number | null; plate_number: string | null }
  service?: { id: string; name: string; base_price: number }
+ linked_invoice?: { id: string; invoice_number: string; status: string } | null
 }
 
 interface BookingDetail extends Booking {
@@ -53,6 +58,10 @@ interface BookingDetail extends Booking {
  vehicle?: { id: string; make: string; model: string; year: number | null; color: string | null; plate_number: string | null; vin: string | null }
  service?: { id: string; name: string; base_price: number; duration_minutes: number | null }
  status_history?: { id: string; old_status: string | null; new_status: string; changed_by: string | null; changed_by_name: string | null; notes: string | null; created_at: string }[]
+ booking_items?: { id: string; service_id: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string; base_price: number } }[]
+ linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number; created_at: string } | null
+ warranty_start_date?: string | null
+ warranty_end_date?: string | null
 }
 
 interface Pagination {
@@ -93,6 +102,15 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   cancelled: [],
 }
 
+const INVOICE_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  draft: { label: 'مسودة', color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' },
+  issued: { label: 'صادرة', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
+  partially_paid: { label: 'مدفوعة جزئياً', color: 'text-[#D97706]', bg: 'bg-[#FFFBEB] border-[#FDE68A]' },
+  paid: { label: 'مدفوعة', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
+  cancelled: { label: 'ملغاة', color: 'text-[#DC2626]', bg: 'bg-[#FEF2F2] border-[#FECACA]' },
+  refunded: { label: 'مسترجعة', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
+}
+
 export default function BookingsManager() {
   const { hasPermission, staffInfo } = useAuth()
   const isSuperAdmin = staffInfo?.role === 'super_admin'
@@ -115,9 +133,15 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   const [deleteToken, setDeleteToken] = useState('')
   const [deleteError, setDeleteError] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
+ const [warrantyStart, setWarrantyStart] = useState('')
+ const [warrantyEnd, setWarrantyEnd] = useState('')
+ const [warrantyEditing, setWarrantyEditing] = useState(false)
+ const [savingWarranty, setSavingWarranty] = useState(false)
+ const [invoiceView, setInvoiceView] = useState<{ loading: boolean; data: { id: string; invoice_number: string; status: string; total: number; paid_amount: number; created_at: string; items?: { id: string; description: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string } }[]; payments?: { id: string; amount: number; payment_method: string | null; paid_at: string | null }[] } | null }>({ loading: false, data: null })
 
-  const canUpdate = hasPermission('bookings', 'update')
-  const canCreate = hasPermission('bookings', 'create')
+ const canUpdate = hasPermission('bookings', 'update')
+ const canCreate = hasPermission('bookings', 'create')
+ const canManage = hasPermission('bookings', 'manage')
  const [showCreateForm, setShowCreateForm] = useState(false)
  const [services, setServices] = useState<{ id: string; name: string; base_price: number }[]>([])
  const [createFormData, setCreateFormData] = useState({
@@ -237,6 +261,8 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
 
   const handleViewBooking = async (booking: Booking) => {
  setViewingBooking(booking as BookingDetail)
+ setWarrantyEditing(false)
+ setInvoiceView({ loading: false, data: null })
  setLoadingDetail(true)
  try {
  const { getBooking } = await import('@/app/actions/bookings')
@@ -270,6 +296,45 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
   } finally {
   setUpdatingStatus(null)
   }
+ }
+
+ const handleSaveWarranty = async () => {
+  if (!viewingBooking) return
+  setSavingWarranty(true)
+  try {
+  const { updateBookingWarranty } = await import('@/app/actions/bookings')
+  const result = await updateBookingWarranty(viewingBooking.id, warrantyStart || null, warrantyEnd || null)
+  if (result.success) {
+  setNotification({ type: 'success', message: 'تم حفظ الضمان بنجاح' })
+  setViewingBooking(prev => prev ? { ...prev, warranty_start_date: warrantyStart || null, warranty_end_date: warrantyEnd || null } : prev)
+  setWarrantyEditing(false)
+  } else {
+  setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
+  }
+  } catch {
+  setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+  } finally {
+  setSavingWarranty(false)
+  }
+ }
+
+ const handleOpenInvoice = async (invoiceIdArg?: string) => {
+ const id = invoiceIdArg || viewingBooking?.linked_invoice?.id
+ if (!id) return
+ setInvoiceView({ loading: true, data: null })
+ try {
+ const { getInvoice } = await import('@/app/actions/invoices')
+ const result = await getInvoice(id)
+ if (result.success) {
+ setInvoiceView({ loading: false, data: result.data })
+ } else {
+ setInvoiceView({ loading: false, data: null })
+ setNotification({ type: 'error', message: result.error || 'تعذر جلب الفاتورة' })
+ }
+ } catch {
+ setInvoiceView({ loading: false, data: null })
+ setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+ }
  }
 
  const handleDeleteBooking = async () => {
@@ -588,15 +653,40 @@ const statusIcon = (status: string) => {
  title="حذف الحجز"
  className="w-9 h-9 rounded-xl bg-[#FEF2F2] hover:bg-[#DC2626] hover:text-white border border-[#FECACA] text-[#DC2626] transition-all duration-200 flex items-center justify-center"
  >
- <FaTrash className="text-[13px]" />
- </button>
- )}
- </div>
- </div>
- </div>
- )
- })}
- </div>
+<FaTrash className="text-[13px]" />
+  </button>
+  )}
+  </div>
+  </div>
+
+  {booking.status === 'completed' && (
+  <div className="mt-3 pt-3 border-t border-[#F1F2F3] flex items-center justify-between gap-3 flex-wrap">
+  <div className="flex items-center gap-2 flex-wrap">
+  <span className="text-[#4B4F55] font-bold text-sm flex items-center gap-1.5"><FaCheckCircle className="text-[#059669] text-xs" /> الخدمة:</span>
+  <span className="text-[#111214] font-bold text-sm">{booking.service?.name || '---'}</span>
+  {typeof booking.service?.base_price === 'number' && (
+  <span className="text-[#DC2626] font-black text-sm" dir="ltr">{booking.service.base_price.toLocaleString('en-US')} ر.س</span>
+  )}
+  <span className="text-[#62666D] text-xs font-semibold flex items-center gap-1">
+  <FaClock className="text-[#059669] text-[10px]" />
+  {new Date(booking.preferred_date || booking.created_at.slice(0, 10)).toLocaleDateString('en-GB')}
+  </span>
+  </div>
+  {booking.linked_invoice && (
+  <button
+  onClick={() => handleOpenInvoice(booking.linked_invoice?.id)}
+  className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-1.5 hover:bg-[#DBEAFE] transition-all shrink-0"
+  >
+  <FaFileInvoiceDollar className="text-[11px]" />
+  عرض الفاتورة
+  </button>
+  )}
+  </div>
+  )}
+  </div>
+  )
+  })}
+  </div>
 
  {/* ===== Pagination ===== */}
  {pagination && pagination.total > 0 && (
@@ -792,12 +882,88 @@ const statusIcon = (status: string) => {
  {' '}إلغاء الإلغاء — {STATUS_CONFIG[cancelRevertTarget(viewingBooking)]?.label || 'جديد'}
  </button>
  </div>
- <p className="text-[10px] text-[#059669]/80 mt-2">متاح للسوبر أدمن فقط، ويُرجِع الحجز للحالة التي كانت قبل الإلغاء.</p>
- </div>
- </div>
- )}
+<p className="text-[10px] text-[#059669]/80 mt-2">متاح للسوبر أدمن فقط، ويُرجِع الحجز للحالة التي كانت قبل الإلغاء.</p>
+  </div>
+  </div>
+  )}
 
- {viewingBooking.status_history && viewingBooking.status_history.length > 0 && (
+  {viewingBooking.status === 'completed' && (
+  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
+  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center justify-between gap-2">
+  <div className="flex items-center gap-2">
+  <FaCheckCircle className="text-[#059669] text-xs" />
+  <h4 className="text-sm font-bold text-[#111214]">الخدمات المقدمة</h4>
+  </div>
+  {viewingBooking.linked_invoice && (
+  <button onClick={() => handleOpenInvoice()} className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-2.5 py-1.5 hover:bg-[#DBEAFE] transition-all">
+  <FaFileInvoiceDollar className="text-[11px]" />
+  عرض الفاتورة
+  </button>
+  )}
+  </div>
+  <div className="px-4 py-3 space-y-2.5">
+  {[
+  ...(viewingBooking.service ? [{ key: 'main', name: viewingBooking.service.name, price: viewingBooking.service.base_price, total: viewingBooking.service.base_price, qty: 1 }] : []),
+  ...(viewingBooking.booking_items || []).map(i => ({ key: i.id, name: i.service?.name || 'خدمة إضافية', price: Number(i.unit_price), total: Number(i.total), qty: Number(i.quantity) })),
+  ].map(s => (
+  <div key={s.key} className="flex items-center justify-between gap-2 text-[14px] bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl px-3 py-2.5">
+  <div className="flex items-center gap-2 min-w-0">
+  <FaWrench className="text-[#059669] text-[11px] shrink-0" />
+  <span className="text-[#111214] font-bold truncate">{s.name}</span>
+  {s.qty > 1 && <span className="text-[#62666D] text-xs font-bold shrink-0">× {s.qty}</span>}
+  </div>
+  <span className="text-[#DC2626] font-bold shrink-0" dir="ltr">{s.total.toLocaleString('en-US')} ر.س</span>
+  </div>
+  ))}
+  <div className="flex justify-between text-[16px] px-1">
+  <span className="text-[#4B4F55] font-bold">تاريخ الخدمة:</span>
+  <span className="text-[#111214] font-bold">{new Date(viewingBooking.preferred_date || viewingBooking.created_at.slice(0, 10)).toLocaleDateString('en-GB')}</span>
+  </div>
+
+  <div className="border-t border-[#F1F2F3] pt-3">
+  <div className="flex items-center justify-between gap-2 px-1">
+  <span className="text-[#4B4F55] font-bold flex items-center gap-1.5"><FaShieldAlt className="text-[#059669]" /> الضمان:</span>
+  {canManage && (
+  <button onClick={() => { setWarrantyStart(viewingBooking.warranty_start_date || ''); setWarrantyEnd(viewingBooking.warranty_end_date || ''); setWarrantyEditing(v => !v) }} className="text-xs font-bold text-[#2563EB] flex items-center gap-1 hover:text-[#1D4ED8] transition-all">
+  <FaEdit /> {warrantyEditing ? 'إغلاق' : 'تعديل'}
+  </button>
+  )}
+  </div>
+
+  {warrantyEditing ? (
+  <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">بداية الضمان</label>
+  <input type="date" value={warrantyStart} onChange={e => setWarrantyStart(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1 block">نهاية الضمان</label>
+  <input type="date" value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-2.5 py-2 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all" />
+  </div>
+  <div className="col-span-2 flex gap-2">
+  <button onClick={handleSaveWarranty} disabled={savingWarranty} className="flex-1 bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white rounded-xl px-3 py-2 text-sm font-bold flex items-center justify-center gap-2 hover:from-[#9B1B30] hover:to-[#7A1526] disabled:opacity-60 transition-all">
+  {savingWarranty ? <FaSpinner className="animate-spin" /> : <FaCheck />} حفظ الضمان
+  </button>
+  <button onClick={() => setWarrantyEditing(false)} className="px-3 py-2 rounded-xl text-sm font-bold border border-[#E7E8EA] text-[#62666D] hover:bg-[#F7F7F5] transition-all">إلغاء</button>
+  </div>
+  </div>
+  ) : (
+  <div className="mt-1.5 px-1">
+  {viewingBooking.warranty_start_date && viewingBooking.warranty_end_date ? (
+  <span className="text-[#111214] font-bold text-[15px]">
+  من {new Date(viewingBooking.warranty_start_date).toLocaleDateString('en-GB')} إلى {new Date(viewingBooking.warranty_end_date).toLocaleDateString('en-GB')}
+  </span>
+  ) : (
+  <span className="text-[#62666D] text-sm font-medium">لا يوجد ضمان مسجل لهذا الحجز{canManage ? ' — اضغط تعديل لإضافته' : ''}</span>
+  )}
+  </div>
+  )}
+  </div>
+  </div>
+  </div>
+  )}
+
+  {viewingBooking.status_history && viewingBooking.status_history.length > 0 && (
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaHistory className="text-[#DC2626] text-xs" />
@@ -988,11 +1154,11 @@ const statusIcon = (status: string) => {
  <div className="px-6 mb-3">
  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">أدخل الرمز الخاص</label>
  <input
- type="password"
- value={deleteToken}
- onChange={e => { setDeleteToken(e.target.value); setDeleteError('') }}
- className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all"
- placeholder="الرمز السري..."
+type="password"
+   value={deleteToken}
+   onChange={e => { setDeleteToken(e.target.value); setDeleteError('') }}
+   className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] text-right focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all"
+ placeholder="الرمز الخاص..."
  autoFocus
  onKeyDown={e => { if (e.key === 'Enter' && deleteToken.trim()) handleDeleteBooking() }}
  dir="ltr"
@@ -1016,8 +1182,63 @@ const statusIcon = (status: string) => {
  </button>
  </div>
  </div>
- </div>
- )}
- </div>
- )
+</div>
+  )}
+  
+  {(invoiceView.loading || invoiceView.data) && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => setInvoiceView({ loading: false, data: null })}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+  <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
+  <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+  <FaFileInvoiceDollar className="text-[#2563EB] text-sm" />
+  الفاتورة {invoiceView.data?.invoice_number || ''}
+  </h3>
+  <button onClick={() => setInvoiceView({ loading: false, data: null })} className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F7F7F5] transition-all">
+  <FaTimes className="text-sm" />
+  </button>
+  </div>
+  {invoiceView.loading ? (
+  <div className="flex items-center justify-center py-12">
+  <FaSpinner className="animate-spin text-[#DC2626]" />
+  </div>
+  ) : invoiceView.data ? (
+  <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+  {invoiceView.data.status && (
+  <div className="flex items-center justify-between">
+  <span className="text-xs font-bold text-[#62666D]">حالة الفاتورة</span>
+  <span className={`text-[11px] font-black px-2.5 py-1 rounded-full border ${INVOICE_STATUS_CONFIG[invoiceView.data.status]?.bg || 'bg-[#F1F2F3] border-[#E7E8EA]'} ${INVOICE_STATUS_CONFIG[invoiceView.data.status]?.color || 'text-[#62666D]'}`}>
+  {INVOICE_STATUS_CONFIG[invoiceView.data.status]?.label || invoiceView.data.status}
+  </span>
+  </div>
+  )}
+  <div>
+  <p className="text-xs font-bold text-[#62666D] mb-1.5">البنود</p>
+  <div className="space-y-1.5">
+  {(invoiceView.data.items || []).map(it => (
+  <div key={it.id} className="flex items-center justify-between gap-2 text-sm">
+  <span className="text-[#62666D] font-semibold min-w-0 truncate">{it.service?.name || it.description}{it.quantity > 1 ? ` × ${it.quantity}` : ''}</span>
+  <span className="text-[#111214] font-bold shrink-0" dir="ltr">{it.total.toLocaleString('en-US')} ر.س</span>
+  </div>
+  ))}
+  </div>
+  </div>
+  <div className="border-t border-[#E7E8EA] pt-3 space-y-1.5">
+  <div className="flex items-center justify-between text-sm">
+  <span className="text-[#62666D] font-semibold">الإجمالي</span>
+  <span className="text-[#DC2626] font-black" dir="ltr">{invoiceView.data.total.toLocaleString('en-US')} ر.س</span>
+  </div>
+  {typeof invoiceView.data.paid_amount === 'number' && invoiceView.data.paid_amount > 0 && (
+  <div className="flex items-center justify-between text-sm">
+  <span className="text-[#62666D] font-semibold">المدفوع</span>
+  <span className="text-[#059669] font-black" dir="ltr">{invoiceView.data.paid_amount.toLocaleString('en-US')} ر.س</span>
+  </div>
+  )}
+  </div>
+  </div>
+  ) : null}
+  </div>
+  </div>
+  )}
+  </div>
+  )
 }
