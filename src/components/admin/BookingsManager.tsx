@@ -15,7 +15,6 @@ import {
  FaChevronRight,
  FaChevronLeft,
  FaChevronDown,
- FaSync,
  FaClock,
  FaPlus,
  FaUser,
@@ -497,6 +496,7 @@ const handleWarrantyYearsChange = (y: number) => {
   if (result.success) {
   setCreateNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
   setShowCreateForm(false)
+  setNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
   setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', vehicleMake: '', vehicleModel: '', vehicleYear: new Date().getFullYear().toString(), vehicleColor: '', vehiclePlate: '', serviceId: '', preferredDate: '', preferredTime: '', notes: '' })
   fetchBookings()
   fetchStats()
@@ -548,23 +548,26 @@ const statusIcon = (status: string) => {
 
  return (
  <div className="space-y-6">
- {notification && (
- <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 rounded-2xl shadow-2xl border font-bold text-sm flex items-center gap-3 animate-bounceIn ${
- notification.type === 'success'
- ? 'bg-white border-[#A7F3D0] text-[#059669]'
- : 'bg-white border-[#FECACA] text-[#DC2626]'
- }`}>
- <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs shrink-0 ${
- notification.type === 'success' ? 'bg-[#ECFDF5] text-[#059669]' : 'bg-[#FEF2F2] text-[#DC2626]'
- }`}>
- {notification.type === 'success' ? <FaSync /> : <FaExclamationTriangle />}
- </div>
- {notification.message}
- <button onClick={() => setNotification(null)} className="mr-2 opacity-50 hover:opacity-100 transition">
- <FaTimes className="text-xs" />
- </button>
- </div>
- )}
+{notification && (
+  <div className={`fixed top-6 left-1/2 z-[80] w-[calc(100%-2rem)] max-w-sm px-5 py-4 rounded-2xl shadow-2xl border font-bold text-sm overflow-hidden animate-toast-in ${
+  notification.type === 'success'
+  ? 'bg-white border-[#A7F3D0] text-[#059669]'
+  : 'bg-white border-[#FECACA] text-[#DC2626]'
+  }`}>
+  <div className="flex items-start gap-3">
+  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+  notification.type === 'success' ? 'bg-[#ECFDF5] text-[#059669]' : 'bg-[#FEF2F2] text-[#DC2626]'
+  }`}>
+  {notification.type === 'success' ? <FaCheckCircle /> : <FaExclamationTriangle />}
+  </div>
+  <p className="flex-1 min-w-0 font-black text-[#111214] pt-1">{notification.message}</p>
+  <button onClick={() => setNotification(null)} className="opacity-40 hover:opacity-100 transition pt-1">
+  <FaTimes className="text-xs" />
+  </button>
+  </div>
+  <span className={`absolute bottom-0 left-0 h-0.5 ${notification.type === 'success' ? 'bg-[#059669]' : 'bg-[#DC2626]'} animate-toast-progress`} />
+  </div>
+  )}
 
  {/* ===== Header ===== */}
  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
