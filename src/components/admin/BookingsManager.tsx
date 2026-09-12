@@ -781,8 +781,7 @@ return (
   </div>
 
   {booking.status === 'completed' && (
-  <div className="mt-3 pt-3 border-t border-[#F1F2F3] space-y-2">
-  <div className="flex items-center justify-between gap-3 flex-wrap">
+  <div className="mt-3 pt-3 border-t border-[#F1F2F3]">
   <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
   <span className="text-[#111214] font-bold text-sm flex items-center gap-1.5">
   <FaCheckCircle className="text-[#059669] text-xs" />
@@ -799,35 +798,35 @@ return (
   <FaClock className="text-[#059669] text-[10px]" />
   {new Date(booking.preferred_date || booking.created_at.slice(0, 10)).toLocaleDateString('en-GB')}
   </span>
-  </div>
+  {booking.warranty_start_date && booking.warranty_end_date && (
+  <>
+  <span className="h-4 w-px bg-[#E7E8EA]"></span>
+  <span className="text-[#B45309] font-black text-xs flex items-center gap-1.5">
+  <FaShieldAlt className="text-[13px]" />
+  ضمان: {warrantyYears === 1 ? 'سنة واحدة' : warrantyYears === 2 ? 'سنتان' : `${warrantyYears} سنوات`}
+  </span>
+  <span className="h-4 w-px bg-[#E7E8EA]"></span>
+  <span className="text-[#62666D] font-bold text-xs flex items-center gap-1.5">
+  <FaCalendarAlt className="text-[#B45309] text-[11px]" />
+  من {toArabicDate(booking.warranty_start_date)}
+  </span>
+  <span className="h-4 w-px bg-[#E7E8EA]"></span>
+  <span className="text-[#62666D] font-bold text-xs flex items-center gap-1.5">
+  <FaClock className="text-[#B45309] text-[11px]" />
+  إلى {toArabicDate(booking.warranty_end_date)}
+  </span>
+  </>
+  )}
   {booking.linked_invoice && (
   <button
   onClick={() => handleOpenInvoice(booking.linked_invoice?.id)}
-  className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-1.5 hover:bg-[#DBEAFE] transition-all shrink-0"
+  className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-1.5 hover:bg-[#DBEAFE] transition-all ms-auto"
   >
   <FaFileInvoiceDollar className="text-[11px]" />
   عرض الفاتورة
   </button>
   )}
   </div>
-  {booking.warranty_start_date && booking.warranty_end_date && (
-  <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
-  <span className="text-[#B45309] font-black text-xs flex items-center gap-1.5">
-  <FaShieldAlt className="text-[13px]" />
-  مدة الضمان: {warrantyYears === 1 ? 'سنة واحدة' : warrantyYears === 2 ? 'سنتان' : `${warrantyYears} سنوات`}
-  </span>
-  <span className="h-3.5 w-px bg-[#E7E8EA]"></span>
-  <span className="text-[#62666D] font-bold text-xs flex items-center gap-1.5">
-  <FaCalendarAlt className="text-[#B45309] text-[11px]" />
-  من {toArabicDate(booking.warranty_start_date)}
-  </span>
-  <span className="h-3.5 w-px bg-[#E7E8EA]"></span>
-  <span className="text-[#62666D] font-bold text-xs flex items-center gap-1.5">
-  <FaClock className="text-[#B45309] text-[11px]" />
-  إلى {toArabicDate(booking.warranty_end_date)}
-  </span>
-  </div>
-  )}
   </div>
   )}
   </div>
