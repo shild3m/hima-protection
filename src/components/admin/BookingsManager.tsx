@@ -52,7 +52,7 @@ interface BookingDetail extends Booking {
  customer?: { id: string; full_name: string; phone: string; email: string | null }
  vehicle?: { id: string; make: string; model: string; year: number | null; color: string | null; plate_number: string | null; vin: string | null }
  service?: { id: string; name: string; base_price: number; duration_minutes: number | null }
- status_history?: { id: string; old_status: string | null; new_status: string; changed_by: string | null; notes: string | null; created_at: string }[]
+ status_history?: { id: string; old_status: string | null; new_status: string; changed_by: string | null; changed_by_name: string | null; notes: string | null; created_at: string }[]
 }
 
 interface Pagination {
@@ -806,7 +806,9 @@ const statusIcon = (status: string) => {
  <div className="px-4 py-3.5 space-y-2.5">
  {viewingBooking.status_history.map((h) => (
  <div key={h.id} className="flex items-center gap-2.5 text-sm bg-[#FBFBFA] border border-[#F1F2F3] rounded-xl px-3 py-2 flex-wrap">
- <span className="text-[#62666D] font-medium">{new Date(h.created_at).toLocaleDateString('en-GB')}</span>
+ <span className="font-bold text-[#111214]">{h.changed_by_name || 'النظام'}</span>
+ <span className="text-[#9CA1A6]">•</span>
+ <span className="text-[#62666D] font-medium">{new Date(h.created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
  <span className="text-[#62666D]">→</span>
  {statusBadge(h.new_status)}
  {h.notes && <span className="text-[#62666D]">({h.notes})</span>}

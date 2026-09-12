@@ -165,7 +165,28 @@ export async function getBooking(id: string) {
       .eq('booking_id', id)
       .order('created_at', { ascending: true })
 
-    return { success: true as const, data: { ...data, status_history: history || [] } }
+    const historyRows = history || []
+    const changedByIds = [...new Set(historyRows.map(h => h.changed_by).filter(Boolean))] as string[]
+    let staffNames: Record<string, string> = {}
+    if (changedByIds.length > 0) {
+      const admin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
+      const { data: staffRows } = await admin
+        .from('staff')
+        .select('user_id, full_name')
+        .in('user_id', changedByIds)
+      if (staffRows) {
+        staffNames = Object.fromEntries(staffRows.map(s => [s.user_id, s.full_name]))
+      }
+    }
+    const enrichedHistory = historyRows.map(h => ({
+      ...h,
+      changed_by_name: h.changed_by ? staffNames[h.changed_by] || null : null,
+    }))
+
+    return { success: true as const, data: { ...data, status_history: enrichedHistory } }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
