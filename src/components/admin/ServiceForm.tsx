@@ -22,8 +22,6 @@ interface Service {
  is_active: boolean
  display_order: number
  image_url: string | null
- meta_title: string | null
- meta_description: string | null
 }
 
 interface ServiceFormProps {
@@ -39,11 +37,8 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  const [description, setDescription] = useState(initialData?.description || '')
  const [basePrice, setBasePrice] = useState(initialData?.base_price?.toString() || '0')
  const [durationMinutes, setDurationMinutes] = useState(initialData?.duration_minutes?.toString() || '')
- const [isActive, setIsActive] = useState(initialData?.is_active ?? true)
  const [displayOrder, setDisplayOrder] = useState(initialData?.display_order?.toString() || '0')
  const [imageUrl, setImageUrl] = useState(initialData?.image_url || '')
- const [metaTitle, setMetaTitle] = useState(initialData?.meta_title || '')
- const [metaDescription, setMetaDescription] = useState(initialData?.meta_description || '')
 
  const [loading, setLoading] = useState(false)
  const [errors, setErrors] = useState<Record<string, string>>({})
@@ -98,11 +93,8 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  description: description.trim() || null,
  base_price: parseFloat(basePrice) || 0,
  duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
- is_active: isActive,
  display_order: parseInt(displayOrder) || 0,
  image_url: imageUrl.trim() || null,
- meta_title: metaTitle.trim() || null,
- meta_description: metaDescription.trim() || null,
  }
 
  const result = isEditing
@@ -277,71 +269,29 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
 
  {/* Media & SEO */}
  <div className="mb-6">
- <h4 className="text-sm font-bold text-[#111214] flex items-center gap-2 mb-4">
- <div className="w-6 h-6 rounded-lg bg-[#FAF5FF] flex items-center justify-center">
- <FaInfoCircle className="text-[#7C3AED] text-[10px]" />
- </div>
- الصورة وتحسين البحث
- </h4>
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- {/* Image URL */}
- <div>
- <label className="label-light">رابط الصورة</label>
- <input
- type="url"
- value={imageUrl}
- onChange={(e) => setImageUrl(e.target.value)}
- className="input-light"
- placeholder="https://..."
- />
- {errors.imageUrl && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.imageUrl}</p>}
- </div>
+<h4 className="text-sm font-bold text-[#111214] flex items-center gap-2 mb-4">
+  <div className="w-6 h-6 rounded-lg bg-[#FAF5FF] flex items-center justify-center">
+  <FaInfoCircle className="text-[#7C3AED] text-[10px]" />
+  </div>
+  صورة الخدمة
+  </h4>
+  <div>
+  {/* Image URL */}
+  <div>
+  <label className="label-light">رابط الصورة</label>
+  <input
+  type="url"
+  value={imageUrl}
+  onChange={(e) => setImageUrl(e.target.value)}
+  className="input-light"
+  placeholder="https://..."
+  />
+  {errors.imageUrl && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.imageUrl}</p>}
+  </div>
+  </div>
+  </div>
 
- {/* Meta Title */}
- <div>
- <label className="label-light">عنوان SEO</label>
- <input
- type="text"
- value={metaTitle}
- onChange={(e) => setMetaTitle(e.target.value)}
- maxLength={200}
- className="input-light"
- placeholder="عنوان صفحة الخدمة"
- />
- </div>
-
- {/* Meta Description */}
- <div className="md:col-span-2">
- <label className="label-light">وصف SEO</label>
- <input
- type="text"
- value={metaDescription}
- onChange={(e) => setMetaDescription(e.target.value)}
- maxLength={500}
- className="input-light"
- placeholder="وصف صفحة الخدمة لمحركات البحث"
- />
- </div>
- </div>
- </div>
-
- {/* Status */}
- <div className="mb-6">
- <label className="flex items-center gap-3 cursor-pointer">
- <div className="relative">
- <input
- type="checkbox"
- checked={isActive}
- onChange={(e) => setIsActive(e.target.checked)}
- className="peer w-5 h-5 appearance-none rounded-lg border border-[#E7E8EA] checked:bg-gradient-to-br checked:from-red-600 checked:to-red-700 checked:border-red-600 cursor-pointer transition-all duration-200"
- />
- <FaCheckCircle className="absolute inset-0 flex items-center justify-center text-[10px] text-[#111214] opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
- </div>
- <span className="text-[#111214] text-sm font-bold">الخدمة نشطة</span>
- </label>
- </div>
-
- {/* Actions */}
+  {/* Actions */}
  <div className="flex gap-2">
  <button
  type="button"
