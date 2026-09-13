@@ -30,8 +30,11 @@ FaUserTag,
   FaGlobe,
   FaFileInvoiceDollar,
 FaShieldAlt,
- FaEdit,
- FaCheck,
+  FaEdit,
+  FaCheck,
+  FaCarSide,
+  FaCarAlt,
+  FaTruckPickup,
 } from 'react-icons/fa'
 
 interface Booking {
@@ -153,6 +156,11 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const [completeNoWarranty, setCompleteNoWarranty] = useState(false)
  const [completeSubmitting, setCompleteSubmitting] = useState(false)
  const [completeYearsOpen, setCompleteYearsOpen] = useState(false)
+ const [vehicleSizeOpen, setVehicleSizeOpen] = useState(false)
+ const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
+ const [serviceSearch, setServiceSearch] = useState('')
+ const [preferredCalOpen, setPreferredCalOpen] = useState(false)
+ const [timeMenuOpen, setTimeMenuOpen] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
@@ -305,6 +313,39 @@ useEffect(() => {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [completeYearsOpen])
+
+  useEffect(() => {
+    if (!vehicleSizeOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element)?.closest('[data-vehicle-size-menu]')) {
+        setVehicleSizeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [vehicleSizeOpen])
+
+  useEffect(() => {
+    if (!serviceMenuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element)?.closest('[data-service-menu]')) {
+        setServiceMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [serviceMenuOpen])
+
+  useEffect(() => {
+    if (!timeMenuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element)?.closest('[data-time-menu]')) {
+        setTimeMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [timeMenuOpen])
 
   const handleViewBooking = async (booking: Booking) => {
  setViewingBooking(booking as BookingDetail)
@@ -505,21 +546,30 @@ const handleWarrantyYearsChange = (y: number) => {
  }
 
  const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
+ const VEHICLE_SIZES = [
+  { id: 'صغير', label: 'صغير', hint: 'كورولا، ميني، صغيرة', Icon: FaCarSide },
+  { id: 'متوسط', label: 'متوسط', hint: 'كامري، وكالة، متوسطة', Icon: FaCar },
+  { id: 'كبير', label: 'كبير', hint: 'لكزس، جيب، عائلية SUV', Icon: FaCarAlt },
+  { id: 'بيك أب', label: 'بيك أب', hint: 'هايلوكس، نقل خفيف', Icon: FaTruckPickup },
+ ]
+ const activeVehicleSize = VEHICLE_SIZES.find(s => s.id === createFormData.vehicleModel) || null
 
  const handleCreateBookingSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
   setCreateErrors({})
   const errs: Record<string, string> = {}
   if (!createFormData.customerName.trim() || createFormData.customerName.trim().length < 2) errs.customerName = 'اسم العميل مطلوب (حرفين على الأقل)'
-  if (!createFormData.customerPhone.trim() || createFormData.customerPhone.trim().length < 5) errs.customerPhone = 'رقم الهاتف مطلوب'
-  if (!createFormData.vehicleMake.trim()) errs.vehicleMake = 'ماركة السيارة مطلوبة'
-  if (!createFormData.vehicleModel.trim()) errs.vehicleModel = 'موديل السيارة مطلوب'
+  const phoneDigits = (createFormData.customerPhone || '').replace(/[^0-9]/g, '')
+  if (!phoneDigits) errs.customerPhone = 'رقم الجوال مطلوب'
+  else if (phoneDigits.length !== 10) errs.customerPhone = 'رقم الجوال يجب أن يتكون من 10 أرقام'
+  if (!createFormData.vehicleMake.trim()) errs.vehicleMake = 'اسم السيارة مطلوب'
+  if (!createFormData.vehicleModel.trim()) errs.vehicleModel = 'حجم السيارة مطلوب'
   const yr = parseInt(createFormData.vehicleYear)
   if (!createFormData.vehicleYear || yr < 1900 || yr > new Date().getFullYear() + 1) errs.vehicleYear = 'سنة الصنع غير صحيحة'
   if (!createFormData.serviceId) errs.serviceId = 'يرجى اختيار الخدمة'
   if (!createFormData.preferredDate) errs.preferredDate = 'التاريخ المفضل مطلوب'
   if (!createFormData.preferredTime) errs.preferredTime = 'الوقت المفضل مطلوب'
-  if (Object.keys(errs).length > 0) { setCreateErrors(errs); return }
+  if (Object.keys(errs).length > 0) { setCreateErrors(errs); setCreateNotification({ type: 'error', message: 'أكمل الحقول المطلوبة بشكل صحيح' }); return }
   setCreateSubmitting(true)
   try {
   const { adminCreateBooking } = await import('@/app/actions/bookings')
@@ -545,7 +595,12 @@ const handleWarrantyYearsChange = (y: number) => {
   fetchBookings()
   fetchStats()
   } else {
+  if ('fieldErrors' in result && result.fieldErrors) {
+  setCreateErrors(result.fieldErrors)
+  setCreateNotification({ type: 'error', message: result.message || 'أكمل الحقول المطلوبة بشكل صحيح' })
+  } else {
   setCreateNotification({ type: 'error', message: result.error || 'حدث خطأ' })
+  }
   }
   } catch {
   setCreateNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
@@ -1307,13 +1362,17 @@ return (
  <div className="px-4 py-4 space-y-3">
  <div>
  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اسم العميل *</label>
- <input type="text" value={createFormData.customerName} onChange={e => setCreateFormData(p => ({ ...p, customerName: e.target.value }))} className={`w-full bg-white border ${createErrors.customerName ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all`} placeholder="الاسم الكامل" />
+ <input type="text" value={createFormData.customerName} onChange={e => { setCreateFormData(p => ({ ...p, customerName: e.target.value })); setCreateErrors(err => ({ ...err, customerName: '' })) }} className={`w-full bg-white border ${createErrors.customerName ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all`} placeholder="الاسم الكامل" />
  {createErrors.customerName && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.customerName}</p>}
  </div>
  <div>
  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">رقم الهاتف *</label>
- <input type="tel" value={createFormData.customerPhone} onChange={e => setCreateFormData(p => ({ ...p, customerPhone: e.target.value }))} className={`w-full bg-white border ${createErrors.customerPhone ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all`} placeholder="05XXXXXXXX" dir="ltr" />
- {createErrors.customerPhone && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.customerPhone}</p>}
+<input type="tel" value={createFormData.customerPhone} onChange={e => { setCreateFormData(p => ({ ...p, customerPhone: e.target.value })); setCreateErrors(err => ({ ...err, customerPhone: '' })) }} className={`w-full bg-white border ${createErrors.customerPhone ? 'border-[#DC2626] focus:ring-red-500/10' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 transition-all`} placeholder="05XXXXXXXX" dir="ltr" />
+  {createErrors.customerPhone ? (
+  <p className="text-[#DC2626] text-xs mt-1.5 flex items-center gap-1.5"><FaExclamationTriangle className="shrink-0" /> {createErrors.customerPhone}</p>
+  ) : (
+  <p className="text-[#9CA1A6] text-[11px] mt-1.5 ps-0.5">يجب أن يتكون رقم الجوال من 10 أرقام ويبدأ بـ 05</p>
+  )}
  </div>
  <div>
  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">البريد الإلكتروني (اختياري)</label>
@@ -1327,31 +1386,67 @@ return (
  <FaCar className="text-[#DC2626] text-xs" />
  <h4 className="text-sm font-bold text-[#111214]">بيانات السيارة</h4>
  </div>
- <div className="px-4 py-4 grid grid-cols-2 gap-3">
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الماركة *</label>
- <input type="text" value={createFormData.vehicleMake} onChange={e => setCreateFormData(p => ({ ...p, vehicleMake: e.target.value }))} className={`w-full bg-white border ${createErrors.vehicleMake ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} placeholder="مثال: تويوتا" />
- {createErrors.vehicleMake && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleMake}</p>}
- </div>
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الموديل *</label>
- <input type="text" value={createFormData.vehicleModel} onChange={e => setCreateFormData(p => ({ ...p, vehicleModel: e.target.value }))} className={`w-full bg-white border ${createErrors.vehicleModel ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} placeholder="مثال: كامري" />
- {createErrors.vehicleModel && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleModel}</p>}
- </div>
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">سنة الصنع *</label>
- <input type="number" value={createFormData.vehicleYear} onChange={e => setCreateFormData(p => ({ ...p, vehicleYear: e.target.value }))} min="1900" max={new Date().getFullYear() + 1} className={`w-full bg-white border ${createErrors.vehicleYear ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} dir="ltr" />
- {createErrors.vehicleYear && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleYear}</p>}
- </div>
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اللون</label>
- <input type="text" value={createFormData.vehicleColor} onChange={e => setCreateFormData(p => ({ ...p, vehicleColor: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أبيض" />
- </div>
- <div className="col-span-2">
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">رقم اللوحة</label>
- <input type="text" value={createFormData.vehiclePlate} onChange={e => setCreateFormData(p => ({ ...p, vehiclePlate: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أ ب ج 1234" />
- </div>
- </div>
+<div className="px-4 py-4 grid grid-cols-2 gap-3">
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اسم السيارة *</label>
+  <input type="text" value={createFormData.vehicleMake} onChange={e => { setCreateFormData(p => ({ ...p, vehicleMake: e.target.value })); setCreateErrors(err => ({ ...err, vehicleMake: '' })) }} className={`w-full bg-white border ${createErrors.vehicleMake ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} placeholder="مثال: تويوتا" />
+  {createErrors.vehicleMake && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleMake}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">حجم السيارة *</label>
+  <div className="relative" data-vehicle-size-menu>
+  <button
+  type="button"
+  onClick={() => setVehicleSizeOpen(v => !v)}
+  className={`w-full flex items-center gap-2 bg-white border ${createErrors.vehicleModel ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] hover:border-[#DC2626] transition-all ${activeVehicleSize ? '' : 'text-[#9CA1A6]'}`}
+  >
+  {activeVehicleSize ? (
+  <>
+  <span className="text-[#DC2626] text-base flex items-center"><activeVehicleSize.Icon /></span>
+  <span className="font-bold flex items-center gap-1.5">{activeVehicleSize.label}<span className="text-[10px] text-[#9CA1A6] font-semibold hidden lg:inline">{activeVehicleSize.hint}</span></span>
+  </>
+  ) : (
+  <>
+  <span className="text-[#9CA1A6] text-base flex items-center"><FaCar /></span>
+  <span className="font-semibold">اختر حجم السيارة</span>
+  </>
+  )}
+  <FaChevronDown className={`ms-auto text-[#9CA1A6] text-[10px] transition-transform duration-200 ${vehicleSizeOpen ? 'rotate-180' : ''}`} />
+  </button>
+  {vehicleSizeOpen && (
+  <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white border border-[#E7E8EA] rounded-xl shadow-xl shadow-black/10 py-1 max-h-56 overflow-y-auto">
+  {VEHICLE_SIZES.map(s => (
+  <button
+  key={s.id}
+  type="button"
+  onClick={() => { setCreateFormData(p => ({ ...p, vehicleModel: s.id })); setCreateErrors(err => ({ ...err, vehicleModel: '' })); setVehicleSizeOpen(false) }}
+  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors ${activeVehicleSize?.id === s.id ? 'bg-[#FFF5F5]' : 'hover:bg-[#F7F7F5]'}`}
+  >
+  <span className={`text-lg flex items-center ${activeVehicleSize?.id === s.id ? 'text-[#DC2626]' : 'text-[#4B4F55]'}`}><s.Icon /></span>
+  <span className={`flex-1 text-right ${activeVehicleSize?.id === s.id ? 'font-black text-[#111214]' : 'font-bold text-[#4B4F55]'}`}>{s.label}</span>
+  <span className="text-[10px] text-[#9CA1A6] font-semibold">{s.hint}</span>
+  {activeVehicleSize?.id === s.id && <FaCheck className="text-[#DC2626] text-xs" />}
+  </button>
+  ))}
+  </div>
+  )}
+  </div>
+  {createErrors.vehicleModel && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleModel}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">سنة الصنع *</label>
+  <input type="number" value={createFormData.vehicleYear} onChange={e => { setCreateFormData(p => ({ ...p, vehicleYear: e.target.value })); setCreateErrors(err => ({ ...err, vehicleYear: '' })) }} min="1900" max={new Date().getFullYear() + 1} className={`w-full bg-white border ${createErrors.vehicleYear ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} dir="ltr" />
+  {createErrors.vehicleYear && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleYear}</p>}
+  </div>
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اللون (اختياري)</label>
+  <input type="text" value={createFormData.vehicleColor} onChange={e => setCreateFormData(p => ({ ...p, vehicleColor: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أبيض" />
+  </div>
+  <div className="col-span-2">
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">رقم اللوحة (اختياري)</label>
+  <input type="text" value={createFormData.vehiclePlate} onChange={e => setCreateFormData(p => ({ ...p, vehiclePlate: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أ ب ج 1234" />
+  </div>
+  </div>
  </div>
 
  <div className="rounded-2xl border border-[#E7E8EA] overflow-hidden">
@@ -1360,28 +1455,164 @@ return (
  <h4 className="text-xs font-bold text-[#111214]">الخدمة والموعد</h4>
  </div>
  <div className="px-4 py-4 space-y-3">
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الخدمة *</label>
- <select value={createFormData.serviceId} onChange={e => setCreateFormData(p => ({ ...p, serviceId: e.target.value }))} className={`w-full bg-white border ${createErrors.serviceId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none appearance-none cursor-pointer transition-all`}>
- <option value="">اختر الخدمة</option>
- {services.map(s => <option key={s.id} value={s.id}>{s.name}{s.base_price ? ` — ${s.base_price.toLocaleString('en-GB')} ر.س` : ''}</option>)}
- </select>
- {createErrors.serviceId && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.serviceId}</p>}
- </div>
+<div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الخدمة *</label>
+  <div className="relative" data-service-menu>
+  <button
+  type="button"
+  onClick={() => { setServiceSearch(''); setServiceMenuOpen(v => !v) }}
+  className={`w-full flex items-center gap-2 bg-white border ${createErrors.serviceId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm transition-all ${createFormData.serviceId ? 'text-[#111214]' : 'text-[#9CA1A6]'}`}
+  >
+  <FaWrench className={`text-xs ${createFormData.serviceId ? 'text-[#DC2626]' : 'text-[#9CA1A6]'}`} />
+  {(() => {
+  const sel = services.find(s => s.id === createFormData.serviceId)
+  return sel
+  ? <span className="font-bold flex items-center gap-2"><span className="truncate">{sel.name}</span>{sel.base_price ? <span className="text-[#DC2626] font-black shrink-0" dir="ltr">{sel.base_price.toLocaleString('en-US')} ر.س</span> : null}</span>
+  : <span className="font-semibold">اختر الخدمة</span>
+  })()}
+  <FaChevronDown className={`ms-auto text-[#9CA1A6] text-[10px] transition-transform duration-200 ${serviceMenuOpen ? 'rotate-180' : ''}`} />
+  </button>
+  {serviceMenuOpen && (
+  <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white border border-[#E7E8EA] rounded-xl shadow-xl shadow-black/10 py-1.5 max-h-64 flex flex-col">
+  <div className="px-2 pb-1.5 border-b border-[#F1F2F3] mb-1 shrink-0">
+  <div className="flex items-center gap-2 bg-[#F7F7F5] border border-[#E7E8EA] rounded-lg px-2.5 py-1.5">
+  <FaSearch className="text-[#9CA1A6] text-[11px]" />
+  <input
+  value={serviceSearch}
+  onChange={e => setServiceSearch(e.target.value)}
+  placeholder="ابحث عن خدمة..."
+  className="w-full bg-transparent text-sm text-[#111214] focus:outline-none placeholder:text-[#9CA1A6]"
+  />
+  </div>
+  </div>
+  <div className="overflow-y-auto">
+  {services.filter(s => !serviceSearch.trim() || s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).map(s => (
+  <button
+  key={s.id}
+  type="button"
+  onClick={() => { setCreateFormData(p => ({ ...p, serviceId: s.id })); setCreateErrors(err => ({ ...err, serviceId: '' })); setServiceMenuOpen(false) }}
+  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors ${createFormData.serviceId === s.id ? 'bg-[#FFF5F5]' : 'hover:bg-[#F7F7F5]'}`}
+  >
+  <span className={`min-w-0 text-right ${createFormData.serviceId === s.id ? 'font-black text-[#111214]' : 'font-bold text-[#4B4F55]'}`}>{s.name}</span>
+  {s.base_price ? <span className="text-[#DC2626] font-black shrink-0" dir="ltr">{s.base_price.toLocaleString('en-US')} ر.س</span> : null}
+  {createFormData.serviceId === s.id && <FaCheck className="text-[#DC2626] text-xs shrink-0" />}
+  </button>
+  ))}
+  {services.filter(s => !serviceSearch.trim() || s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).length === 0 && (
+  <p className="px-3 py-3 text-sm text-[#9CA1A6] font-semibold text-center">لا توجد خدمات مطابقة</p>
+  )}
+  </div>
+  </div>
+  )}
+  </div>
+  {createErrors.serviceId && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.serviceId}</p>}
+  </div>
  <div className="grid grid-cols-2 gap-3">
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">التاريخ المفضل *</label>
- <input type="date" value={createFormData.preferredDate} onChange={e => setCreateFormData(p => ({ ...p, preferredDate: e.target.value }))} min={new Date().toISOString().split('T')[0]} className={`w-full bg-white border ${createErrors.preferredDate ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none transition-all`} />
- {createErrors.preferredDate && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.preferredDate}</p>}
- </div>
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الوقت المفضل *</label>
- <select value={createFormData.preferredTime} onChange={e => setCreateFormData(p => ({ ...p, preferredTime: e.target.value }))} className={`w-full bg-white border ${createErrors.preferredTime ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none appearance-none cursor-pointer transition-all`}>
- <option value="">اختر الوقت</option>
- {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
- </select>
- {createErrors.preferredTime && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.preferredTime}</p>}
- </div>
+<div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">التاريخ المفضل *</label>
+  <div className="relative">
+  <button
+  type="button"
+  onClick={() => {
+  const d = createFormData.preferredDate ? new Date(createFormData.preferredDate + 'T00:00:00') : new Date()
+  setCalYear(d.getFullYear())
+  setCalMonth(d.getMonth())
+  setPreferredCalOpen(v => !v)
+  }}
+  className={`w-full bg-white border ${createErrors.preferredDate ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm transition-all ${createFormData.preferredDate ? 'text-[#111214] font-bold' : 'text-[#9CA1A6] font-semibold'}`}
+  >
+  <span className="flex items-center justify-between gap-2">
+  <span className="flex items-center gap-2">
+  <FaCalendarAlt className={`text-xs ${createFormData.preferredDate ? 'text-[#DC2626]' : 'text-[#9CA1A6]'}`} />
+  {createFormData.preferredDate ? formatStartDisplay(createFormData.preferredDate) : 'اختر التاريخ'}
+  </span>
+  <FaChevronDown className={`text-[10px] text-[#9CA1A6] transition-transform ${preferredCalOpen ? 'rotate-180' : ''}`} />
+  </span>
+  </button>
+  {preferredCalOpen && (
+  <div className="absolute top-full left-1/2 -translate-x-1/2 z-40 mt-1.5 w-[270px] bg-white border border-[#E7E8EA] rounded-2xl shadow-xl shadow-black/10 p-3">
+  <div className="flex items-center p-0.5 bg-[#F7F7F5] rounded-[10px] mb-2">
+  <button type="button" onClick={() => setCalMode('miladi')} className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${calMode === 'miladi' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>ميلادي</button>
+  <button type="button" onClick={() => setCalMode('hijri')} className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${calMode === 'hijri' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>هجري</button>
+  </div>
+  <div className="flex items-center justify-between mb-2">
+  <button type="button" onClick={() => moveCal(-1)} title="الشهر السابق" className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#DC2626] hover:border-[#FECACA] transition-all">
+  <FaChevronRight className="text-[10px]" />
+  </button>
+  <span className="text-[13px] font-black text-[#111214]">{calMode === 'hijri'
+  ? (() => {
+  const h = toHijri(calFirstIso)
+  return h ? `${HIJRI_MONTHS[h.m - 1]} ${h.y} هـ` : `${ARABIC_MONTHS[calMonth]} ${calYear}`
+  })()
+  : `${ARABIC_MONTHS[calMonth]} ${calYear}`}</span>
+  <button type="button" onClick={() => moveCal(1)} title="الشهر التالي" className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#DC2626] hover:border-[#FECACA] transition-all">
+  <FaChevronLeft className="text-[10px]" />
+  </button>
+  </div>
+  <div className="grid grid-cols-7 gap-0.5 text-center">
+  {WEEKDAY_HEADERS.map((w, i) => (
+  <span key={i} className="text-[9px] font-black text-[#9CA1A6] py-1">{w}</span>
+  ))}
+  {calDays.map((iso, i) => {
+  if (!iso) return <span key={`e${i}`} />
+  const isSel = iso === createFormData.preferredDate
+  const isToday = iso === todayIso
+  const isPast = iso < todayIso
+  const hijriCell = calMode === 'hijri' ? toHijri(iso) : null
+  const dayNum = hijriCell ? hijriCell.d : Number(iso.split('-')[2])
+  return (
+  <button key={iso} type="button" disabled={isPast} onClick={() => { setCreateFormData(p => ({ ...p, preferredDate: iso })); setCreateErrors(err => ({ ...err, preferredDate: '' })); setPreferredCalOpen(false) }} className="p-0.5">
+  <div className={`w-8 h-8 mx-auto flex flex-col items-center justify-center rounded-full text-xs font-bold transition-all ${isSel ? 'bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white shadow-md shadow-red-500/25' : isPast ? 'text-[#E7E8EA] cursor-not-allowed pointer-events-none' : isToday ? 'text-[#DC2626] ring-1 ring-[#FECACA] bg-[#FFF1F2]' : 'text-[#111214] hover:bg-[#FEE2E2] hover:text-[#DC2626]'}`}>
+  <span className="leading-none pt-1">{dayNum}</span>
+  {isToday && !isPast && <span className={`leading-none mt-0.5 text-[7px] font-black ${isSel ? 'text-white' : 'text-[#DC2626]'}`}>اليوم</span>}
+  </div>
+  </button>
+  )
+  })}
+  </div>
+  </div>
+  )}
+  </div>
+  {createErrors.preferredDate && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.preferredDate}</p>}
+  </div>
+<div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الوقت المفضل *</label>
+  <div className="relative" data-time-menu>
+  <button
+  type="button"
+  onClick={() => setTimeMenuOpen(v => !v)}
+  className={`w-full flex items-center gap-2 bg-white border ${createErrors.preferredTime ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm transition-all ${createFormData.preferredTime ? 'text-[#111214]' : 'text-[#9CA1A6]'}`}
+  >
+  <FaClock className={`text-xs ${createFormData.preferredTime ? 'text-[#DC2626]' : 'text-[#9CA1A6]'}`} />
+  {createFormData.preferredTime
+  ? <span className="font-black tracking-wide" dir="ltr">{createFormData.preferredTime}</span>
+  : <span className="font-semibold">اختر الوقت</span>}
+  <FaChevronDown className={`ms-auto text-[#9CA1A6] text-[10px] transition-transform duration-200 ${timeMenuOpen ? 'rotate-180' : ''}`} />
+  </button>
+  {timeMenuOpen && (
+  <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white border border-[#E7E8EA] rounded-xl shadow-xl shadow-black/10 py-1.5 max-h-56 overflow-y-auto">
+  {TIME_SLOTS.map(t => {
+  const isSel = createFormData.preferredTime === t
+  return (
+  <button
+  key={t}
+  type="button"
+  onClick={() => { setCreateFormData(p => ({ ...p, preferredTime: t })); setCreateErrors(err => ({ ...err, preferredTime: '' })); setTimeMenuOpen(false) }}
+  className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors ${isSel ? 'bg-[#FFF5F5]' : 'hover:bg-[#F7F7F5]'}`}
+  >
+  <span className="flex items-center gap-2">
+  <FaClock className={`text-[10px] ${isSel ? 'text-[#DC2626]' : 'text-[#9CA1A6]'}`} />
+  <span className={`tracking-wide ${isSel ? 'font-black text-[#111214]' : 'font-bold text-[#4B4F55]'}`} dir="ltr">{t}</span>
+  </span>
+  {isSel && <FaCheck className="text-[#DC2626] text-xs" />}
+  </button>
+  )
+  })}
+  </div>
+  )}
+  </div>
+  {createErrors.preferredTime && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.preferredTime}</p>}
+  </div>
  </div>
  </div>
  </div>
@@ -1404,7 +1635,12 @@ return (
   </button>
   </div>
   {createNotification?.type === 'error' && (
-  <p className="text-[#DC2626] text-sm font-bold mt-3 flex items-center justify-center gap-1.5"><FaExclamationTriangle /> {createNotification.message}</p>
+  <div className="mt-3 flex items-center justify-center gap-0 rounded-xl border border-[#FFD0D0] bg-gradient-to-l from-[#FFF5F5] to-[#FFF0F0] px-4 py-3">
+  <span className="flex items-center gap-2 text-[#DC2626] text-sm font-black">
+  <FaExclamationTriangle className="shrink-0" />
+  {createNotification.message}
+  </span>
+  </div>
   )}
   </form>
  </div>

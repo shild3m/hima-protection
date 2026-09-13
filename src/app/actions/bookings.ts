@@ -526,34 +526,40 @@ export async function adminCreateBooking(input: AdminBookingInput) {
   const rl = await checkRateLimit('bookings:create')
   if (!rl.ok) return { success: false as const, error: rl.error }
 
+  const fieldErrors: Record<string, string> = {}
   if (!input.customerName || input.customerName.trim().length < 2) {
-    return { success: false as const, error: 'اسم العميل مطلوب (حرفين على الأقل)' }
+    fieldErrors.customerName = 'اسم العميل مطلوب (حرفين على الأقل)'
   }
-  const normalizedPhone = normalizePhone(input.customerPhone)
-  if (normalizedPhone.length < 5) {
-    return { success: false as const, error: 'رقم الهاتف غير صحيح' }
+  const normalizedPhone = normalizePhone(input.customerPhone || '')
+  if (!normalizedPhone) {
+    fieldErrors.customerPhone = 'رقم الجوال مطلوب'
+  } else if (normalizedPhone.length !== 10) {
+    fieldErrors.customerPhone = 'رقم الجوال يجب أن يتكون من 10 أرقام'
   }
   if (!input.vehicleMake || input.vehicleMake.trim().length < 1) {
-    return { success: false as const, error: 'ماركة السيارة مطلوبة' }
+    fieldErrors.vehicleMake = 'اسم السيارة مطلوب'
   }
   if (!input.vehicleModel || input.vehicleModel.trim().length < 1) {
-    return { success: false as const, error: 'موديل السيارة مطلوب' }
+    fieldErrors.vehicleModel = 'حجم السيارة مطلوب'
   }
   if (!input.vehicleYear || input.vehicleYear < 1900 || input.vehicleYear > new Date().getFullYear() + 1) {
-    return { success: false as const, error: 'سنة الصنع غير صحيحة' }
+    fieldErrors.vehicleYear = 'سنة الصنع غير صحيحة'
   }
   if (!input.serviceId) {
-    return { success: false as const, error: 'يرجى اختيار الخدمة' }
+    fieldErrors.serviceId = 'يرجى اختيار الخدمة'
   }
   if (!input.preferredDate) {
-    return { success: false as const, error: 'التاريخ المفضل مطلوب' }
+    fieldErrors.preferredDate = 'التاريخ المفضل مطلوب'
   }
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-  if (!dateRegex.test(input.preferredDate)) {
-    return { success: false as const, error: 'صيغة التاريخ غير صحيحة' }
+  if (input.preferredDate && !dateRegex.test(input.preferredDate)) {
+    fieldErrors.preferredDate = 'صيغة التاريخ غير صحيحة'
   }
   if (!input.preferredTime) {
-    return { success: false as const, error: 'الوقت المفضل مطلوب' }
+    fieldErrors.preferredTime = 'الوقت المفضل مطلوب'
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return { success: false as const, message: 'أكمل الحقول المطلوبة بشكل صحيح', fieldErrors }
   }
 
   try {
