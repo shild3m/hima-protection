@@ -745,7 +745,6 @@ return (
   const warrantyYears = booking.warranty_start_date && booking.warranty_end_date
   ? yearsFromDates(booking.warranty_start_date, booking.warranty_end_date)
   : 0
-  const serviceDate = booking.warranty_start_date || booking.service_date || booking.created_at.slice(0, 10)
   return (
  <div
  key={booking.id}
@@ -869,18 +868,13 @@ return (
   <FaCheckCircle className="text-[#059669] text-xs" />
   {booking.service_name_snapshot || booking.service?.name || '---'}
   </span>
-  {typeof booking.service?.base_price === 'number' && (
-  <>
-  <span className="h-4 w-px bg-[#E7E8EA]"></span>
-  <span className="text-[#DC2626] font-black text-sm" dir="ltr">{booking.service.base_price.toLocaleString('en-US')} ر.س</span>
-  </>
-  )}
-  <span className="h-4 w-px bg-[#E7E8EA]"></span>
-  <span className="text-[#62666D] text-xs font-semibold flex items-center gap-1">
-  <FaClock className="text-[#059669] text-[10px]" />
-  {new Date(serviceDate).toLocaleDateString('en-GB')}
-  </span>
-  {booking.warranty_start_date && booking.warranty_end_date && (
+{typeof booking.service?.base_price === 'number' && (
+   <>
+   <span className="h-4 w-px bg-[#E7E8EA]"></span>
+   <span className="text-[#DC2626] font-black text-sm" dir="ltr">{booking.service.base_price.toLocaleString('en-US')} ر.س</span>
+   </>
+   )}
+{booking.warranty_start_date && booking.warranty_end_date ? (
   <>
   <span className="h-4 w-px bg-[#E7E8EA]"></span>
   <span className="text-[#B45309] font-black text-xs flex items-center gap-1.5">
@@ -896,6 +890,14 @@ return (
   <span className="text-[#62666D] font-bold text-xs flex items-center gap-1.5">
   <FaClock className="text-[#B45309] text-[11px]" />
   إلى {toArabicDate(booking.warranty_end_date)}
+  </span>
+  </>
+  ) : (
+  <>
+  <span className="h-4 w-px bg-[#E7E8EA]"></span>
+  <span className="text-[#62666D] font-black text-xs flex items-center gap-1.5">
+  <FaShieldAlt className="text-[#9CA1A6] text-[12px]" />
+  ضمان: لا يوجد
   </span>
   </>
   )}
