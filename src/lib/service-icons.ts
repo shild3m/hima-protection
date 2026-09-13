@@ -24,6 +24,19 @@ import {
   FaBan,
   FaBrush,
   FaMagic,
+  FaCarSide,
+  FaCarBattery,
+  FaOilCan,
+  FaTools,
+  FaWrench,
+  FaTachometerAlt,
+  FaGasPump,
+  FaBroom,
+  FaShower,
+  FaFaucet,
+  FaWind,
+  FaPumpSoap,
+  FaWater,
 } from "react-icons/fa";
 
 export interface IconOption {
@@ -58,6 +71,19 @@ export const ICON_OPTIONS: IconOption[] = [
   { key: "ban", label: "حظر الحماية", component: FaBan },
   { key: "brush", label: "تنظيف / تلميع", component: FaBrush },
   { key: "magic", label: "لمسة سحرية", component: FaMagic },
+  { key: "car-side", label: "سيارة جانبية", component: FaCarSide },
+  { key: "car-battery", label: "بطارية سيارة", component: FaCarBattery },
+  { key: "oil", label: "زيت / تشحيم", component: FaOilCan },
+  { key: "tools", label: "أدوات صيانة", component: FaTools },
+  { key: "wrench", label: "مفتاح إنجليزي", component: FaWrench },
+  { key: "gauge", label: "عداد / أداء", component: FaTachometerAlt },
+  { key: "gas-pump", label: "وقود", component: FaGasPump },
+  { key: "broom", label: "كنس / تنظيف", component: FaBroom },
+  { key: "shower", label: "غسيل مائي", component: FaShower },
+  { key: "faucet", label: "صنبور ماء", component: FaFaucet },
+  { key: "wind", label: "هواء / تجفيف", component: FaWind },
+  { key: "soap", label: "صابون / رغوة", component: FaPumpSoap },
+  { key: "water", label: "ماء / غسيل", component: FaWater },
 ];
 
 export function getServiceIcon(key: string | null | undefined) {
