@@ -1,32 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import {
-  FaPaintBrush,
-  FaShieldAlt,
-  FaLayerGroup,
-  FaWindowMaximize,
-  FaCheckCircle,
-  FaClock,
-  FaArrowLeft,
-} from "react-icons/fa";
+import Link from "next/link";
+import { FaClock, FaArrowLeft, FaCalendarCheck } from "react-icons/fa";
 import { formatPrice, formatDuration } from "@/lib/service-utils";
 import type { Service } from "@/lib/service-utils";
-
-const SERVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  "window-tinting": FaWindowMaximize,
-  ppf: FaShieldAlt,
-  "nano-ceramic": FaLayerGroup,
-  "glass-protection": FaWindowMaximize,
-  "full-protection": FaCheckCircle,
-};
+import { getServiceIcon } from "@/lib/service-icons";
 
 export function ServiceCard({ service }: { service: Service }) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const price = formatPrice(service.base_price);
   const duration = formatDuration(service.duration_minutes);
-  const Icon = SERVICE_ICONS[service.slug] || FaPaintBrush;
+  const Icon = getServiceIcon(service.icon_key);
 
   const fullDescription = service.description || service.short_description || "";
   const showImage = Boolean(service.image_url) && !imgError;
@@ -67,19 +53,28 @@ export function ServiceCard({ service }: { service: Service }) {
         )}
       </div>
 
-      {fullDescription && (
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          className="mt-auto inline-flex items-center gap-1.5 text-[#C4121A] text-sm font-semibold transition-all group-hover:gap-2.5 self-start cursor-pointer"
+      <div className="mt-auto flex items-center justify-between gap-3">
+        <Link
+          href={`/booking?service=${service.id}`}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#C4121A] text-white text-sm font-bold rounded-xl hover:bg-red-700 transition"
         >
-          <span>{open ? "إخفاء التفاصيل" : "التفاصيل"}</span>
-          <FaArrowLeft
-            className={`text-xs transition-transform duration-300 ${open ? "rotate-90" : ""}`}
-          />
-        </button>
-      )}
+          <FaCalendarCheck className="text-xs" />
+          احجز الخدمة
+        </Link>
+        {fullDescription && (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className="inline-flex items-center gap-1.5 text-[#C4121A] text-sm font-semibold transition-all group-hover:gap-2.5 cursor-pointer"
+          >
+            <span>{open ? "إخفاء التفاصيل" : "التفاصيل"}</span>
+            <FaArrowLeft
+              className={`text-xs transition-transform duration-300 ${open ? "rotate-90" : ""}`}
+            />
+          </button>
+        )}
+      </div>
 
       {open && (
         <div className="mt-4 pt-4 border-t border-[#2A2B2F] animate-fadeIn">

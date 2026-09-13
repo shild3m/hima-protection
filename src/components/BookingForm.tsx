@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createBooking } from "@/app/actions/booking";
 import { formatPrice, formatDuration } from "@/lib/service-utils";
 import type { Service } from "@/lib/service-utils";
@@ -15,19 +16,9 @@ import {
   FaCheckCircle,
   FaExclamationTriangle,
   FaSpinner,
-  FaShieldAlt,
   FaPaintBrush,
-  FaLayerGroup,
-  FaWindowMaximize,
 } from "react-icons/fa";
-
-const SERVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  "window-tinting": FaWindowMaximize,
-  ppf: FaShieldAlt,
-  "nano-ceramic": FaLayerGroup,
-  "glass-protection": FaWindowMaximize,
-  "full-protection": FaCheckCircle,
-};
+import { getServiceIcon } from "@/lib/service-icons";
 
 const TIME_SLOTS = [
   "09:00", "10:00", "11:00", "12:00", "13:00", "14:00",
@@ -35,7 +26,21 @@ const TIME_SLOTS = [
 ];
 
 export default function BookingForm({ services }: { services: Service[] }) {
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  return (
+    <Suspense fallback={null}>
+      <BookingFormContent services={services} />
+    </Suspense>
+  );
+}
+
+function BookingFormContent({ services }: { services: Service[] }) {
+  const searchParams = useSearchParams();
+  const preselectedServiceId = searchParams.get("service");
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
+    preselectedServiceId && services.some((s) => s.id === preselectedServiceId)
+      ? preselectedServiceId
+      : null
+  );
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -233,7 +238,7 @@ export default function BookingForm({ services }: { services: Service[] }) {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {services.map((service) => {
-                  const Icon = SERVICE_ICONS[service.slug] || FaPaintBrush;
+                  const Icon = getServiceIcon(service.icon_key);
                   const isSelected = selectedServiceId === service.id;
                   const price = formatPrice(service.base_price);
                   const duration = formatDuration(service.duration_minutes);

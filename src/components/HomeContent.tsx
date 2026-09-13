@@ -29,11 +29,11 @@ import {
 } from 'react-icons/fa'
 
 const services = [
-  { icon: FaPaintBrush, title: 'حماية الطلاء (PPF)', desc: 'طبقة شفافة عالية الجودة تمنع الخدوش والبِلى وتحافظ على لمعان سيارتك لسنوات.', slug: 'ppf' },
-  { icon: FaEye, title: 'تظليل السيارات', desc: 'تظليل احترافي يقلل الحرارة ويوفر الخصوصية ويحمي داخلية سيارتك من أشعة الشمس.', slug: 'window-tinting' },
-  { icon: FaCog, title: 'نانو سيراميك', desc: 'طلاء سيراميك نانوي يوفر حماية فائقة ويعطي لمعان استثنائي ويسهل التنظيف.', slug: 'nano-ceramic' },
-  { icon: FaLayerGroup, title: 'حماية الزجاج', desc: 'طبقة حماية تزيد مقاومة الكسر وتحميه من الخدوش والصدمات الصغيرة.', slug: 'glass-protection' },
-  { icon: FaShieldAlt, title: 'الحماية الشاملة', desc: 'حزمة متكاملة تشمل الطلاء والزجاج والفراغ الداخلي لحماية سيارتك بالكامل.', slug: 'full-protection' },
+  { icon: FaPaintBrush, title: 'حماية الطلاء (PPF)', desc: 'طبقة شفافة عالية الجودة تمنع الخدوش والبِلى وتحافظ على لمعان سيارتك لسنوات.' },
+  { icon: FaEye, title: 'تظليل السيارات', desc: 'تظليل احترافي يقلل الحرارة ويوفر الخصوصية ويحمي داخلية سيارتك من أشعة الشمس.' },
+  { icon: FaCog, title: 'نانو سيراميك', desc: 'طلاء سيراميك نانوي يوفر حماية فائقة ويعطي لمعان استثنائي ويسهل التنظيف.' },
+  { icon: FaLayerGroup, title: 'حماية الزجاج', desc: 'طبقة حماية تزيد مقاومة الكسر وتحميه من الخدوش والصدمات الصغيرة.' },
+  { icon: FaShieldAlt, title: 'الحماية الشاملة', desc: 'حزمة متكاملة تشمل الطلاء والزجاج والفراغ الداخلي لحماية سيارتك بالكامل.' },
 ]
 
 const reasons = [
@@ -264,7 +264,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {services.map((service, i) => (
-              <Link key={i} href={`/services/${service.slug}`} className={`group card-hover p-7 relative overflow-hidden transition-all duration-700 ${servicesSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: `${i * 80 + 200}ms` }}>
+              <Link key={i} href="/services" className={`group card-hover p-7 relative overflow-hidden transition-all duration-700 ${servicesSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: `${i * 80 + 200}ms` }}>
                 <div className="absolute inset-0 bg-gradient-to-br from-[#C4121A]/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="relative z-10">
                   <div className="absolute top-0 left-0 text-[10px] font-black text-white/[0.04] select-none">{String(i + 1).padStart(2, '0')}</div>

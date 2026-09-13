@@ -16,7 +16,7 @@ export async function getPublicServices(): Promise<Service[]> {
   const { data, error } = await supabase
     .from("services")
     .select(
-      "id, name, slug, short_description, description, base_price, duration_minutes, image_url, is_active, display_order, created_at, updated_at"
+      "id, name, icon_key, short_description, description, base_price, duration_minutes, image_url, is_active, display_order, created_at, updated_at"
     )
     .eq("is_active", true)
     .order("display_order", { ascending: true });
@@ -27,25 +27,4 @@ export async function getPublicServices(): Promise<Service[]> {
   }
 
   return data || [];
-}
-
-export async function getPublicServiceBySlug(
-  slug: string
-): Promise<Service | null> {
-  const supabase = createServiceClient();
-
-  const { data, error } = await supabase
-    .from("services")
-    .select(
-      "id, name, slug, short_description, description, base_price, duration_minutes, image_url, is_active, display_order, created_at, updated_at"
-    )
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return data;
 }

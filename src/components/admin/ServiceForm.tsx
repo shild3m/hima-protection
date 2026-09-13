@@ -9,11 +9,12 @@ import {
  FaExclamationTriangle,
  FaCheckCircle,
 } from 'react-icons/fa'
+import { ICON_OPTIONS } from '@/lib/service-icons'
 
 interface Service {
  id: string
  name: string
- slug: string
+ icon_key: string | null
  short_description: string | null
  description: string | null
  base_price: number
@@ -32,16 +33,8 @@ interface ServiceFormProps {
 }
 
 export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps) {
-  const slugifyPreview = (text: string) =>
-    text
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim()
-
   const [name, setName] = useState(initialData?.name || '')
-  const [slug, setSlug] = useState(initialData?.slug || '')
+ const [iconKey, setIconKey] = useState(initialData?.icon_key || '')
  const [shortDescription, setShortDescription] = useState(initialData?.short_description || '')
  const [description, setDescription] = useState(initialData?.description || '')
  const [basePrice, setBasePrice] = useState(initialData?.base_price?.toString() || '0')
@@ -100,7 +93,7 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
 
  const serviceData = {
  name: name.trim(),
- slug: slug.trim() || undefined,
+ icon_key: iconKey || null,
  short_description: shortDescription.trim() || null,
  description: description.trim() || null,
  base_price: parseFloat(basePrice) || 0,
@@ -163,36 +156,47 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  </h4>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {/* Name */}
- <div>
- <label className="label-light">اسم الخدمة *</label>
+<div>
+  <label className="label-light">اسم الخدمة *</label>
 <input
   type="text"
   value={name}
-  onChange={(e) => { const v = e.target.value; setName(v); if (!isEditing) setSlug(slugifyPreview(v)) }}
+  onChange={(e) => setName(e.target.value)}
   className="input-light"
   placeholder="مثال: tinting سيارات"
   />
   {errors.name && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.name}</p>}
   </div>
 
-  {/* Slug */}
-  <div>
-  <label className="label-light">المختصر (slug)</label>
-  <input
-  type="text"
-  value={slug}
-  readOnly
-  disabled
-  className="input-light !bg-[#F7F7F5] !text-[#62666D] !cursor-default"
-  placeholder="يُنشأ تلقائياً من الاسم"
-  />
-  <p className="text-[#9CA1A6] text-[11px] mt-1 flex items-center gap-1">
-  <FaInfoCircle className="text-[9px]" />
-  {isEditing ? 'ثابت — لا يتغير حتى لا يكسر رابط الصفحة' : 'يُنشأ تلقائياً من اسم الخدمة'}
-  </p>
+  {/* Icon */}
+  <div className="md:col-span-2">
+  <label className="label-light">أيقونة الخدمة</label>
+  <p className="text-[#9CA1A6] text-[11px] mb-2">اختر الأيقونة المناسبة لطبيعة الخدمة — هي التي تظهر على بطاقة الخدمة في الموقع.</p>
+  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+  {ICON_OPTIONS.map((option) => {
+  const OptionIcon = option.component
+  const selected = iconKey === option.key
+  return (
+  <button
+  key={option.key}
+  type="button"
+  onClick={() => setIconKey(selected ? '' : option.key)}
+  title={option.label}
+  className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border transition-all ${
+  selected
+  ? 'bg-[#FEF2F2] border-[#DC2626] text-[#DC2626]'
+  : 'bg-white border-[#E7E8EA] text-[#62666D] hover:border-[#DC2626]/40 hover:text-[#DC2626]'
+  }`}
+  >
+  <OptionIcon className="text-lg" />
+  <span className="text-[10px] font-semibold leading-tight text-center">{option.label}</span>
+  </button>
+  )
+  })}
+  </div>
   </div>
 
- {/* Short Description */}
+  {/* Short Description */}
  <div className="md:col-span-2">
  <label className="label-light">الوصف المختصر</label>
  <input

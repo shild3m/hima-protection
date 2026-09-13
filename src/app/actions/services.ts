@@ -6,7 +6,7 @@ import { logAudit } from '@/lib/audit'
 
 const ServiceSchema = z.object({
   name: z.string().min(1, 'اسم الخدمة مطلوب').max(200),
-  slug: z.string().min(1).max(200).optional(),
+  icon_key: z.string().max(50).optional().nullable(),
   short_description: z.string().max(500).optional().nullable(),
   description: z.string().optional().nullable(),
   base_price: z.number().min(0, 'السعر يجب أن يكون صفر أو أكثر'),
@@ -19,15 +19,6 @@ const ServiceSchema = z.object({
 })
 
 type ServiceInput = z.infer<typeof ServiceSchema>
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim()
-}
 
 function sanitizeError(error: unknown): string {
   if (error instanceof z.ZodError) {
@@ -100,23 +91,11 @@ export async function createService(input: ServiceInput) {
   try {
     const validated = ServiceSchema.parse(input)
 
-    const slug = validated.slug || slugify(validated.name)
-
-    const { data: existingSlug } = await getSupabaseAdmin()
-      .from('services')
-      .select('id')
-      .eq('slug', slug)
-      .maybeSingle()
-
-    if (existingSlug) {
-      return { success: false as const, error: 'اسم مختصر (slug) موجود بالفعل' }
-    }
-
     const { data, error } = await getSupabaseAdmin()
       .from('services')
       .insert({
         name: validated.name,
-        slug,
+        icon_key: validated.icon_key || null,
         short_description: validated.short_description || null,
         description: validated.description || null,
         base_price: validated.base_price,
@@ -165,22 +144,7 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
     const updateData: Record<string, unknown> = {}
 
     if (validated.name !== undefined) updateData.name = validated.name
-    if (validated.slug !== undefined) {
-      const slug = validated.slug || slugify(validated.name || '')
-      if (slug) {
-        const { data: slugConflict } = await getSupabaseAdmin()
-          .from('services')
-          .select('id')
-          .eq('slug', slug)
-          .neq('id', id)
-          .maybeSingle()
-
-        if (slugConflict) {
-          return { success: false as const, error: 'اسم مختصر (slug) موجود بالفعل' }
-        }
-        updateData.slug = slug
-      }
-    }
+    if (validated.icon_key !== undefined) updateData.icon_key = validated.icon_key || null
     if (validated.short_description !== undefined) updateData.short_description = validated.short_description || null
     if (validated.description !== undefined) updateData.description = validated.description || null
     if (validated.base_price !== undefined) updateData.base_price = validated.base_price

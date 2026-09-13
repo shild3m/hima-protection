@@ -19,11 +19,12 @@ import {
  FaClock,
  FaMoneyBillWave,
 } from 'react-icons/fa'
+import { getServiceIcon, getIconLabel } from '@/lib/service-icons'
 
 interface Service {
  id: string
  name: string
- slug: string
+ icon_key: string | null
  short_description: string | null
  description: string | null
  base_price: number
@@ -337,9 +338,12 @@ const hasInitial = !!initialServices
  <span className="text-[#62666D]">الاسم:</span>
  <span className="text-[#111214] font-bold">{viewingService.name}</span>
  </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">المختصر:</span>
- <span className="text-[#111214] font-bold">{viewingService.slug}</span>
+ <div className="flex justify-between items-center text-sm">
+ <span className="text-[#62666D]">الأيقونة:</span>
+ <span className="text-[#111214] font-bold flex items-center gap-2">
+ {(() => { const VIcon = getServiceIcon(viewingService.icon_key); return <VIcon className="text-[#DC2626]" /> })()}
+ {getIconLabel(viewingService.icon_key)}
+ </span>
  </div>
  {viewingService.short_description && (
  <div className="text-sm">
@@ -401,7 +405,7 @@ const hasInitial = !!initialServices
  </div>
  <div className="bg-white border border-[#E7E8EA] shadow-sm rounded-xl p-4 mb-4">
  <p className="text-[#111214] font-bold text-sm">{deletingService.name}</p>
- <p className="text-[#62666D] text-xs mt-1">{deletingService.slug}</p>
+ <p className="text-[#62666D] text-xs mt-1">{getIconLabel(deletingService.icon_key)}</p>
  </div>
  <div className="flex gap-2">
  <button

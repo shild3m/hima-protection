@@ -63,7 +63,7 @@ export interface Booking {
 export interface Service {
   id: string;
   name: string;
-  slug: string;
+  icon_key: string | null;
   short_description: string | null;
   description: string | null;
   base_price: number | null;
