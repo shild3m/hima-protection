@@ -2,15 +2,9 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPublicServices } from "@/lib/services";
-import { formatPrice, formatDuration } from "@/lib/service-utils";
+import { ServiceCard } from "@/components/ServiceCard";
 import {
   FaPaintBrush,
-  FaShieldAlt,
-  FaLayerGroup,
-  FaWindowMaximize,
-  FaCheckCircle,
-  FaClock,
-  FaArrowLeft,
   FaCalendarCheck,
 } from "react-icons/fa";
 
@@ -28,19 +22,6 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
-
-const SERVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  "window-tinting": FaWindowMaximize,
-  ppf: FaShieldAlt,
-  "nano-ceramic": FaLayerGroup,
-  "glass-protection": FaWindowMaximize,
-  "full-protection": FaCheckCircle,
-};
-
-function ServiceIcon({ slug, className }: { slug: string; className?: string }) {
-  const Icon = SERVICE_ICONS[slug] || FaPaintBrush;
-  return <Icon className={className} />;
-}
 
 function ServicesSkeleton() {
   return (
@@ -105,38 +86,9 @@ async function ServicesContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {services.map((service) => {
-                  const price = formatPrice(service.base_price);
-                  const duration = formatDuration(service.duration_minutes);
-
-                  return (
-                    <Link key={service.id} href={`/services/${service.slug}`} className="group card-hover p-7 flex flex-col">
-                      <div className="w-12 h-12 bg-[#C4121A]/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#C4121A]/20 transition-colors">
-                        <ServiceIcon slug={service.slug} className="text-[#C4121A] text-xl" />
-                      </div>
-                      <h3 className="text-lg font-bold mb-2">{service.name}</h3>
-                      <p className="text-[#A0A0B8] text-sm mb-5 leading-relaxed flex-1">
-                        {service.short_description || service.description}
-                      </p>
-                      <div className="flex items-center justify-between mb-4">
-                        {price ? (
-                          <span className="text-[#C4121A] font-bold text-xl">{price}</span>
-                        ) : (
-                          <span className="text-[#6B6B80] text-sm">اتصل للاستفسار</span>
-                        )}
-                        {duration && (
-                          <span className="text-[#6B6B80] text-sm flex items-center gap-1">
-                            <FaClock className="text-xs" />
-                            {duration}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[#C4121A] text-sm font-semibold flex items-center gap-1.5 group-hover:gap-2.5 transition-all">
-                        التفاصيل <FaArrowLeft className="text-xs" />
-                      </span>
-                    </Link>
-                  );
-                })}
+                {services.map((service) => (
+                  <ServiceCard key={service.id} service={service} />
+                ))}
               </div>
             )}
           </div>

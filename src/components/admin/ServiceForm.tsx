@@ -32,8 +32,16 @@ interface ServiceFormProps {
 }
 
 export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps) {
- const [name, setName] = useState(initialData?.name || '')
- const [slug, setSlug] = useState(initialData?.slug || '')
+  const slugifyPreview = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+
+  const [name, setName] = useState(initialData?.name || '')
+  const [slug, setSlug] = useState(initialData?.slug || '')
  const [shortDescription, setShortDescription] = useState(initialData?.short_description || '')
  const [description, setDescription] = useState(initialData?.description || '')
  const [basePrice, setBasePrice] = useState(initialData?.base_price?.toString() || '0')
@@ -157,27 +165,32 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  {/* Name */}
  <div>
  <label className="label-light">اسم الخدمة *</label>
- <input
- type="text"
- value={name}
- onChange={(e) => setName(e.target.value)}
- className="input-light"
- placeholder="مثال: tinting سيارات"
- />
- {errors.name && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.name}</p>}
- </div>
+<input
+  type="text"
+  value={name}
+  onChange={(e) => { const v = e.target.value; setName(v); if (!isEditing) setSlug(slugifyPreview(v)) }}
+  className="input-light"
+  placeholder="مثال: tinting سيارات"
+  />
+  {errors.name && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.name}</p>}
+  </div>
 
- {/* Slug */}
- <div>
- <label className="label-light">المختصر (slug)</label>
- <input
- type="text"
- value={slug}
- onChange={(e) => setSlug(e.target.value)}
- className="input-light"
- placeholder="يتم إنشاؤه تلقائياً من الاسم"
- />
- </div>
+  {/* Slug */}
+  <div>
+  <label className="label-light">المختصر (slug)</label>
+  <input
+  type="text"
+  value={slug}
+  readOnly
+  disabled
+  className="input-light !bg-[#F7F7F5] !text-[#62666D] !cursor-default"
+  placeholder="يُنشأ تلقائياً من الاسم"
+  />
+  <p className="text-[#9CA1A6] text-[11px] mt-1 flex items-center gap-1">
+  <FaInfoCircle className="text-[9px]" />
+  {isEditing ? 'ثابت — لا يتغير حتى لا يكسر رابط الصفحة' : 'يُنشأ تلقائياً من اسم الخدمة'}
+  </p>
+  </div>
 
  {/* Short Description */}
  <div className="md:col-span-2">
