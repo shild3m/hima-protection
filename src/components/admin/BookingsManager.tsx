@@ -1530,7 +1530,7 @@ return (
   </span>
   </button>
   {preferredCalOpen && (
-  <div className="absolute top-full left-1/2 -translate-x-1/2 z-40 mt-1.5 w-[270px] bg-white border border-[#E7E8EA] rounded-2xl shadow-xl shadow-black/10 p-3">
+  <div className="absolute top-full left-1/2 -translate-x-1/2 z-40 mt-1.5 w-[260px] bg-white border border-[#E7E8EA] rounded-2xl shadow-xl shadow-black/10 p-2.5">
   <div className="flex items-center p-0.5 bg-[#F7F7F5] rounded-[10px] mb-2">
   <button type="button" onClick={() => setCalMode('miladi')} className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${calMode === 'miladi' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>ميلادي</button>
   <button type="button" onClick={() => setCalMode('hijri')} className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${calMode === 'hijri' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>هجري</button>
@@ -1551,7 +1551,7 @@ return (
   </div>
   <div className="grid grid-cols-7 gap-0.5 text-center">
   {WEEKDAY_HEADERS.map((w, i) => (
-  <span key={i} className="text-[9px] font-black text-[#9CA1A6] py-1">{w}</span>
+  <span key={i} className="text-[9px] font-black text-[#9CA1A6] py-0.5">{w}</span>
   ))}
   {calDays.map((iso, i) => {
   if (!iso) return <span key={`e${i}`} />
@@ -1562,9 +1562,9 @@ return (
   const dayNum = hijriCell ? hijriCell.d : Number(iso.split('-')[2])
   return (
   <button key={iso} type="button" disabled={isPast} onClick={() => { setCreateFormData(p => ({ ...p, preferredDate: iso })); setCreateErrors(err => ({ ...err, preferredDate: '' })); setPreferredCalOpen(false) }} className="p-0.5">
-  <div className={`w-8 h-8 mx-auto flex flex-col items-center justify-center rounded-full text-xs font-bold transition-all ${isSel ? 'bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white shadow-md shadow-red-500/25' : isPast ? 'text-[#E7E8EA] cursor-not-allowed pointer-events-none' : isToday ? 'text-[#DC2626] ring-1 ring-[#FECACA] bg-[#FFF1F2]' : 'text-[#111214] hover:bg-[#FEE2E2] hover:text-[#DC2626]'}`}>
-  <span className="leading-none pt-1">{dayNum}</span>
-  {isToday && !isPast && <span className={`leading-none mt-0.5 text-[7px] font-black ${isSel ? 'text-white' : 'text-[#DC2626]'}`}>اليوم</span>}
+  <div className={`w-7 h-7 mx-auto flex flex-col items-center justify-center rounded-full text-xs font-bold transition-all ${isSel ? 'bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white shadow-md shadow-red-500/25' : isPast ? 'text-[#E7E8EA] cursor-not-allowed pointer-events-none' : isToday ? 'text-[#DC2626] ring-1 ring-[#FECACA] bg-[#FFF1F2]' : 'text-[#111214] hover:bg-[#FEE2E2] hover:text-[#DC2626]'}`}>
+  <span className="leading-none pt-0.5">{dayNum}</span>
+  {isToday && !isPast && <span className={`leading-none mt-px text-[7px] font-black ${isSel ? 'text-white' : 'text-[#DC2626]'}`}>اليوم</span>}
   </div>
   </button>
   )
