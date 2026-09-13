@@ -8,7 +8,7 @@ import {
   FaWindowMaximize,
   FaCheckCircle,
   FaClock,
-  FaChevronDown,
+  FaArrowLeft,
 } from "react-icons/fa";
 import { formatPrice, formatDuration } from "@/lib/service-utils";
 import type { Service } from "@/lib/service-utils";
@@ -72,13 +72,11 @@ export function ServiceCard({ service }: { service: Service }) {
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="w-full flex items-center justify-between text-[#C4121A] text-sm font-semibold transition-all border border-[#C4121A]/30 rounded-xl px-4 py-2.5 hover:bg-[#C4121A]/10"
+          className="mt-auto inline-flex items-center gap-1.5 text-[#C4121A] text-sm font-semibold transition-all group-hover:gap-2.5 self-start cursor-pointer"
         >
-          <span className="flex items-center gap-1.5">
-            {open ? "إخفاء التفاصيل" : "التفاصيل"}
-          </span>
-          <FaChevronDown
-            className={`text-xs transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+          <span>{open ? "إخفاء التفاصيل" : "التفاصيل"}</span>
+          <FaArrowLeft
+            className={`text-xs transition-transform duration-300 ${open ? "rotate-90" : ""}`}
           />
         </button>
       )}
