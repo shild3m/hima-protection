@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FaClock, FaArrowLeft, FaCalendarCheck } from "react-icons/fa";
+import { FaClock, FaArrowLeft, FaCalendarCheck, FaCheckCircle } from "react-icons/fa";
 import { formatPrice, formatDuration } from "@/lib/service-utils";
 import type { Service } from "@/lib/service-utils";
 import { getServiceIcon } from "@/lib/service-icons";
@@ -77,31 +77,49 @@ export function ServiceCard({ service }: { service: Service }) {
       </div>
 
       {open && (
-        <div className="mt-4 pt-4 border-t border-[#2A2B2F] animate-fadeIn">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="mt-4 pt-5 border-t border-[#2A2B2F] animate-fadeIn">
+          <div className="flex items-center gap-2 mb-4">
             <span className="w-8 h-0.5 bg-[#C4121A] rounded-full" />
             <span className="text-[#6B6B80] text-xs font-semibold tracking-wide">
-              وصف الخدمة
+              عن الخدمة
             </span>
           </div>
-          <div className="text-[#A0A0B8] text-sm leading-7 whitespace-pre-line space-y-3">
+
+          <div className="space-y-2.5">
             {service.description ? (
               service.description
                 .split("\n")
                 .filter(Boolean)
                 .map((line, i) => (
-                  <p key={i} className="flex gap-2.5">
-                    <span className="text-[#C4121A] shrink-0 mt-1.5">•</span>
-                    <span>{line}</span>
-                  </p>
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-2.5"
+                  >
+                    <span className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-[#C4121A]/15 flex items-center justify-center">
+                      <FaCheckCircle className="text-[#C4121A] text-[10px]" />
+                    </span>
+                    <p className="text-[#A0A0B8] text-sm leading-6">{line}</p>
+                  </div>
                 ))
             ) : (
-              <p className="flex gap-2.5">
-                <span className="text-[#C4121A] shrink-0 mt-1">•</span>
-                <span>{service.short_description}</span>
-              </p>
+              <div className="flex items-start gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-2.5">
+                <span className="shrink-0 mt-0.5 w-5 h-5 rounded-full bg-[#C4121A]/15 flex items-center justify-center">
+                  <FaCheckCircle className="text-[#C4121A] text-[10px]" />
+                </span>
+                <p className="text-[#A0A0B8] text-sm leading-6">
+                  {service.short_description}
+                </p>
+              </div>
             )}
           </div>
+
+          <Link
+            href={`/booking?service=${service.id}`}
+            className="mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-l from-[#C4121A] to-red-700 text-white text-sm font-bold rounded-xl hover:opacity-90 transition"
+          >
+            <FaCalendarCheck className="text-xs" />
+            احجز هذه الخدمة الآن
+          </Link>
         </div>
       )}
     </div>
