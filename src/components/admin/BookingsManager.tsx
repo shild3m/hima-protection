@@ -1349,7 +1349,7 @@ return (
  <div className="px-4 py-4 space-y-3">
  <div>
  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اسم العميل *</label>
- <input type="text" value={createFormData.customerName} onChange={e => { setCreateFormData(p => ({ ...p, customerName: e.target.value })); setCreateErrors(err => ({ ...err, customerName: '' })) }} className={`w-full bg-white border ${createErrors.customerName ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all`} placeholder="الاسم الكامل" />
+ <input type="text" value={createFormData.customerName} onChange={e => { const v = e.target.value.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F ]/g, '').slice(0, 40); setCreateFormData(p => ({ ...p, customerName: v })); setCreateErrors(err => ({ ...err, customerName: '' })) }} className={`w-full bg-white border ${createErrors.customerName ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all`} placeholder="الاسم الكامل" />
  {createErrors.customerName && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.customerName}</p>}
  </div>
  <div>
@@ -1376,7 +1376,7 @@ return (
  <div className="px-4 py-4 grid grid-cols-2 gap-3">
  <div>
  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اسم السيارة *</label>
-  <input type="text" value={createFormData.vehicleMake} onChange={e => { setCreateFormData(p => ({ ...p, vehicleMake: e.target.value })); setCreateErrors(err => ({ ...err, vehicleMake: '' })) }} className={`w-full bg-white border ${createErrors.vehicleMake ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} placeholder="مثال: تويوتا" />
+  <input type="text" value={createFormData.vehicleMake} onChange={e => { const v = e.target.value.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F ]/g, '').slice(0, 30); setCreateFormData(p => ({ ...p, vehicleMake: v })); setCreateErrors(err => ({ ...err, vehicleMake: '' })) }} className={`w-full bg-white border ${createErrors.vehicleMake ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} placeholder="مثال: تويوتا" />
   {createErrors.vehicleMake && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleMake}</p>}
   </div>
   <div>
@@ -1427,7 +1427,7 @@ return (
   </div>
   <div>
   <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اللون (اختياري)</label>
-  <input type="text" value={createFormData.vehicleColor} onChange={e => setCreateFormData(p => ({ ...p, vehicleColor: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أبيض" />
+  <input type="text" value={createFormData.vehicleColor} onChange={e => { const v = e.target.value.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F ]/g, '').slice(0, 20); setCreateFormData(p => ({ ...p, vehicleColor: v })) }} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أبيض" />
   </div>
   <div className="col-span-2">
   <label className="text-xs font-bold text-[#62666D] mb-1.5 block">رقم اللوحة (اختياري)</label>
@@ -1439,7 +1439,7 @@ return (
  <div className="rounded-2xl border border-[#E7E8EA] overflow-visible">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCalendarAlt className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">الخدمة والموعد</h4>
+ <h4 className="text-xs font-bold text-[#111214]">الخدمة</h4>
  </div>
  <div className="px-4 py-4 space-y-3">
 <div>
