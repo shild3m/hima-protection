@@ -18,7 +18,7 @@ export interface AdminBookingInput {
   vehicleColor?: string
   vehiclePlate?: string
   serviceId: string
-  preferredDate: string
+  preferredDate?: string
   preferredTime: string
   notes?: string
 }
@@ -548,9 +548,6 @@ export async function adminCreateBooking(input: AdminBookingInput) {
   if (!input.serviceId) {
     fieldErrors.serviceId = 'يرجى اختيار الخدمة'
   }
-  if (!input.preferredDate) {
-    fieldErrors.preferredDate = 'التاريخ المفضل مطلوب'
-  }
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/
   if (input.preferredDate && !dateRegex.test(input.preferredDate)) {
     fieldErrors.preferredDate = 'صيغة التاريخ غير صحيحة'
@@ -574,7 +571,7 @@ export async function adminCreateBooking(input: AdminBookingInput) {
       p_vehicle_color: input.vehicleColor?.trim() || null,
       p_vehicle_plate: input.vehiclePlate?.trim() || null,
       p_service_id: input.serviceId,
-      p_preferred_date: input.preferredDate,
+      p_preferred_date: input.preferredDate || null,
       p_preferred_time: input.preferredTime,
       p_notes: input.notes?.trim() || null,
       p_idempotency_key: null,

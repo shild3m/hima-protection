@@ -159,7 +159,6 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const [vehicleSizeOpen, setVehicleSizeOpen] = useState(false)
  const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
  const [serviceSearch, setServiceSearch] = useState('')
- const [preferredCalOpen, setPreferredCalOpen] = useState(false)
  const [timeMenuOpen, setTimeMenuOpen] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -194,7 +193,6 @@ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(
    vehicleColor: '',
    vehiclePlate: '',
    serviceId: '',
-   preferredDate: '',
    preferredTime: '',
    notes: '',
  })
@@ -567,7 +565,6 @@ const handleWarrantyYearsChange = (y: number) => {
   const yr = parseInt(createFormData.vehicleYear)
   if (!createFormData.vehicleYear || yr < 1900 || yr > new Date().getFullYear() + 1) errs.vehicleYear = 'سنة الصنع غير صحيحة'
   if (!createFormData.serviceId) errs.serviceId = 'يرجى اختيار الخدمة'
-  if (!createFormData.preferredDate) errs.preferredDate = 'التاريخ المفضل مطلوب'
   if (!createFormData.preferredTime) errs.preferredTime = 'الوقت المفضل مطلوب'
   if (Object.keys(errs).length > 0) { setCreateErrors(errs); setCreateNotification({ type: 'error', message: 'أكمل الحقول المطلوبة بشكل صحيح' }); return }
   setCreateSubmitting(true)
@@ -583,7 +580,6 @@ const handleWarrantyYearsChange = (y: number) => {
   vehicleColor: createFormData.vehicleColor.trim() || undefined,
   vehiclePlate: createFormData.vehiclePlate.trim() || undefined,
   serviceId: createFormData.serviceId,
-  preferredDate: createFormData.preferredDate,
   preferredTime: createFormData.preferredTime,
   notes: createFormData.notes.trim() || undefined,
   })
@@ -591,7 +587,7 @@ const handleWarrantyYearsChange = (y: number) => {
   setCreateNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
   setShowCreateForm(false)
   setNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
-  setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', vehicleMake: '', vehicleModel: '', vehicleYear: new Date().getFullYear().toString(), vehicleColor: '', vehiclePlate: '', serviceId: '', preferredDate: '', preferredTime: '', notes: '' })
+  setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', vehicleMake: '', vehicleModel: '', vehicleYear: new Date().getFullYear().toString(), vehicleColor: '', vehiclePlate: '', serviceId: '', preferredTime: '', notes: '' })
   fetchBookings()
   fetchStats()
   } else {
@@ -765,7 +761,7 @@ return (
   const warrantyYears = booking.warranty_start_date && booking.warranty_end_date
   ? yearsFromDates(booking.warranty_start_date, booking.warranty_end_date)
   : 0
-  const serviceDate = booking.warranty_start_date || booking.service_date || booking.preferred_date || booking.created_at.slice(0, 10)
+  const serviceDate = booking.warranty_start_date || booking.service_date || booking.created_at.slice(0, 10)
   return (
  <div
  key={booking.id}
@@ -801,10 +797,17 @@ return (
  {booking.service.name}
  </span>
  )}
-<span className="flex items-center gap-1.5 font-bold">
-  <FaClock className="text-[#62666D] text-[10px]" />
-  {new Date(booking.created_at).toLocaleDateString('en-GB')}
-  </span>
+{(booking.status === 'new' && !booking.created_by_name && booking.preferred_date) ? (
+   <span className="flex items-center gap-1 rounded-lg bg-[#FFF5F5] border border-[#FECACA] px-2 py-0.5 font-black text-[11px] text-[#DC2626]">
+   <FaCalendarAlt className="text-[10px]" />
+   الزيارة المفضلة: {new Date(booking.preferred_date).toLocaleDateString('en-GB')}
+   </span>
+   ) : (
+   <span className="flex items-center gap-1.5 font-bold">
+   <FaClock className="text-[#62666D] text-[10px]" />
+   {new Date(booking.created_at).toLocaleDateString('en-GB')}
+   </span>
+   )}
   {booking.created_by_name ? (
   <span className="flex items-center gap-1.5 font-bold">
   <FaUserTag className="text-[#059669] text-[10px]" />
@@ -1077,12 +1080,12 @@ return (
  <span className="text-[#DC2626] font-bold" dir="ltr">{viewingBooking.service.base_price.toLocaleString('en-US')} ر.س</span>
  </div>
  )}
- {viewingBooking.preferred_date && (
- <div className="flex justify-between text-[16px]">
- <span className="text-[#4B4F55] font-bold">التاريخ المفضل:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingBooking.preferred_date).toLocaleDateString('en-GB')}</span>
- </div>
- )}
+{viewingBooking.status === 'new' && !viewingBooking.created_by_name && viewingBooking.preferred_date && (
+  <div className="flex justify-between text-[16px]">
+  <span className="text-[#4B4F55] font-bold">تاريخ الزيارة المفضل:</span>
+  <span className="text-[#111214] font-bold">{new Date(viewingBooking.preferred_date).toLocaleDateString('en-GB')}</span>
+  </div>
+  )}
  {viewingBooking.preferred_time && (
  <div className="flex justify-between text-[16px]">
  <span className="text-[#4B4F55] font-bold">الوقت المفضل:</span>
@@ -1167,7 +1170,7 @@ return (
   ))}
   <div className="flex justify-between text-[16px] px-1">
   <span className="text-[#4B4F55] font-bold">تاريخ الخدمة:</span>
-  <span className="text-[#111214] font-bold">{new Date(viewingBooking.preferred_date || viewingBooking.created_at.slice(0, 10)).toLocaleDateString('en-GB')}</span>
+  <span className="text-[#111214] font-bold">{new Date((viewingBooking.warranty_start_date || viewingBooking.service_date || viewingBooking.created_at.slice(0, 10))).toLocaleDateString('en-GB')}</span>
   </div>
 
   <div className="border-t border-[#F1F2F3] pt-3">
@@ -1505,77 +1508,9 @@ return (
   </div>
   )}
   </div>
-  {createErrors.serviceId && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.serviceId}</p>}
+{createErrors.serviceId && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.serviceId}</p>}
   </div>
- <div className="grid grid-cols-2 gap-3">
-<div>
-  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">التاريخ المفضل *</label>
-  <div className="relative">
-  <button
-  type="button"
-  onClick={() => {
-  const d = createFormData.preferredDate ? new Date(createFormData.preferredDate + 'T00:00:00') : new Date()
-  setCalYear(d.getFullYear())
-  setCalMonth(d.getMonth())
-  setPreferredCalOpen(v => !v)
-  }}
-  className={`w-full bg-white border ${createErrors.preferredDate ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm transition-all ${createFormData.preferredDate ? 'text-[#111214] font-bold' : 'text-[#9CA1A6] font-semibold'}`}
-  >
-  <span className="flex items-center justify-between gap-2">
-  <span className="flex items-center gap-2">
-  <FaCalendarAlt className={`text-xs ${createFormData.preferredDate ? 'text-[#DC2626]' : 'text-[#9CA1A6]'}`} />
-  {createFormData.preferredDate ? formatStartDisplay(createFormData.preferredDate) : 'اختر التاريخ'}
-  </span>
-  <FaChevronDown className={`text-[10px] text-[#9CA1A6] transition-transform ${preferredCalOpen ? 'rotate-180' : ''}`} />
-  </span>
-  </button>
-  {preferredCalOpen && (
-  <div className="absolute top-full left-1/2 -translate-x-1/2 z-40 mt-1.5 w-[260px] bg-white border border-[#E7E8EA] rounded-2xl shadow-xl shadow-black/10 p-2.5">
-  <div className="flex items-center p-0.5 bg-[#F7F7F5] rounded-[10px] mb-2">
-  <button type="button" onClick={() => setCalMode('miladi')} className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${calMode === 'miladi' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>ميلادي</button>
-  <button type="button" onClick={() => setCalMode('hijri')} className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${calMode === 'hijri' ? 'bg-white text-[#DC2626] shadow-sm border border-[#E7E8EA]' : 'text-[#62666D]'}`}>هجري</button>
-  </div>
-  <div className="flex items-center justify-between mb-2">
-  <button type="button" onClick={() => moveCal(-1)} title="الشهر السابق" className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#DC2626] hover:border-[#FECACA] transition-all">
-  <FaChevronRight className="text-[10px]" />
-  </button>
-  <span className="text-[13px] font-black text-[#111214]">{calMode === 'hijri'
-  ? (() => {
-  const h = toHijri(calFirstIso)
-  return h ? `${HIJRI_MONTHS[h.m - 1]} ${h.y} هـ` : `${ARABIC_MONTHS[calMonth]} ${calYear}`
-  })()
-  : `${ARABIC_MONTHS[calMonth]} ${calYear}`}</span>
-  <button type="button" onClick={() => moveCal(1)} title="الشهر التالي" className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#DC2626] hover:border-[#FECACA] transition-all">
-  <FaChevronLeft className="text-[10px]" />
-  </button>
-  </div>
-  <div className="grid grid-cols-7 gap-0.5 text-center">
-  {WEEKDAY_HEADERS.map((w, i) => (
-  <span key={i} className="text-[9px] font-black text-[#9CA1A6] py-0.5">{w}</span>
-  ))}
-  {calDays.map((iso, i) => {
-  if (!iso) return <span key={`e${i}`} />
-  const isSel = iso === createFormData.preferredDate
-  const isToday = iso === todayIso
-  const isPast = iso < todayIso
-  const hijriCell = calMode === 'hijri' ? toHijri(iso) : null
-  const dayNum = hijriCell ? hijriCell.d : Number(iso.split('-')[2])
-  return (
-  <button key={iso} type="button" disabled={isPast} onClick={() => { setCreateFormData(p => ({ ...p, preferredDate: iso })); setCreateErrors(err => ({ ...err, preferredDate: '' })); setPreferredCalOpen(false) }} className="p-0.5">
-  <div className={`w-7 h-7 mx-auto flex flex-col items-center justify-center rounded-full text-xs font-bold transition-all ${isSel ? 'bg-gradient-to-br from-[#DC2626] to-[#9B1B30] text-white shadow-md shadow-red-500/25' : isPast ? 'text-[#E7E8EA] cursor-not-allowed pointer-events-none' : isToday ? 'text-[#DC2626] ring-1 ring-[#FECACA] bg-[#FFF1F2]' : 'text-[#111214] hover:bg-[#FEE2E2] hover:text-[#DC2626]'}`}>
-  <span className="leading-none pt-0.5">{dayNum}</span>
-  {isToday && !isPast && <span className={`leading-none mt-px text-[7px] font-black ${isSel ? 'text-white' : 'text-[#DC2626]'}`}>اليوم</span>}
-  </div>
-  </button>
-  )
-  })}
-  </div>
-  </div>
-  )}
-  </div>
-  {createErrors.preferredDate && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.preferredDate}</p>}
-  </div>
-<div>
+ <div>
   <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الوقت المفضل *</label>
   <div className="relative" data-time-menu>
   <button
@@ -1611,9 +1546,8 @@ return (
   </div>
   )}
   </div>
-  {createErrors.preferredTime && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.preferredTime}</p>}
+{createErrors.preferredTime && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.preferredTime}</p>}
   </div>
- </div>
  </div>
  </div>
 
