@@ -38,6 +38,7 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  const [basePrice, setBasePrice] = useState(initialData?.base_price?.toString() || '0')
  const [durationMinutes, setDurationMinutes] = useState(initialData?.duration_minutes?.toString() || '')
  const [displayOrder, setDisplayOrder] = useState(initialData?.display_order?.toString() || '0')
+ const [isActive, setIsActive] = useState(initialData?.is_active ?? true)
  const [imageUrl, setImageUrl] = useState(initialData?.image_url || '')
 
  const [loading, setLoading] = useState(false)
@@ -93,6 +94,7 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  description: description.trim() || null,
  base_price: parseFloat(basePrice) || 0,
  duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
+ is_active: isActive,
  display_order: parseInt(displayOrder) || 0,
  image_url: imageUrl.trim() || null,
  }
