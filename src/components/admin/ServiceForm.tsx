@@ -166,7 +166,7 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
   <div className="md:col-span-2">
   <label className="label-light">أيقونة الخدمة</label>
   <p className="text-[#9CA1A6] text-[11px] mb-2">اختر الأيقونة المناسبة لطبيعة الخدمة — هي التي تظهر على بطاقة الخدمة في الموقع.</p>
-  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 gap-2">
   {ICON_OPTIONS.map((option) => {
   const OptionIcon = option.component
   const selected = iconKey === option.key
@@ -176,14 +176,13 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
   type="button"
   onClick={() => setIconKey(selected ? '' : option.key)}
   title={option.label}
-  className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border transition-all ${
+  className={`flex items-center justify-center aspect-square rounded-xl border transition-all ${
   selected
   ? 'bg-[#FEF2F2] border-[#DC2626] text-[#DC2626]'
   : 'bg-white border-[#E7E8EA] text-[#62666D] hover:border-[#DC2626]/40 hover:text-[#DC2626]'
   }`}
   >
   <OptionIcon className="text-lg" />
-  <span className="text-[10px] font-semibold leading-tight text-center">{option.label}</span>
   </button>
   )
   })}
