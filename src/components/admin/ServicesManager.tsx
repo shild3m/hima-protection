@@ -15,9 +15,11 @@ import {
  FaTimes,
  FaExclamationTriangle,
  FaSpinner,
- FaBoxOpen,
- FaClock,
- FaMoneyBillWave,
+FaBoxOpen,
+  FaClock,
+  FaMoneyBillWave,
+  FaInfoCircle,
+  FaBars,
 } from 'react-icons/fa'
 import { getServiceIcon, getIconLabel } from '@/lib/service-icons'
 
@@ -320,75 +322,109 @@ const hasInitial = !!initialServices
  </div>
  )}
 
- {/* View Service Modal */}
- {viewingService && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setViewingService(null)}>
- <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
- <FaWrench className="text-[#DC2626] text-sm" />
- تفاصيل الخدمة
- </h3>
- <button onClick={() => setViewingService(null)} className="text-[#62666D] hover:text-[#111214] transition">
- <FaTimes />
- </button>
- </div>
- <div className="space-y-3">
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الاسم:</span>
- <span className="text-[#111214] font-bold">{viewingService.name}</span>
- </div>
- <div className="flex justify-between items-center text-sm">
- <span className="text-[#62666D]">الأيقونة:</span>
- <span className="text-[#111214] font-bold flex items-center gap-2">
- {(() => { const VIcon = getServiceIcon(viewingService.icon_key); return <VIcon className="text-[#DC2626]" /> })()}
- {getIconLabel(viewingService.icon_key)}
- </span>
- </div>
- {viewingService.short_description && (
- <div className="text-sm">
- <span className="text-[#62666D]">الوصف المختصر:</span>
- <p className="text-[#111214] mt-1">{viewingService.short_description}</p>
- </div>
- )}
- {viewingService.description && (
- <div className="text-sm">
- <span className="text-[#62666D]">الوصف:</span>
- <p className="text-[#111214] mt-1">{viewingService.description}</p>
- </div>
- )}
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">السعر:</span>
- <span className="text-[#111214] font-bold">{Number(viewingService.base_price).toLocaleString('en-US')} ر.س</span>
- </div>
- {viewingService.duration_minutes && (
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">المدة:</span>
- <span className="text-[#111214] font-bold">{viewingService.duration_minutes} دقيقة</span>
- </div>
- )}
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الحالة:</span>
- <span className={`font-bold ${viewingService.is_active ? 'text-[#059669]' : 'text-[#62666D]'}`}>
- {viewingService.is_active ? 'نشط' : 'معطّل'}
- </span>
- </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الترتيب:</span>
- <span className="text-[#111214] font-bold">{viewingService.display_order}</span>
- </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">تاريخ الإنشاء:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingService.created_at).toLocaleDateString('en-GB')}</span>
- </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">آخر تحديث:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingService.updated_at).toLocaleDateString('en-GB')}</span>
- </div>
- </div>
- </div>
- </div>
- )}
+{/* View Service Modal */}
+  {viewingService && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setViewingService(null)}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+  {/* Header */}
+  <div className="flex items-center gap-3 px-6 py-4 border-b border-[#E7E8EA] bg-gradient-to-l from-[#FEF2F2] to-white">
+  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#C4121A] to-red-700 flex items-center justify-center text-white shadow-lg shadow-red-900/20 shrink-0">
+  {(() => { const VIcon = getServiceIcon(viewingService.icon_key); return <VIcon className="text-lg" /> })()}
+  </div>
+  <div className="flex-1 min-w-0">
+  <h3 className="text-lg font-bold text-[#111214] truncate">{viewingService.name}</h3>
+  <p className="text-xs text-[#62666D]">{getIconLabel(viewingService.icon_key)}</p>
+  </div>
+  <button onClick={() => setViewingService(null)} className="p-2 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F3F4F6] transition">
+  <FaTimes />
+  </button>
+  </div>
+
+  <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+  {(viewingService.short_description || viewingService.description) && (
+  <div>
+  <div className="flex items-center gap-2 mb-2.5">
+  <FaInfoCircle className="text-[#DC2626] text-xs" />
+  <span className="text-[#62666D] text-xs font-semibold tracking-wide">الوصف</span>
+  </div>
+  {viewingService.short_description && (
+  <div className="mb-2 rounded-xl bg-[#F9FAFB] border border-[#E7E8EA] px-3.5 py-3">
+  <p className="text-[10px] text-[#9CA3AF] font-medium mb-1">مختصر</p>
+  <p className="text-sm text-[#111214]">{viewingService.short_description}</p>
+  </div>
+  )}
+  {viewingService.description && (
+  <div className="rounded-xl bg-[#F9FAFB] border border-[#E7E8EA] px-3.5 py-3 whitespace-pre-line">
+  <p className="text-[10px] text-[#9CA3AF] font-medium mb-1">التفصيلي</p>
+  <p className="text-sm text-[#374151] leading-6">{viewingService.description}</p>
+  </div>
+  )}
+  </div>
+  )}
+
+  <div>
+  <div className="flex items-center gap-2 mb-2.5">
+  <FaBars className="text-[#DC2626] text-xs" />
+  <span className="text-[#62666D] text-xs font-semibold tracking-wide">معلومات الخدمة</span>
+  </div>
+  <div className="grid grid-cols-3 gap-2.5">
+  <div className="rounded-xl bg-[#F9FAFB] border border-[#E7E8EA] p-3 text-center">
+  <div className="w-8 h-8 mx-auto rounded-lg bg-[#FEF3F2] flex items-center justify-center mb-1.5">
+  <FaMoneyBillWave className="text-[#DC2626] text-sm" />
+  </div>
+  <p className="text-[10px] text-[#9CA3AF]">السعر</p>
+  <p className="text-sm font-bold text-[#111214] mt-0.5">{Number(viewingService.base_price).toLocaleString('en-US')} ر.س</p>
+  </div>
+  <div className="rounded-xl bg-[#F9FAFB] border border-[#E7E8EA] p-3 text-center">
+  <div className="w-8 h-8 mx-auto rounded-lg bg-[#FEF3F2] flex items-center justify-center mb-1.5">
+  <FaClock className="text-[#DC2626] text-sm" />
+  </div>
+  <p className="text-[10px] text-[#9CA3AF]">المدة</p>
+  <p className="text-sm font-bold text-[#111214] mt-0.5">{viewingService.duration_minutes || '—'} دقيقة</p>
+  </div>
+  <div className="rounded-xl bg-[#F9FAFB] border border-[#E7E8EA] p-3 text-center">
+  <div className="w-8 h-8 mx-auto rounded-lg bg-[#FEF3F2] flex items-center justify-center mb-1.5">
+  <FaBoxOpen className="text-[#DC2626] text-sm" />
+  </div>
+  <p className="text-[10px] text-[#9CA3AF]">الترتيب</p>
+  <p className="text-sm font-bold text-[#111214] mt-0.5">{viewingService.display_order}</p>
+  </div>
+  </div>
+  </div>
+
+  <div>
+  <div className="flex items-center gap-2 mb-2.5">
+  <FaInfoCircle className="text-[#DC2626] text-xs" />
+  <span className="text-[#62666D] text-xs font-semibold tracking-wide">حالة الخدمة</span>
+  </div>
+  <div className="rounded-xl bg-[#F9FAFB] border border-[#E7E8EA] px-4 py-3.5 flex items-center justify-between">
+  <span className="text-sm text-[#62666D]">الحالة</span>
+  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${viewingService.is_active ? 'bg-[#ECFDF5] text-[#059669]' : 'bg-[#F3F4F6] text-[#62666D]'}`}>
+  <span className={`w-1.5 h-1.5 rounded-full ${viewingService.is_active ? 'bg-[#059669]' : 'bg-[#9CA3AF]'}`} />
+  {viewingService.is_active ? 'نشط' : 'معطّل'}
+  </span>
+  </div>
+  <div className="flex justify-between text-xs text-[#62666D] mt-3">
+  <span>تاريخ الإنشاء:<span className="font-bold text-[#111214]"> {new Date(viewingService.created_at).toLocaleDateString('en-GB')}</span></span>
+  <span>آخر تحديث:<span className="font-bold text-[#111214]"> {new Date(viewingService.updated_at).toLocaleDateString('en-GB')}</span></span>
+  </div>
+  </div>
+  </div>
+
+  {/* Footer Actions */}
+  <div className="flex gap-2.5 px-6 py-4 border-t border-[#E7E8EA] bg-[#F9FAFB]">
+  <button onClick={() => { setEditingService(viewingService); setViewingService(null) }} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#111214] text-white text-sm font-bold rounded-xl hover:bg-[#2A2B2F] transition">
+  <FaPen className="text-xs" />
+  تعديل الخدمة
+  </button>
+  <button onClick={() => setDeletingService(viewingService)} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-[#E7E8EA] text-[#DC2626] text-sm font-bold rounded-xl hover:bg-[#FEF2F2] transition">
+  <FaTrash className="text-xs" />
+  حذف الخدمة
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
 
  {/* Delete Confirmation Modal */}
  {deletingService && (
