@@ -19,7 +19,7 @@ export interface AdminBookingInput {
   vehiclePlate?: string
   serviceId: string
   preferredDate?: string
-  preferredTime: string
+  preferredTime?: string
   notes?: string
 }
 
@@ -552,9 +552,6 @@ export async function adminCreateBooking(input: AdminBookingInput) {
   if (input.preferredDate && !dateRegex.test(input.preferredDate)) {
     fieldErrors.preferredDate = 'صيغة التاريخ غير صحيحة'
   }
-  if (!input.preferredTime) {
-    fieldErrors.preferredTime = 'الوقت المفضل مطلوب'
-  }
   if (Object.keys(fieldErrors).length > 0) {
     return { success: false as const, message: 'أكمل الحقول المطلوبة بشكل صحيح', fieldErrors }
   }
@@ -572,7 +569,7 @@ export async function adminCreateBooking(input: AdminBookingInput) {
       p_vehicle_plate: input.vehiclePlate?.trim() || null,
       p_service_id: input.serviceId,
       p_preferred_date: input.preferredDate || null,
-      p_preferred_time: input.preferredTime,
+      p_preferred_time: input.preferredTime || null,
       p_notes: input.notes?.trim() || null,
       p_idempotency_key: null,
     })
