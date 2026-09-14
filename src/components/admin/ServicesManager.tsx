@@ -163,28 +163,27 @@ const hasInitial = !!initialServices
  <button
  onClick={() => { setShowForm(!showForm); setEditingService(null) }}
  className={`font-bold text-sm transition-all rounded-xl px-5 py-2.5 flex items-center gap-2 ${
- showForm || editingService
+ showForm
  ? 'bg-white/[0.05] text-[#111214] hover:bg-[#F1F2F3] border border-[#E7E8EA]'
  : 'bg-gradient-to-l from-red-600 to-red-700 text-white hover:shadow-lg hover:shadow-red-900/20 border-0'
  }`}
  >
- {showForm || editingService ? <FaTimes className="text-xs" /> : <FaPlus className="text-xs" />}
- {showForm || editingService ? 'إلغاء' : 'إضافة خدمة جديدة'}
+ {showForm ? <FaTimes className="text-xs" /> : <FaPlus className="text-xs" />}
+ {showForm ? 'إلغاء' : 'إضافة خدمة جديدة'}
  </button>
  )}
  </div>
 
- {/* Form */}
- {(showForm || editingService) && (
- <div className="mb-6 animate-fadeIn">
- <ServiceForm
- key={editingService?.id || 'new'}
- initialData={editingService}
- onCancel={() => { setEditingService(null); setShowForm(false) }}
- onSaved={() => { setEditingService(null); setShowForm(false); fetchServices(); setNotification({ type: 'success', message: editingService ? 'تم تحديث الخدمة بنجاح' : 'تم إنشاء الخدمة بنجاح' }) }}
- />
- </div>
- )}
+{/* Create Form */}
+  {showForm && (
+  <div className="mb-6 animate-fadeIn">
+  <ServiceForm
+  key="new"
+  onCancel={() => setShowForm(false)}
+  onSaved={() => { setShowForm(false); fetchServices(); setNotification({ type: 'success', message: 'تم إنشاء الخدمة بنجاح' }) }}
+  />
+  </div>
+  )}
 
  {/* Search */}
  <div className="mb-4">
@@ -222,12 +221,14 @@ const hasInitial = !!initialServices
  <p className="text-xs text-[#62666D] mt-1">أضف خدمة جديدة من الزر أعلاه</p>
  </div>
  ) : (
- <div className="grid gap-3">
- {filteredServices.map((service) => (
- <div
- key={service.id}
- className="group bg-white border border-[#E7E8EA] hover:border-[#E7E8EA] rounded-xl p-3 sm:p-4 flex items-center justify-between transition-all duration-200"
- >
+<div className="grid gap-3">
+  {filteredServices.map((service) => (
+  <div key={service.id}>
+  <div key={`row-${service.id}`} className={`group bg-white border rounded-xl p-3 sm:p-4 flex items-center justify-between transition-all duration-200 ${
+  editingService?.id === service.id
+  ? 'border-[#BFDBFE] ring-1 ring-[#BFDBFE]'
+  : 'border-[#E7E8EA] hover:border-[#E7E8EA]'
+  }`}>
  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border ${
  service.is_active
@@ -307,20 +308,31 @@ const hasInitial = !!initialServices
  <span className="hidden sm:inline">{service.is_active ? 'تعطيل' : 'تفعيل'}</span>
  </button>
  )}
- {canDelete && (
- <button
- onClick={() => setDeletingService(service)}
- className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-red-300 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
- >
- <FaTrash className="text-[9px] sm:text-[10px]" />
- <span className="hidden sm:inline">حذف</span>
- </button>
- )}
- </div>
- </div>
- ))}
- </div>
- )}
+{canDelete && (
+  <button
+  onClick={() => setDeletingService(service)}
+  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-red-300 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
+  >
+  <FaTrash className="text-[9px] sm:text-[10px]" />
+  <span className="hidden sm:inline">حذف</span>
+  </button>
+  )}
+  </div>
+  </div>
+  {editingService?.id === service.id && (
+  <div className="mt-3 mb-1 animate-fadeIn overflow-hidden rounded-xl border border-[#BFDBFE] shadow-[0_8px_30px_rgba(37,99,235,0.08)]">
+  <ServiceForm
+  key={`edit-${service.id}`}
+  initialData={editingService}
+  onCancel={() => setEditingService(null)}
+  onSaved={() => { setEditingService(null); fetchServices(); setNotification({ type: 'success', message: 'تم تحديث الخدمة بنجاح' }) }}
+  />
+  </div>
+  )}
+  </div>
+  ))}
+  </div>
+  )}
 
 {/* View Service Modal */}
   {viewingService && (
