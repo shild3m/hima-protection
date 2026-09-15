@@ -156,6 +156,9 @@ export async function createInvoiceWithPayment(
     return { success: false as const, error: 'الفاتورة غير موجودة' }
   }
 
+  // Reset: delete old payments and reset paid_amount so we start fresh
+  await supabase.from('payments').delete().eq('invoice_id', invoiceId)
+
   const amount = paymentType === 'full' ? invoice.total : (depositAmount || 0)
 
   if (amount <= 0) {
@@ -180,12 +183,11 @@ export async function createInvoiceWithPayment(
     return { success: false as const, error: 'تعذر تسجيل الدفعة' }
   }
 
-  const newPaid = invoice.paid_amount + amount
-  const newStatus = newPaid >= invoice.total ? 'paid' : 'partially_paid'
+  const newStatus = amount >= invoice.total ? 'paid' : 'partially_paid'
 
   await admin
     .from('invoices')
-    .update({ paid_amount: newPaid, status: newStatus, updated_at: new Date().toISOString() })
+    .update({ paid_amount: amount, status: newStatus, updated_at: new Date().toISOString() })
     .eq('id', invoiceId)
 
   await logAudit({
@@ -193,10 +195,10 @@ export async function createInvoiceWithPayment(
     action: 'payment_recorded_auto',
     resourceType: 'payments',
     resourceId: invoiceId,
-    newValues: { amount, payment_method: paymentMethod, payment_type: paymentType, new_paid: newPaid, new_status: newStatus },
+    newValues: { amount, payment_method: paymentMethod, payment_type: paymentType, new_paid: amount, new_status: newStatus },
   })
 
-  return { success: true as const, data: { invoice_id: invoiceId, paid_amount: newPaid, status: newStatus } }
+  return { success: true as const, data: { invoice_id: invoiceId, paid_amount: amount, status: newStatus } }
 }
 
 export async function getInvoicePaidStatus(invoiceId: string) {
