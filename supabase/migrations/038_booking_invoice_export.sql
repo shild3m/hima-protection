@@ -48,16 +48,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_caller_id     uuid;
-  v_invoice       record;
-  v_booking       record;
-  v_payment_key   text;
-  v_payment_result jsonb;
-  v_material      record;
-  v_usage_result  jsonb;
-  v_materials     jsonb := '[]'::jsonb;
-  v_vehicle_size  text;
-  v_deducted_qty  numeric;
+  v_caller_id          uuid;
+  v_invoice            record;
+  v_booking_vehicle_id uuid;
+  v_booking_service_id uuid;
+  v_payment_key        text;
+  v_payment_result     jsonb;
+  v_vehicle_size       text;
+  v_material           record;
+  v_usage_result       jsonb;
+  v_materials          jsonb := '[]'::jsonb;
+  v_deducted_qty       numeric;
 BEGIN
   v_caller_id := auth.uid();
   v_payment_key := COALESCE(p_idempotency_key, 'export_' || p_invoice_id::text);
@@ -124,13 +125,18 @@ BEGIN
 
   -- 3) Deduct materials if the invoice is linked to a booking
   IF v_invoice.booking_id IS NOT NULL THEN
-    SELECT b.vehicle_id, b.service_id, ve.size
-      INTO v_booking, v_vehicle_size
+    SELECT b.vehicle_id, b.service_id
+      INTO v_booking_vehicle_id, v_booking_service_id
+    FROM public.bookings b
+    WHERE b.id = v_invoice.booking_id;
+
+    SELECT ve.size
+      INTO v_vehicle_size
     FROM public.bookings b
     LEFT JOIN public.vehicles ve ON ve.id = b.vehicle_id
     WHERE b.id = v_invoice.booking_id;
 
-    IF v_booking.vehicle_id IS NOT NULL THEN
+    IF v_booking_vehicle_id IS NOT NULL THEN
       FOR v_material IN
         SELECT sm.material_id AS id,
                m.name,
@@ -162,8 +168,8 @@ BEGIN
           p_material_id     := v_material.id,
           p_quantity        := v_deducted_qty,
           p_booking_id      := v_invoice.booking_id,
-          p_service_id      := v_booking.service_id,
-          p_vehicle_id      := v_booking.vehicle_id,
+          p_service_id      := v_booking_service_id,
+          p_vehicle_id      := v_booking_vehicle_id,
           p_notes           := 'خصم تلقائي عند تصدير الفاتورة ' || v_invoice.invoice_number,
           p_idempotency_key := 'export_' || p_invoice_id::text || '_' || v_material.id::text
         );
