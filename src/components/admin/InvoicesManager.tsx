@@ -541,11 +541,17 @@ const handleOpenRefund = (invoiceId: string) => {
  </div>
 <div className="flex items-center gap-4 mt-2 text-xs">
   <span className="text-[#111214] font-bold">{formatCurrency(invoice.total)} ر.س</span>
-  {invoice.paid_amount > 0 && (
-  <span className="text-[#059669]">مدفوع: {formatCurrency(invoice.paid_amount)} ر.س</span>
+  {invoice.paid_amount >= invoice.total && invoice.paid_amount > 0 && (
+  <span className="text-[#059669] font-bold bg-[#ECFDF5] border border-[#A7F3D0] rounded-md px-1.5 py-0.5">مدفوع بالكامل</span>
   )}
-  {invoice.paid_amount < invoice.total && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
-  <span className="text-[#D97706]">متبقي: {formatCurrency(invoice.total - invoice.paid_amount)} ر.س</span>
+  {invoice.paid_amount > 0 && invoice.paid_amount < invoice.total && (
+  <span className="text-[#D97706] font-bold bg-[#FFFBEB] border border-[#FDE68A] rounded-md px-1.5 py-0.5">عربون: {formatCurrency(invoice.paid_amount)} ر.س</span>
+  )}
+  {invoice.paid_amount > 0 && invoice.paid_amount < invoice.total && (
+  <span className="text-[#DC2626]">متبقي: {formatCurrency(invoice.total - invoice.paid_amount)} ر.س</span>
+  )}
+  {invoice.paid_amount === 0 && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
+  <span className="text-[#62666D] bg-[#F7F7F5] border border-[#E7E8EA] rounded-md px-1.5 py-0.5">لم يُدفع بعد</span>
   )}
   </div>
   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -828,19 +834,33 @@ const handleOpenRefund = (invoiceId: string) => {
  </div>
  )}
  <div className="flex justify-between font-bold text-base border-t border-[#E7E8EA] pt-2">
- <span className="text-[#111214]">الإجمالي:</span>
- <span className="text-[#DC2626]">{formatCurrency(viewingInvoice.total)} ر.س</span>
- </div>
- <div className="flex justify-between">
- <span className="text-[#62666D]">المدفوع:</span>
- <span className="text-[#059669]">{formatCurrency(viewingInvoice.paid_amount)} ر.س</span>
- </div>
- {viewingInvoice.total - viewingInvoice.paid_amount > 0 && (
- <div className="flex justify-between">
- <span className="text-[#62666D]">المتبقي:</span>
- <span className="text-[#D97706]">{formatCurrency(viewingInvoice.total - viewingInvoice.paid_amount)} ر.س</span>
- </div>
- )}
+  <span className="text-[#111214]">الإجمالي:</span>
+  <span className="text-[#DC2626]">{formatCurrency(viewingInvoice.total)} ر.س</span>
+  </div>
+  <div className="flex justify-between">
+  <span className="text-[#62666D]">المدفوع:</span>
+  <span className="text-[#059669] font-bold">{formatCurrency(viewingInvoice.paid_amount)} ر.س</span>
+  </div>
+  {viewingInvoice.total - viewingInvoice.paid_amount > 0 && (
+  <div className="flex justify-between">
+  <span className="text-[#62666D]">المتبقي:</span>
+  <span className="text-[#D97706] font-bold">{formatCurrency(viewingInvoice.total - viewingInvoice.paid_amount)} ر.س</span>
+  </div>
+  )}
+  {viewingInvoice.paid_amount > 0 && viewingInvoice.payments && viewingInvoice.payments.length > 0 && (
+  <div className="flex justify-between">
+  <span className="text-[#62666D]">نوع الدفع:</span>
+  <span className={`font-bold ${viewingInvoice.paid_amount >= viewingInvoice.total ? 'text-[#059669]' : 'text-[#D97706]'}`}>
+  {viewingInvoice.paid_amount >= viewingInvoice.total ? 'المبلغ كامل' : 'عربون'}
+  </span>
+  </div>
+  )}
+  {viewingInvoice.payments && viewingInvoice.payments.length > 0 && viewingInvoice.payments[0]?.payment_method && (
+  <div className="flex justify-between">
+  <span className="text-[#62666D]">طريقة الدفع:</span>
+  <span className="text-[#111214] font-bold">{PAYMENT_METHOD_LABELS[viewingInvoice.payments[0].payment_method] || viewingInvoice.payments[0].payment_method}</span>
+  </div>
+  )}
  </div>
  </div>
 

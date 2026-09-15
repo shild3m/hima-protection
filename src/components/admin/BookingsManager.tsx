@@ -1715,6 +1715,26 @@ type="password"
   <span className="text-[#059669] font-black" dir="ltr">{invoiceView.data.paid_amount.toLocaleString('en-US')} ر.س</span>
   </div>
   )}
+  {typeof invoiceView.data.paid_amount === 'number' && invoiceView.data.paid_amount > 0 && invoiceView.data.paid_amount < invoiceView.data.total && (
+  <div className="flex items-center justify-between text-sm">
+  <span className="text-[#62666D] font-semibold">المتبقي</span>
+  <span className="text-[#D97706] font-black" dir="ltr">{(invoiceView.data.total - invoiceView.data.paid_amount).toLocaleString('en-US')} ر.س</span>
+  </div>
+  )}
+  {typeof invoiceView.data.paid_amount === 'number' && invoiceView.data.paid_amount > 0 && (
+  <div className="flex items-center justify-between text-sm">
+  <span className="text-[#62666D] font-semibold">نوع الدفع</span>
+  <span className={`font-black text-xs px-2 py-0.5 rounded-md ${invoiceView.data.paid_amount >= invoiceView.data.total ? 'text-[#059669] bg-[#ECFDF5]' : 'text-[#D97706] bg-[#FFFBEB]'}`}>
+  {invoiceView.data.paid_amount >= invoiceView.data.total ? 'المبلغ كامل' : 'عربون'}
+  </span>
+  </div>
+  )}
+  {invoiceView.data.payments && invoiceView.data.payments.length > 0 && invoiceView.data.payments[0]?.payment_method && (
+  <div className="flex items-center justify-between text-sm">
+  <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
+  <span className="text-[#111214] font-black text-xs">{invoiceView.data.payments[0].payment_method === 'cash' ? 'نقدي' : invoiceView.data.payments[0].payment_method === 'card' ? 'بطاقة' : invoiceView.data.payments[0].payment_method === 'bank_transfer' ? 'تحويل بنكي' : invoiceView.data.payments[0].payment_method}</span>
+  </div>
+  )}
   </div>
   </div>
   ) : null}
