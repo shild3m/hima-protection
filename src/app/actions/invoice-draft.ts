@@ -27,7 +27,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       .select(`
         id, customer_id, vehicle_id, service_id, preferred_date, preferred_time, service_name_snapshot,
         service:services(id, name, base_price, duration_minutes),
-        booking_items:booking_items(id, service_id, quantity, unit_price, service_name_snapshot)
+        booking_items:booking_items(id, service_id, quantity, unit_price, service:services(name))
       `)
       .eq('id', bookingId)
       .maybeSingle()
@@ -93,9 +93,10 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
     }
 
     for (const item of booking.booking_items || []) {
+      const itemService = Array.isArray(item.service) ? item.service?.[0] : item.service
       items.push({
         service_id: item.service_id || null,
-        description: item.service_name_snapshot || 'خدمة إضافية',
+        description: itemService?.name || 'خدمة إضافية',
         quantity: item.quantity || 1,
         unit_price: Number(item.unit_price) || 0,
         discount: 0,
