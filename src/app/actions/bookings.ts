@@ -566,6 +566,10 @@ export async function adminCreateBooking(input: AdminBookingInput) {
     return { success: false as const, message: 'أكمل الحقول المطلوبة بشكل صحيح', fieldErrors }
   }
 
+  // Admin walk-in bookings default to today/now when no date/time is chosen
+  const preferredDate = input.preferredDate?.trim() || new Date().toISOString().slice(0, 10)
+  const preferredTime = input.preferredTime?.trim() || new Date().toTimeString().slice(0, 5)
+
   try {
     const supabase = await createClient()
     const { data, error } = await supabase.rpc('create_booking', {
@@ -578,8 +582,8 @@ export async function adminCreateBooking(input: AdminBookingInput) {
       p_vehicle_color: input.vehicleColor?.trim() || null,
       p_vehicle_plate: input.vehiclePlate?.trim() || null,
       p_service_id: input.serviceId,
-      p_preferred_date: input.preferredDate || null,
-      p_preferred_time: input.preferredTime || null,
+      p_preferred_date: preferredDate,
+      p_preferred_time: preferredTime,
       p_notes: input.notes?.trim() || null,
       p_idempotency_key: null,
     })
