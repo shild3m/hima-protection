@@ -1,5 +1,6 @@
 'use server'
 
+import { createClient } from '@/utils/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -21,6 +22,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
 
   try {
     const admin = getAdminClient()
+    const supabase = await createClient()
 
     const { data: booking } = await admin
       .from('bookings')
@@ -96,7 +98,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       return { success: false as const, error: 'لا توجد خدمات للحجز لإنشاء الفاتورة' }
     }
 
-    const { data: result, error } = await admin.rpc('create_invoice', {
+    const { data: result, error } = await supabase.rpc('create_invoice', {
       p_customer_id: booking.customer_id,
       p_vehicle_id: booking.vehicle_id || null,
       p_booking_id: booking.id,
