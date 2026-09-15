@@ -392,7 +392,7 @@ const handleOpenRefund = (invoiceId: string) => {
         setExportTarget(null)
         fetchInvoices()
         fetchStats()
-        window.open(`/admin/invoices/${exportTarget.id}/print`, '_blank')
+        window.open(`/invoices/${exportTarget.id}/print`, '_blank')
       } else {
         setNotification({ type: 'error', message: result.error || 'تعذر تصدير الفاتورة' })
       }
