@@ -621,7 +621,7 @@ export async function adminCreateBooking(input: AdminBookingInput) {
       if (svc?.name) {
         await supabase
           .from('bookings')
-          .update({ service_name_snapshot: svc.name })
+          .update({ service_name_snapshot: svc.name, service_id: input.serviceId })
           .eq('id', result.booking_id)
       }
 

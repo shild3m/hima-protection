@@ -18,7 +18,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
     const { data: booking } = await supabase
       .from('bookings')
       .select(`
-        id, customer_id, vehicle_id, service_id, preferred_date, preferred_time,
+        id, customer_id, vehicle_id, service_id, preferred_date, preferred_time, service_name_snapshot,
         service:services(id, name, base_price, duration_minutes),
         booking_items:booking_items(id, service_id, quantity, unit_price, service_name_snapshot)
       `)
@@ -29,7 +29,17 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       return { success: false as const, error: 'الحجز غير موجود' }
     }
 
-    const service = Array.isArray(booking.service) ? booking.service?.[0] : booking.service
+    let service = Array.isArray(booking.service) ? booking.service?.[0] : booking.service
+
+    // Fallback: if service_id is null (old bookings), look up by service_name_snapshot
+    if (!service && booking.service_name_snapshot) {
+      const { data: fallbackService } = await supabase
+        .from('services')
+        .select('id, name, base_price, duration_minutes')
+        .eq('name', booking.service_name_snapshot)
+        .maybeSingle()
+      if (fallbackService) service = fallbackService
+    }
 
     // No duplicate: if a live invoice already exists for this booking, reuse it
     const { data: existing } = await supabase
