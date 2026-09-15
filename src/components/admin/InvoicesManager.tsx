@@ -381,6 +381,9 @@ const handleOpenRefund = (invoiceId: string) => {
   const handleExport = async () => {
     if (!exportTarget) return
     setExporting(true)
+    // Open the print window IMMEDIATELY (synchronous user gesture) so the browser
+    // does not treat it as a blocked popup. We redirect it after the export succeeds.
+    const printWindow = window.open('', '_blank')
     try {
       const { exportInvoice } = await import('@/app/actions/invoices')
       const result = await exportInvoice({ invoice_id: exportTarget.id, payment_method: paymentMethod })
@@ -390,9 +393,13 @@ const handleOpenRefund = (invoiceId: string) => {
           message: `تم التصدير والدفع (${PAYMENT_METHOD_LABELS[paymentMethod]}) — خصمت المواد من المخزون`,
         })
         setExportTarget(null)
-        fetchInvoices()
-        fetchStats()
-        window.open(`/invoices/${exportTarget.id}/print`, '_blank')
+        if (printWindow) {
+          printWindow.location.href = `/invoices/${exportTarget.id}/print`
+        } else {
+          window.open(`/invoices/${exportTarget.id}/print`, '_blank')
+        }
+        await fetchInvoices()
+        await fetchStats()
       } else {
         setNotification({ type: 'error', message: result.error || 'تعذر تصدير الفاتورة' })
       }
