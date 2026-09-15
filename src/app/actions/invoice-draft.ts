@@ -107,8 +107,9 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
     })
 
     if (error || !result || !result.success || !result.data?.id) {
-      console.error('Auto invoice RPC error:', error || result)
-      return { success: false as const, error: 'تعذر إنشاء الفاتورة التلقائية' }
+      const errMsg = error?.message || JSON.stringify(result) || 'unknown'
+      console.error('Auto invoice RPC error:', errMsg)
+      return { success: false as const, error: `تعذر إنشاء الفاتورة: ${errMsg}` }
     }
 
     await logAudit({
