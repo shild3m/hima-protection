@@ -22,7 +22,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
   try {
     const admin = getAdminClient()
 
-    const { data: booking } = await admin
+    const { data: booking, error: bookingErr } = await admin
       .from('bookings')
       .select(`
         id, customer_id, vehicle_id, service_id, preferred_date, preferred_time, service_name_snapshot,
@@ -32,8 +32,20 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       .eq('id', bookingId)
       .maybeSingle()
 
+    if (bookingErr) {
+      console.error('[ensureDraft] booking query error:', JSON.stringify(bookingErr))
+      return { success: false as const, error: `خطأ في جلب الحجز: ${bookingErr.message}` }
+    }
+
     if (!booking) {
-      return { success: false as const, error: 'الحجز غير موجود' }
+      // Try simple query without joins to see if booking exists at all
+      const { data: simpleBooking, error: simpleErr } = await admin
+        .from('bookings')
+        .select('id, status, service_id, service_name_snapshot, customer_id')
+        .eq('id', bookingId)
+        .maybeSingle()
+      console.error('[ensureDraft] booking not found with joins, simple result:', JSON.stringify(simpleBooking), 'error:', JSON.stringify(simpleErr))
+      return { success: false as const, error: `الحجز غير موجود (id: ${bookingId})` }
     }
 
     let service = Array.isArray(booking.service) ? booking.service?.[0] : booking.service
