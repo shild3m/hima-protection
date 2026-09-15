@@ -385,9 +385,13 @@ export async function updateBookingStatus(
     if (newStatus === 'in_progress') {
       try {
         const { ensureDraftInvoiceForBooking } = await import('@/app/actions/invoice-draft')
-        await ensureDraftInvoiceForBooking(id)
-      } catch {
+        const draft = await ensureDraftInvoiceForBooking(id)
+        if (!draft.success) {
+          console.error('Auto invoice failed for booking', id, draft.error)
+        }
+      } catch (e) {
         // Invoice auto-generation failure must not block the status transition
+        console.error('Auto invoice exception for booking', id, e)
       }
     }
 
