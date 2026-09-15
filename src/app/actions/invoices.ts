@@ -85,7 +85,8 @@ export async function getInvoices(
         *,
         customer:customers(id, full_name, phone),
         vehicle:vehicles(id, make, model, plate_number),
-        booking:bookings(id, status)
+        booking:bookings(id, status),
+        items:invoice_items(id, description, quantity)
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)
@@ -450,6 +451,59 @@ export async function getInvoiceStats() {
       data: { counts, total },
     }
   } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+const ExportSchema = z.object({
+  invoice_id: z.string().uuid('معرف الفاتورة غير صحيح'),
+  payment_method: z.enum(['cash', 'card', 'bank_transfer'], {
+    message: 'طريقة الدفع غير صحيحة',
+  }),
+})
+
+export async function exportInvoice(input: {
+  invoice_id: string
+  payment_method: 'cash' | 'card' | 'bank_transfer'
+}) {
+  const user = await requireAuth()
+  if (!user.permissions.includes('invoices:update')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+  if (!user.permissions.includes('payments:create')) {
+    return { success: false as const, error: 'لا تملك صلاحية تسجيل الدفعات' }
+  }
+  if (!user.permissions.includes('inventory:usage')) {
+    return { success: false as const, error: 'لا تملك صلاحية استخدام المخزون' }
+  }
+
+  const rl = await checkRateLimit('invoices:export')
+  if (!rl.ok) return { success: false as const, error: rl.error }
+
+  try {
+    const validated = ExportSchema.parse(input)
+    const supabase = await createClient()
+
+    const { data, error } = await supabase.rpc('export_booking_invoice', {
+      p_invoice_id: validated.invoice_id,
+      p_payment_method: validated.payment_method,
+      p_idempotency_key: `export_${validated.invoice_id}`,
+    })
+
+    if (error) {
+      console.error('Export invoice RPC error:', error)
+      return { success: false as const, error: 'تعذر تصدير الفاتورة' }
+    }
+
+    if (!data || !data.success) {
+      return { success: false as const, error: data?.error || 'تعذر تصدير الفاتورة' }
+    }
+
+    return { success: true as const, data }
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return { success: false as const, error: err.issues[0]?.message || 'بيانات غير صحيحة' }
+    }
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
 }

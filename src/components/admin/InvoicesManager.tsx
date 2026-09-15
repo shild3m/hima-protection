@@ -22,6 +22,10 @@ import {
   FaPen,
   FaUndo,
   FaMoneyBill,
+  FaWrench,
+  FaFileExport,
+  FaCreditCard,
+  FaUniversity,
 } from 'react-icons/fa'
 
 interface Invoice {
@@ -41,8 +45,10 @@ interface Invoice {
  cancelled_at: string | null
  notes: string | null
  created_at: string
- customer?: { id: string; full_name: string; phone: string }
- vehicle?: { id: string; make: string; model: string; plate_number: string | null }
+customer?: { id: string; full_name: string; phone: string }
+  vehicle?: { id: string; make: string; model: string; plate_number: string | null }
+  booking?: { id: string; status: string }
+  items?: { id: string; description: string; quantity: number }[]
 }
 
 interface InvoiceDetail extends Invoice {
@@ -111,8 +117,9 @@ export default function InvoicesManager() {
  const [actionLoading, setActionLoading] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
- const canUpdate = hasPermission('invoices', 'update')
- const canCreate = hasPermission('invoices', 'create')
+const canUpdate = hasPermission('invoices', 'update')
+  const canCreate = hasPermission('invoices', 'create')
+  const canExport = canUpdate && hasPermission('payments', 'create') && hasPermission('inventory', 'usage')
  const totalPages = pagination?.totalPages || 1
  const [showCreateForm, setShowCreateForm] = useState(false)
  const [customers, setCustomers] = useState<{ id: string; full_name: string; phone: string }[]>([])
@@ -133,10 +140,14 @@ export default function InvoicesManager() {
  const [editItems, setEditItems] = useState<{ description: string; quantity: number; unit_price: number; discount: number; tax_rate: number; service_id: string }[]>([])
  const [editSubmitting, setEditSubmitting] = useState(false)
 
- const [showRefundModal, setShowRefundModal] = useState(false)
- const [refundInvoiceId, setRefundInvoiceId] = useState('')
- const [refundReason, setRefundReason] = useState('')
- const [refundSubmitting, setRefundSubmitting] = useState(false)
+const [showRefundModal, setShowRefundModal] = useState(false)
+  const [refundInvoiceId, setRefundInvoiceId] = useState('')
+  const [refundReason, setRefundReason] = useState('')
+  const [refundSubmitting, setRefundSubmitting] = useState(false)
+
+  const [exportTarget, setExportTarget] = useState<Invoice | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'bank_transfer'>('cash')
+  const [exporting, setExporting] = useState(false)
 
  useEffect(() => {
    if (canCreate && window.location.search.includes('create=true')) {
@@ -361,11 +372,36 @@ export default function InvoicesManager() {
    }
  }
 
- const handleOpenRefund = (invoiceId: string) => {
-   setRefundInvoiceId(invoiceId)
-   setRefundReason('')
-   setShowRefundModal(true)
- }
+const handleOpenRefund = (invoiceId: string) => {
+    setRefundInvoiceId(invoiceId)
+    setRefundReason('')
+    setShowRefundModal(true)
+  }
+
+  const handleExport = async () => {
+    if (!exportTarget) return
+    setExporting(true)
+    try {
+      const { exportInvoice } = await import('@/app/actions/invoices')
+      const result = await exportInvoice({ invoice_id: exportTarget.id, payment_method: paymentMethod })
+      if (result.success) {
+        setNotification({
+          type: 'success',
+          message: `تم التصدير والدفع (${PAYMENT_METHOD_LABELS[paymentMethod]}) — خصمت المواد من المخزون`,
+        })
+        setExportTarget(null)
+        fetchInvoices()
+        fetchStats()
+        window.open(`/admin/invoices/${exportTarget.id}/print`, '_blank')
+      } else {
+        setNotification({ type: 'error', message: result.error || 'تعذر تصدير الفاتورة' })
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    } finally {
+      setExporting(false)
+    }
+  }
 
  const handleRefundSubmit = async () => {
    if (!refundInvoiceId) return
@@ -496,17 +532,44 @@ export default function InvoicesManager() {
  </span>
  )}
  </div>
- <div className="flex items-center gap-4 mt-2 text-xs">
- <span className="text-[#111214] font-bold">{formatCurrency(invoice.total)} ر.س</span>
- {invoice.paid_amount > 0 && (
- <span className="text-[#059669]">مدفوع: {formatCurrency(invoice.paid_amount)} ر.س</span>
- )}
- {invoice.paid_amount < invoice.total && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
- <span className="text-[#D97706]">متبقي: {formatCurrency(invoice.total - invoice.paid_amount)} ر.س</span>
- )}
- </div>
- </div>
- <div className="flex items-center gap-2 shrink-0">
+<div className="flex items-center gap-4 mt-2 text-xs">
+  <span className="text-[#111214] font-bold">{formatCurrency(invoice.total)} ر.س</span>
+  {invoice.paid_amount > 0 && (
+  <span className="text-[#059669]">مدفوع: {formatCurrency(invoice.paid_amount)} ر.س</span>
+  )}
+  {invoice.paid_amount < invoice.total && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
+  <span className="text-[#D97706]">متبقي: {formatCurrency(invoice.total - invoice.paid_amount)} ر.س</span>
+  )}
+  </div>
+  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+  {invoice.items && invoice.items.length > 0 && (
+  <>
+  <FaWrench className="text-[9px] text-[#62666D]" />
+  {invoice.items.map(item => (
+  <span key={item.id} className="text-[10px] text-[#62666D] bg-[#F7F7F5] border border-[#E7E8EA] rounded-md px-1.5 py-0.5">
+  {item.description}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
+  </span>
+  ))}
+  </>
+  )}
+  {invoice.booking && (
+  <span className="text-[10px] text-[#9CA3AF] border border-[#E7E8EA] rounded-md px-1.5 py-0.5">
+  من حجز
+  </span>
+  )}
+  </div>
+  </div>
+  <div className="flex items-center gap-2 shrink-0">
+  {invoice.status === 'draft' && canExport && (
+  <button
+  onClick={() => setExportTarget(invoice)}
+  disabled={actionLoading === invoice.id}
+  className="px-3 py-1.5 bg-[#C4121A] hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-30 flex items-center gap-1"
+  >
+  <FaFileExport className="text-[9px]" />
+  تصدير
+  </button>
+  )}
  {invoice.status === 'draft' && canUpdate && (
  <>
    <button
@@ -587,7 +650,81 @@ export default function InvoicesManager() {
  </>
  )}
 
- {viewingInvoice && (
+ {exportTarget && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setExportTarget(null)}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+  <div className="flex items-center justify-between mb-4">
+  <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
+  <div className="w-8 h-8 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center">
+  <FaFileExport className="text-[#DC2626] text-sm" />
+  </div>
+  تصدير الفاتورة
+  </h3>
+  <button onClick={() => setExportTarget(null)} className="text-[#62666D] hover:text-[#111214] transition">
+  <FaTimes />
+  </button>
+  </div>
+
+  <div className="bg-[#F9FAFB] border border-[#E7E8EA] rounded-xl p-3 mb-4 text-sm">
+  <div className="flex justify-between">
+  <span className="text-[#62666D]">الفاتورة:</span>
+  <span className="font-bold text-[#111214]">{exportTarget.invoice_number}</span>
+  </div>
+  <div className="flex justify-between mt-1">
+  <span className="text-[#62666D]">المبلغ:</span>
+  <span className="font-bold text-[#111214]">{formatCurrency(exportTarget.total)} ر.س</span>
+  </div>
+  </div>
+
+  <p className="text-xs font-bold text-[#62666D] mb-2">طريقة الدفع</p>
+  <div className="grid grid-cols-3 gap-2 mb-5">
+  {([
+  { key: 'cash' as const, label: 'نقدي', icon: FaMoneyBill },
+  { key: 'card' as const, label: 'بطاقة', icon: FaCreditCard },
+  { key: 'bank_transfer' as const, label: 'تحويل بنكي', icon: FaUniversity },
+  ]).map(({ key, label, icon: Icon }) => (
+  <button
+  key={key}
+  type="button"
+  onClick={() => setPaymentMethod(key)}
+  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-bold transition-all ${
+  paymentMethod === key
+  ? 'border-[#DC2626] bg-[#FEF2F2] text-[#DC2626] shadow-sm'
+  : 'border-[#E7E8EA] bg-white text-[#62666D] hover:border-[#FECACA]'
+  }`}
+  >
+  <Icon className="text-base" />
+  {label}
+  </button>
+  ))}
+  </div>
+
+  <p className="text-[10px] text-[#9CA3AF] mb-4 leading-relaxed">
+  سيتم تسجيل الدفعة تلقائياً وخصم المواد المطلوبة من المخزون حسب حجم السيارة، ثم فتح نسخة الطباعة.
+  </p>
+
+  <div className="flex items-center gap-2">
+  <button
+  onClick={() => setExportTarget(null)}
+  disabled={exporting}
+  className="flex-1 px-4 py-2.5 bg-white border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold hover:bg-[#F1F2F3] transition disabled:opacity-40"
+  >
+  إلغاء
+  </button>
+  <button
+  onClick={handleExport}
+  disabled={exporting}
+  className="flex-1 px-4 py-2.5 bg-[#C4121A] text-white rounded-xl text-sm font-bold hover:bg-red-700 transition disabled:opacity-40 flex items-center justify-center gap-2"
+  >
+  {exporting ? <FaSpinner className="animate-spin text-xs" /> : <FaFileExport className="text-xs" />}
+  تأكيد التصدير
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
+
+  {viewingInvoice && (
  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setViewingInvoice(null)}>
  <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
  <div className="flex items-center justify-between mb-4">

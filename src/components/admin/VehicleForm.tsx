@@ -15,8 +15,9 @@ interface Vehicle {
  customer_id: string
  make: string
  model: string
- year: number | null
- color: string | null
+size: string
+  year: number | null
+  color: string | null
  plate_number: string | null
  vin: string | null
  notes: string | null
@@ -42,9 +43,10 @@ interface VehicleFormProps {
 
 export function VehicleForm({ initialData, onCancel, onSaved }: VehicleFormProps) {
  const [customerId, setCustomerId] = useState(initialData?.customer_id || '')
- const [make, setMake] = useState(initialData?.make || '')
- const [model, setModel] = useState(initialData?.model || '')
- const [year, setYear] = useState(initialData?.year?.toString() || '')
+const [make, setMake] = useState(initialData?.make || '')
+  const [model, setModel] = useState(initialData?.model || '')
+  const [size, setSize] = useState<string>(initialData?.size || 'medium')
+  const [year, setYear] = useState(initialData?.year?.toString() || '')
  const [color, setColor] = useState(initialData?.color || '')
  const [plateNumber, setPlateNumber] = useState(initialData?.plate_number || '')
  const [vin, setVin] = useState(initialData?.vin || '')
@@ -143,10 +145,11 @@ export function VehicleForm({ initialData, onCancel, onSaved }: VehicleFormProps
  const { createVehicle, updateVehicle } = await import('@/app/actions/vehicles')
 
  const vehicleData = {
- customer_id: customerId,
- make: make.trim(),
- model: model.trim(),
- year: year ? parseInt(year) : null,
+customer_id: customerId,
+  make: make.trim(),
+  model: model.trim(),
+  size: size as 'small' | 'medium' | 'large',
+  year: year ? parseInt(year) : null,
  color: color.trim() || null,
  plate_number: plateNumber.trim() || null,
  vin: vin.trim() || null,
@@ -264,11 +267,24 @@ export function VehicleForm({ initialData, onCancel, onSaved }: VehicleFormProps
  className="input-light"
  placeholder="مثال: Camry, X5"
  />
- {errors.model && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.model}</p>}
- </div>
+{errors.model && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.model}</p>}
+  </div>
 
- <div>
- <label className="label-light">السنة</label>
+  <div>
+  <label className="label-light">حجم السيارة *</label>
+  <select
+  value={size}
+  onChange={(e) => setSize(e.target.value)}
+  className="select-light"
+  >
+  <option value="small" className="bg-white text-[#111214]">صغير (سيدان)</option>
+  <option value="medium" className="bg-white text-[#111214]">متوسط</option>
+  <option value="large" className="bg-white text-[#111214]">كبير (دفع رباعي / هدج)</option>
+  </select>
+  </div>
+
+  <div>
+  <label className="label-light">السنة</label>
  <input
  type="number"
  min="1900"

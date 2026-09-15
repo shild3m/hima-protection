@@ -18,8 +18,9 @@ import {
 FaBoxOpen,
   FaClock,
   FaMoneyBillWave,
-  FaInfoCircle,
+FaInfoCircle,
   FaBars,
+  FaDatabase,
 } from 'react-icons/fa'
 import { getServiceIcon, getIconLabel } from '@/lib/service-icons'
 
@@ -51,12 +52,74 @@ export default function ServicesManager({ initialServices }: { initialServices?:
  const [showForm, setShowForm] = useState(false)
  const [editingService, setEditingService] = useState<Service | null>(null)
  const [viewingService, setViewingService] = useState<Service | null>(null)
- const [deletingService, setDeletingService] = useState<Service | null>(null)
- const [togglingId, setTogglingId] = useState<string | null>(null)
+const [deletingService, setDeletingService] = useState<Service | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const [materialsService, setMaterialsService] = useState<Service | null>(null)
+  const [materialsLoading, setMaterialsLoading] = useState(false)
+  const [materialsList, setMaterialsList] = useState<{ id: string; name: string; sku: string; unit: string }[]>([])
+  const [matRows, setMatRows] = useState<{ material_id: string; qty_small: number; qty_medium: number; qty_large: number }[]>([])
+  const [matSaving, setMatSaving] = useState(false)
 
  const canCreate = hasPermission('services', 'create')
  const canUpdate = hasPermission('services', 'update')
  const canDelete = hasPermission('services', 'delete')
+  const canManageMaterials = hasPermission('services', 'update') || hasPermission('inventory', 'adjust')
+
+  const openMaterialsModal = async (service: Service) => {
+    setMaterialsService(service)
+    setMaterialsLoading(true)
+    try {
+      const [{ getMaterials }, { getServiceMaterials }] = await Promise.all([
+        import('@/app/actions/materials'),
+        import('@/app/actions/service-materials'),
+      ])
+      const [matsRes, smRes] = await Promise.all([
+        getMaterials(undefined, 1, 100),
+        getServiceMaterials(service.id),
+      ])
+      if (matsRes.success) {
+        setMaterialsList((matsRes.data || []).map(m => ({ id: m.id, name: m.name, sku: m.sku, unit: m.unit })))
+      }
+      if (smRes.success && smRes.data.length > 0) {
+        setMatRows(smRes.data.map(row => ({
+          material_id: row.material_id,
+          qty_small: Number(row.qty_small ?? 0),
+          qty_medium: Number(row.qty_medium ?? 0),
+          qty_large: Number(row.qty_large ?? 0),
+        })))
+      } else {
+        setMatRows([])
+      }
+    } catch {
+      setMatRows([])
+      setNotification({ type: 'error', message: 'تعذر تحميل المواد' })
+    } finally {
+      setMaterialsLoading(false)
+    }
+  }
+
+  const saveMaterials = async () => {
+    if (!materialsService) return
+    setMatSaving(true)
+    try {
+      const { saveServiceMaterials } = await import('@/app/actions/service-materials')
+      const result = await saveServiceMaterials({
+        service_id: materialsService.id,
+        rows: matRows.filter(r => r.material_id && (r.qty_small > 0 || r.qty_medium > 0 || r.qty_large > 0)),
+      })
+      if (result.success) {
+        setNotification({ type: 'success', message: 'تم حفظ المواد المطلوبة' })
+        setMaterialsService(null)
+      } else {
+setNotification({ type: 'error', message: result.error || 'حدث خطأ' })
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    } finally {
+      setMatSaving(false)
+    }
+  }
 
  const fetchServices = useCallback(async () => {
  try {
@@ -305,10 +368,19 @@ const hasInitial = !!initialServices
  ) : (
  <FaEye className="text-[9px] sm:text-[10px]" />
  )}
- <span className="hidden sm:inline">{service.is_active ? 'تعطيل' : 'تفعيل'}</span>
- </button>
- )}
-{canDelete && (
+<span className="hidden sm:inline">{service.is_active ? 'تعطيل' : 'تفعيل'}</span>
+  </button>
+  )}
+  {canManageMaterials && (
+  <button
+  onClick={() => openMaterialsModal(service)}
+  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FFFBEB] hover:bg-[#FFFBEB] border border-[#FDE68A] text-amber-300 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
+  >
+  <FaDatabase className="text-[9px] sm:text-[10px]" />
+  <span className="hidden sm:inline">المواد</span>
+  </button>
+  )}
+  {canDelete && (
   <button
   onClick={() => setDeletingService(service)}
   className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-red-300 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
@@ -334,7 +406,102 @@ const hasInitial = !!initialServices
   </div>
   )}
 
-{/* View Service Modal */}
+{/* Service Materials Modal */}
+  {materialsService && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setMaterialsService(null)}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+  <div className="flex items-center justify-between px-6 py-4 border-b border-[#E7E8EA]">
+  <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
+  <div className="w-7 h-7 rounded-lg bg-[#FFFBEB] flex items-center justify-center">
+  <FaDatabase className="text-[#D97706] text-xs" />
+  </div>
+  المواد المطلوبة — {materialsService.name}
+  </h3>
+  <button onClick={() => setMaterialsService(null)} className="text-[#62666D] hover:text-[#111214] transition">
+  <FaTimes />
+  </button>
+  </div>
+
+  <div className="flex-1 overflow-y-auto p-6">
+  {materialsLoading ? (
+  <div className="flex items-center justify-center py-12">
+  <FaSpinner className="w-6 h-6 border-2 border-[#FECACA] border-t-red-500 rounded-full animate-spin" />
+  </div>
+  ) : materialsList.length === 0 ? (
+  <div className="text-center py-10 text-[#62666D]">
+  <p className="font-bold">لا توجد مواد مسجلة</p>
+  <p className="text-xs mt-1">أضف مواد من صفحة إدارة المواد أولاً ثم عد لتحديد الكميات</p>
+  </div>
+  ) : matRows.length === 0 ? (
+  <div className="text-center py-10 text-[#62666D]">
+  <p className="font-bold">لم تُحدد مواد لهذه الخدمة بعد</p>
+  <p className="text-xs mt-1">اضغط "إضافة مادة" لتحديد الاستهلاك المتوقع حسب حجم السيارة</p>
+  </div>
+  ) : (
+  <div className="space-y-2 mb-4">
+  <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-[#9CA3AF] px-1">
+  <span className="col-span-5">المادة</span>
+  <span className="col-span-2 text-center">صغير</span>
+  <span className="col-span-2 text-center">متوسط</span>
+  <span className="col-span-2 text-center">كبير</span>
+  <span className="col-span-1"></span>
+  </div>
+  {matRows.map((row, idx) => (
+  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+  <div className="col-span-5">
+  <select
+  value={row.material_id}
+  onChange={e => { const rows = [...matRows]; rows[idx].material_id = e.target.value; setMatRows(rows) }}
+  className="w-full bg-white border border-[#E7E8EA] rounded-lg px-2 py-2 text-xs text-[#111214] focus:outline-none focus:border-[#DC2626] appearance-none cursor-pointer"
+  >
+  <option value="" className="bg-white text-[#111214]">اختر المادة...</option>
+  {materialsList.map(m => (
+  <option key={m.id} value={m.id} className="bg-white text-[#111214]">{m.name} ({m.unit})</option>
+  ))}
+  </select>
+  </div>
+  <div className="col-span-2">
+  <input type="number" min="0" step="0.1" value={row.qty_small} onChange={e => { const rows = [...matRows]; rows[idx].qty_small = Number(e.target.value) || 0; setMatRows(rows) }} className="w-full bg-white border border-[#E7E8EA] rounded-lg px-2 py-2 text-center text-xs text-[#111214] focus:outline-none focus:border-[#DC2626]" />
+  </div>
+  <div className="col-span-2">
+  <input type="number" min="0" step="0.1" value={row.qty_medium} onChange={e => { const rows = [...matRows]; rows[idx].qty_medium = Number(e.target.value) || 0; setMatRows(rows) }} className="w-full bg-white border border-[#E7E8EA] rounded-lg px-2 py-2 text-center text-xs text-[#111214] focus:outline-none focus:border-[#DC2626]" />
+  </div>
+  <div className="col-span-2">
+  <input type="number" min="0" step="0.1" value={row.qty_large} onChange={e => { const rows = [...matRows]; rows[idx].qty_large = Number(e.target.value) || 0; setMatRows(rows) }} className="w-full bg-white border border-[#E7E8EA] rounded-lg px-2 py-2 text-center text-xs text-[#111214] focus:outline-none focus:border-[#DC2626]" />
+  </div>
+  <div className="col-span-1">
+  <button type="button" onClick={() => setMatRows(rows => rows.filter((_, i) => i !== idx))} className="p-1.5 text-[#DC2626] hover:bg-[#FEF2F2] rounded-lg transition">
+  <FaTimes className="text-[10px]" />
+  </button>
+  </div>
+  </div>
+  ))}
+  <div className="text-[10px] text-[#9CA3AF] mt-1">الكميات حسب: صغير/متوسط/كبير (بالوحدة المذكورة لكل مادة)</div>
+  </div>
+  )}
+  </div>
+
+  <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[#E7E8EA] bg-[#F9FAFB]">
+  {materialsList.length > 0 && (
+  <button type="button" onClick={() => setMatRows(rows => [...rows, { material_id: '', qty_small: 0, qty_medium: 0, qty_large: 0 }])} className="px-3 py-2 bg-white border border-[#E7E8EA] text-[#111214] rounded-xl text-xs font-bold hover:bg-[#F1F2F3] transition flex items-center gap-1.5">
+  <FaPlus className="text-[10px]" />
+  إضافة مادة
+  </button>
+  )}
+  <div className="flex-1"></div>
+  <button onClick={() => setMaterialsService(null)} className="px-4 py-2.5 bg-white border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold hover:bg-[#F1F2F3] transition">
+  إلغاء
+  </button>
+  <button onClick={saveMaterials} disabled={matSaving} className="px-5 py-2.5 bg-[#C4121A] text-white rounded-xl text-sm font-bold hover:bg-red-700 transition disabled:opacity-40 flex items-center gap-2">
+  {matSaving ? <FaSpinner className="animate-spin text-xs" /> : <FaCheck className="text-xs" />}
+  حفظ المواد
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
+
+  {/* View Service Modal */}
   {viewingService && (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setViewingService(null)}>
   <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>

@@ -22,11 +22,12 @@ import {
 } from 'react-icons/fa'
 
 interface Vehicle {
- id: string
- customer_id: string
- make: string
- model: string
- year: number | null
+id: string
+  customer_id: string
+  make: string
+  model: string
+  size: string
+  year: number | null
  color: string | null
  plate_number: string | null
  vin: string | null
@@ -291,16 +292,26 @@ export default function VehiclesManager() {
  </span>
  </>
  )}
- {vehicle.customer && (
- <>
- <span className="w-1 h-1 rounded-full bg-[#E7E8EA]"></span>
- <span className="flex items-center gap-1">
- <FaUser className="text-[#62666D] text-[10px]" />
- {vehicle.customer.full_name}
- </span>
- </>
- )}
- </div>
+{vehicle.customer && (
+  <>
+  <span className="w-1 h-1 rounded-full bg-[#E7E8EA]"></span>
+  <span className="flex items-center gap-1">
+  <FaUser className="text-[#62666D] text-[10px]" />
+  {vehicle.customer.full_name}
+  </span>
+  </>
+  )}
+  <span className="w-1 h-1 rounded-full bg-[#E7E8EA]"></span>
+  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+  vehicle.size === 'small'
+  ? 'bg-[#EFF6FF] border-[#BFDBFE] text-blue-300'
+  : vehicle.size === 'large'
+  ? 'bg-[#FFF7ED] border-[#FDBA74] text-orange-300'
+  : 'bg-[#ECFDF5] border-[#A7F3D0] text-green-300'
+  }`}>
+  {vehicle.size === 'small' ? 'صغير' : vehicle.size === 'large' ? 'كبير' : 'متوسط'}
+  </span>
+  </div>
  </div>
  </div>
 

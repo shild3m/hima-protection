@@ -42,6 +42,7 @@ const VehicleSchema = z.object({
   customer_id: z.string().uuid('معرف العميل غير صحيح'),
   make: z.string().min(1, 'شركة الصنع مطلوبة').max(100),
   model: z.string().min(1, 'الموديل مطلوب').max(100),
+  size: z.enum(['small', 'medium', 'large']).default('medium'),
   year: z.number().int().min(1900).max(new Date().getFullYear() + 2).optional().nullable(),
   color: z.string().max(50).optional().nullable(),
   plate_number: z.string().max(20).optional().nullable(),
@@ -148,6 +149,7 @@ export async function createVehicle(input: VehicleInput) {
         customer_id: validated.customer_id,
         make: validated.make.trim(),
         model: validated.model.trim(),
+        size: validated.size,
         year: validated.year || null,
         color: validated.color || null,
         plate_number: validated.plate_number || null,
@@ -188,7 +190,7 @@ export async function updateVehicle(id: string, input: Partial<VehicleInput>) {
 
     const { data: existing } = await supabase
       .from('vehicles')
-      .select('id, customer_id, make, model, year, color, plate_number, vin, notes, is_active')
+      .select('id, customer_id, make, model, size, year, color, plate_number, vin, notes, is_active')
       .eq('id', id)
       .maybeSingle()
 
@@ -213,6 +215,7 @@ export async function updateVehicle(id: string, input: Partial<VehicleInput>) {
     }
     if (validated.make !== undefined) updateData.make = validated.make.trim()
     if (validated.model !== undefined) updateData.model = validated.model.trim()
+    if (validated.size !== undefined) updateData.size = validated.size
     if (validated.year !== undefined) updateData.year = validated.year || null
     if (validated.color !== undefined) updateData.color = validated.color || null
     if (validated.plate_number !== undefined) updateData.plate_number = validated.plate_number || null

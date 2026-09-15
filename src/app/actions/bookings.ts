@@ -381,6 +381,16 @@ export async function updateBookingStatus(
       createNotificationsForRole('bookings', 'read', notif.type, notif.title, notif.msg, 'bookings', id).catch(() => {})
     }
 
+    // Auto draft invoice when booking enters in_progress (security: non-fatal, no dup)
+    if (newStatus === 'in_progress') {
+      try {
+        const { ensureDraftInvoiceForBooking } = await import('@/app/actions/invoice-draft')
+        await ensureDraftInvoiceForBooking(id)
+      } catch {
+        // Invoice auto-generation failure must not block the status transition
+      }
+    }
+
     return { success: true as const, data }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
