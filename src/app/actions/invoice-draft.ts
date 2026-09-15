@@ -144,7 +144,6 @@ export async function createInvoiceWithPayment(
 
   const invoiceId = draft.data!.id
   const admin = getAdminClient()
-  const supabase = await createClient()
 
   const { data: invoice } = await admin
     .from('invoices')
@@ -157,7 +156,7 @@ export async function createInvoiceWithPayment(
   }
 
   // Reset: delete old payments and reset paid_amount so we start fresh
-  await supabase.from('payments').delete().eq('invoice_id', invoiceId)
+  await admin.from('payments').delete().eq('invoice_id', invoiceId)
 
   const amount = paymentType === 'full' ? invoice.total : (depositAmount || 0)
 
@@ -169,7 +168,7 @@ export async function createInvoiceWithPayment(
     return { success: false as const, error: `المبلغ (${amount}) أكبر من إجمالي الفاتورة (${invoice.total})` }
   }
 
-  const { error: insertErr } = await supabase
+  const { error: insertErr } = await admin
     .from('payments')
     .insert({
       invoice_id: invoiceId,
