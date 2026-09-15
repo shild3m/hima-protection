@@ -130,3 +130,150 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
 }
+
+export async function createInvoiceWithPayment(
+  bookingId: string,
+  paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online',
+  paymentType: 'full' | 'deposit',
+  depositAmount?: number,
+) {
+  const user = await requireAuth()
+
+  const draft = await ensureDraftInvoiceForBooking(bookingId)
+  if (!draft.success) return draft
+
+  const invoiceId = draft.data!.id
+  const admin = getAdminClient()
+  const supabase = await createClient()
+
+  const { data: invoice } = await admin
+    .from('invoices')
+    .select('id, total, paid_amount, status')
+    .eq('id', invoiceId)
+    .maybeSingle()
+
+  if (!invoice) {
+    return { success: false as const, error: 'الفاتورة غير موجودة' }
+  }
+
+  const amount = paymentType === 'full' ? invoice.total : (depositAmount || 0)
+
+  if (amount <= 0) {
+    return { success: false as const, error: 'المبلغ يجب أن يكون أكبر من صفر' }
+  }
+
+  if (amount > invoice.total) {
+    return { success: false as const, error: `المبلغ (${amount}) أكبر من إجمالي الفاتورة (${invoice.total})` }
+  }
+
+  const { error: insertErr } = await supabase
+    .from('payments')
+    .insert({
+      invoice_id: invoiceId,
+      amount,
+      payment_method: paymentMethod,
+      created_by: user.auth_user_id,
+    })
+
+  if (insertErr) {
+    console.error('Payment insert error:', insertErr)
+    return { success: false as const, error: 'تعذر تسجيل الدفعة' }
+  }
+
+  const newPaid = invoice.paid_amount + amount
+  const newStatus = newPaid >= invoice.total ? 'paid' : 'partially_paid'
+
+  await admin
+    .from('invoices')
+    .update({ paid_amount: newPaid, status: newStatus, updated_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+
+  await logAudit({
+    userId: user.auth_user_id,
+    action: 'payment_recorded_auto',
+    resourceType: 'payments',
+    resourceId: invoiceId,
+    newValues: { amount, payment_method: paymentMethod, payment_type: paymentType, new_paid: newPaid, new_status: newStatus },
+  })
+
+  return { success: true as const, data: { invoice_id: invoiceId, paid_amount: newPaid, status: newStatus } }
+}
+
+export async function getInvoicePaidStatus(invoiceId: string) {
+  await requireAuth()
+  const admin = getAdminClient()
+
+  const { data: invoice } = await admin
+    .from('invoices')
+    .select('id, total, paid_amount, status')
+    .eq('id', invoiceId)
+    .maybeSingle()
+
+  if (!invoice) {
+    return { success: false as const, error: 'الفاتورة غير موجودة' }
+  }
+
+  return {
+    success: true as const,
+    data: {
+      total: invoice.total,
+      paid_amount: invoice.paid_amount,
+      remaining: invoice.total - invoice.paid_amount,
+      is_fully_paid: invoice.paid_amount >= invoice.total,
+      status: invoice.status,
+    },
+  }
+}
+
+export async function recordRemainingPayment(
+  invoiceId: string,
+  paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online',
+) {
+  const user = await requireAuth()
+  const admin = getAdminClient()
+  const supabase = await createClient()
+
+  const { data: invoice } = await admin
+    .from('invoices')
+    .select('id, total, paid_amount, status')
+    .eq('id', invoiceId)
+    .maybeSingle()
+
+  if (!invoice) {
+    return { success: false as const, error: 'الفاتورة غير موجودة' }
+  }
+
+  const remaining = invoice.total - invoice.paid_amount
+  if (remaining <= 0) {
+    return { success: false as const, error: 'الفاتورة مدفوعة بالكامل' }
+  }
+
+  const { error: insertErr } = await supabase
+    .from('payments')
+    .insert({
+      invoice_id: invoiceId,
+      amount: remaining,
+      payment_method: paymentMethod,
+      created_by: user.auth_user_id,
+    })
+
+  if (insertErr) {
+    console.error('Remaining payment insert error:', insertErr)
+    return { success: false as const, error: 'تعذر تسجيل الدفعة' }
+  }
+
+  await admin
+    .from('invoices')
+    .update({ paid_amount: invoice.total, status: 'paid', updated_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+
+  await logAudit({
+    userId: user.auth_user_id,
+    action: 'payment_recorded_remaining',
+    resourceType: 'payments',
+    resourceId: invoiceId,
+    newValues: { amount: remaining, payment_method: paymentMethod, new_status: 'paid' },
+  })
+
+  return { success: true as const, data: { paid_amount: invoice.total, status: 'paid' } }
+}

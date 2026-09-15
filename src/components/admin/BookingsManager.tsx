@@ -161,11 +161,19 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const [serviceSearch, setServiceSearch] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
+ const [activeStatusDropdown, setActiveStatusDropdown] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null)
   const [deleteToken, setDeleteToken] = useState('')
   const [deleteError, setDeleteError] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [paymentPrompt, setPaymentPrompt] = useState<{ bookingId: string; serviceName: string; basePrice: number } | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<string>('cash')
+  const [paymentType, setPaymentType] = useState<'full' | 'deposit'>('full')
+  const [depositAmount, setDepositAmount] = useState('')
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+  const [unpaidPrompt, setUnpaidPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
+  const [unpaidMethod, setUnpaidMethod] = useState<string>('cash')
+  const [unpaidSubmitting, setUnpaidSubmitting] = useState(false)
  const [warrantyStart, setWarrantyStart] = useState('')
  const [warrantyEnd, setWarrantyEnd] = useState('')
  const [warrantyYears, setWarrantyYears] = useState(1)
@@ -349,11 +357,11 @@ useEffect(() => {
  }
  }
 
-const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyInput?: { years?: number; noWarranty?: boolean }) => {
+const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyInput?: { years?: number; noWarranty?: boolean }, paymentInput?: { method: string; type: 'full' | 'deposit'; amount?: number }) => {
   setUpdatingStatus(bookingId)
   try {
   const { updateBookingStatus } = await import('@/app/actions/bookings')
-  const result = await updateBookingStatus(bookingId, newStatus, undefined, warrantyInput)
+  const result = await updateBookingStatus(bookingId, newStatus, undefined, warrantyInput, paymentInput)
   if (result.success) {
   const baseMsg = newStatus === 'completed' ? 'تم إكمال الحجز وتسجيل الضمان' : 'تم تحديث حالة الحجز بنجاح'
   const msg = result.invoiceWarning ? `${baseMsg} ⚠️ ${result.invoiceWarning}` : baseMsg
@@ -375,12 +383,81 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleStatusUpdate = (bookingId: string, newStatus: string) => {
   if (newStatus === 'completed') {
-  setCompleteWarrantyYears(1)
-  setCompleteNoWarranty(false)
-  setCompletePrompt({ bookingId })
-  return
+    // Check if invoice is fully paid first
+    const booking = bookings.find(b => b.id === bookingId)
+    const linkedInvoice = (booking as BookingDetail)?.linked_invoice
+    if (linkedInvoice) {
+      handleCompleteWithCheck(bookingId, linkedInvoice.id)
+    } else {
+      setCompleteWarrantyYears(1)
+      setCompleteNoWarranty(false)
+      setCompletePrompt({ bookingId })
+    }
+    return
+  }
+  if (newStatus === 'in_progress') {
+    const booking = bookings.find(b => b.id === bookingId)
+    const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
+    const basePrice = booking?.service?.base_price || 0
+    setPaymentPrompt({ bookingId, serviceName, basePrice })
+    return
   }
   applyStatusUpdate(bookingId, newStatus)
+  }
+
+  const handleCompleteWithCheck = async (bookingId: string, invoiceId: string) => {
+    try {
+      const { getInvoicePaidStatus } = await import('@/app/actions/invoice-draft')
+      const result = await getInvoicePaidStatus(invoiceId)
+      if (result.success && !result.data!.is_fully_paid) {
+        setUnpaidPrompt({
+          bookingId,
+          invoiceId,
+          total: result.data!.total,
+          paid: result.data!.paid_amount,
+          remaining: result.data!.remaining,
+        })
+        return
+      }
+    } catch {}
+    setCompleteWarrantyYears(1)
+    setCompleteNoWarranty(false)
+    setCompletePrompt({ bookingId })
+  }
+
+  const confirmPayment = async () => {
+    if (!paymentPrompt) return
+    setPaymentSubmitting(true)
+    await applyStatusUpdate(paymentPrompt.bookingId, 'in_progress', undefined, {
+      method: paymentMethod,
+      type: paymentType,
+      amount: paymentType === 'deposit' ? Number(depositAmount) : undefined,
+    })
+    setPaymentSubmitting(false)
+    setPaymentPrompt(null)
+    setPaymentMethod('cash')
+    setPaymentType('full')
+    setDepositAmount('')
+  }
+
+  const confirmUnpaid = async () => {
+    if (!unpaidPrompt) return
+    setUnpaidSubmitting(true)
+    try {
+      const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
+      const result = await recordRemainingPayment(unpaidPrompt.invoiceId, unpaidMethod as 'cash' | 'card' | 'bank_transfer' | 'online')
+      if (result.success) {
+        setCompleteWarrantyYears(1)
+        setCompleteNoWarranty(false)
+        setCompletePrompt({ bookingId: unpaidPrompt.bookingId })
+      } else {
+        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    }
+    setUnpaidSubmitting(false)
+    setUnpaidPrompt(null)
   }
 
   const confirmComplete = async () => {
@@ -1704,6 +1781,109 @@ type="password"
   {completeSubmitting ? <><FaSpinner className="animate-spin" /> جاري الإكمال...</> : 'تأكيد الإكمال'}
   </button>
   <button onClick={() => { if (!completeSubmitting) setCompletePrompt(null) }} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+  إلغاء
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
+
+  {paymentPrompt && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => { if (!paymentSubmitting) setPaymentPrompt(null) }}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+  <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
+  <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+  <FaFileInvoiceDollar className="text-[#2563EB] text-sm" />
+  تفاصيل الدفع
+  </h3>
+  <button onClick={() => { if (!paymentSubmitting) setPaymentPrompt(null) }} className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F7F7F5] transition-all">
+  <FaTimes className="text-sm" />
+  </button>
+  </div>
+  <div className="px-5 py-5 space-y-4">
+  <div className="bg-[#F7F7F5] rounded-xl p-3 text-center">
+  <p className="text-xs text-[#62666D] font-bold mb-1">المبلغ المستحق</p>
+  <p className="text-2xl font-black text-[#111214]">{paymentPrompt.basePrice > 0 ? `${paymentPrompt.basePrice.toLocaleString()} ر.س` : '—'}</p>
+  <p className="text-xs text-[#9CA1A6] mt-1">{paymentPrompt.serviceName}</p>
+  </div>
+  <div className="space-y-2">
+  <label className="text-xs font-bold text-[#62666D]">طريقة الدفع</label>
+  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm font-bold text-[#111214] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all">
+  <option value="cash">نقدي</option>
+  <option value="card">بطاقة ائتمانية</option>
+  <option value="bank_transfer">تحويل بنكي</option>
+  <option value="online">دفع إلكتروني</option>
+  </select>
+  </div>
+  <div className="space-y-2">
+  <label className="text-xs font-bold text-[#62666D]">المبلغ</label>
+  <div className="flex gap-2">
+  <button onClick={() => setPaymentType('full')} className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${paymentType === 'full' ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-[#F7F7F5] text-[#111214] border-[#E7E8EA] hover:border-[#2563EB]'}`}>
+  المبلغ كامل
+  </button>
+  <button onClick={() => setPaymentType('deposit')} className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${paymentType === 'deposit' ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-[#F7F7F5] text-[#111214] border-[#E7E8EA] hover:border-[#2563EB]'}`}>
+  عربون
+  </button>
+  </div>
+  {paymentType === 'deposit' && (
+  <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="أدخل مبلغ العربون" className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm font-bold text-[#111214] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all mt-2" />
+  )}
+  </div>
+  </div>
+  <div className="px-6 pb-6 pt-2 flex gap-3">
+  <button onClick={confirmPayment} disabled={paymentSubmitting || (paymentType === 'deposit' && (!depositAmount || Number(depositAmount) <= 0))} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+  {paymentSubmitting ? <><FaSpinner className="animate-spin" /> جاري التأكيد...</> : 'تأكيد'}
+  </button>
+  <button onClick={() => { if (!paymentSubmitting) setPaymentPrompt(null) }} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+  إلغاء
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
+
+  {unpaidPrompt && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => { if (!unpaidSubmitting) setUnpaidPrompt(null) }}>
+  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+  <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
+  <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+  <FaExclamationTriangle className="text-[#D97706] text-sm" />
+  المبلغ المتبقي غير مكتمل
+  </h3>
+  <button onClick={() => { if (!unpaidSubmitting) setUnpaidPrompt(null) }} className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F7F7F5] transition-all">
+  <FaTimes className="text-sm" />
+  </button>
+  </div>
+  <div className="px-5 py-5 space-y-4">
+  <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 space-y-2">
+  <div className="flex justify-between text-sm">
+  <span className="text-[#62666D] font-bold">الإجمالي:</span>
+  <span className="font-black text-[#111214]">{unpaidPrompt.total.toLocaleString()} ر.س</span>
+  </div>
+  <div className="flex justify-between text-sm">
+  <span className="text-[#62666D] font-bold">المدفوع:</span>
+  <span className="font-black text-[#059669]">{unpaidPrompt.paid.toLocaleString()} ر.س</span>
+  </div>
+  <div className="border-t border-[#FDE68A] pt-2 flex justify-between text-sm">
+  <span className="text-[#D97706] font-bold">المتبقي:</span>
+  <span className="font-black text-[#D97706]">{unpaidPrompt.remaining.toLocaleString()} ر.س</span>
+  </div>
+  </div>
+  <div className="space-y-2">
+  <label className="text-xs font-bold text-[#62666D]">طريقة استلام المبلغ المتبقي</label>
+  <select value={unpaidMethod} onChange={e => setUnpaidMethod(e.target.value)} className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm font-bold text-[#111214] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20 outline-none transition-all">
+  <option value="cash">نقدي</option>
+  <option value="card">بطاقة ائتمانية</option>
+  <option value="bank_transfer">تحويل بنكي</option>
+  <option value="online">دفع إلكتروني</option>
+  </select>
+  </div>
+  </div>
+  <div className="px-6 pb-6 pt-2 flex gap-3">
+  <button onClick={confirmUnpaid} disabled={unpaidSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+  {unpaidSubmitting ? <><FaSpinner className="animate-spin" /> جاري التأكيد...</> : 'تأكيد استلام المبلغ المتبقي'}
+  </button>
+  <button onClick={() => { if (!unpaidSubmitting) setUnpaidPrompt(null) }} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
   إلغاء
   </button>
   </div>

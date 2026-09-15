@@ -281,6 +281,7 @@ export async function updateBookingStatus(
   newStatus: string,
   notes?: string,
   warrantyInput?: { years?: number; noWarranty?: boolean },
+  paymentInput?: { method: string; type: 'full' | 'deposit'; amount?: number },
 ) {
   const user = await requireAuth()
   if (!user.permissions.includes('bookings:update')) {
@@ -385,11 +386,24 @@ export async function updateBookingStatus(
     let invoiceWarning: string | null = null
     if (newStatus === 'in_progress' || newStatus === 'completed') {
       try {
-        const { ensureDraftInvoiceForBooking } = await import('@/app/actions/invoice-draft')
-        const draft = await ensureDraftInvoiceForBooking(id)
-        if (!draft.success) {
-          invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
-          console.error('Auto invoice failed for booking', id, invoiceWarning)
+        const { ensureDraftInvoiceForBooking, createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
+        if (paymentInput && paymentInput.method) {
+          const draft = await createInvoiceWithPayment(
+            id,
+            paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online',
+            paymentInput.type,
+            paymentInput.amount,
+          )
+          if (!draft.success) {
+            invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
+            console.error('Auto invoice with payment failed for booking', id, invoiceWarning)
+          }
+        } else {
+          const draft = await ensureDraftInvoiceForBooking(id)
+          if (!draft.success) {
+            invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
+            console.error('Auto invoice failed for booking', id, invoiceWarning)
+          }
         }
       } catch (e) {
         invoiceWarning = 'خطأ غير متوقع في إنشاء الفاتورة'
