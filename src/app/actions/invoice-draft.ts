@@ -16,10 +16,6 @@ function getAdminClient() {
 
 export async function ensureDraftInvoiceForBooking(bookingId: string) {
   const user = await requireAuth()
-  if (!user.permissions.includes('invoices:create')) {
-    return { success: false as const, error: 'غير مصرح' }
-  }
-
   try {
     const admin = getAdminClient()
     const supabase = await createClient()
