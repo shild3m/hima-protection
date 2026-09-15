@@ -381,8 +381,8 @@ export async function updateBookingStatus(
       createNotificationsForRole('bookings', 'read', notif.type, notif.title, notif.msg, 'bookings', id).catch(() => {})
     }
 
-    // Auto draft invoice when booking enters in_progress (security: non-fatal, no dup)
-    if (newStatus === 'in_progress') {
+    // Auto draft invoice when booking enters in_progress or completed (non-fatal, idempotent)
+    if (newStatus === 'in_progress' || newStatus === 'completed') {
       try {
         const { ensureDraftInvoiceForBooking } = await import('@/app/actions/invoice-draft')
         const draft = await ensureDraftInvoiceForBooking(id)
@@ -390,7 +390,6 @@ export async function updateBookingStatus(
           console.error('Auto invoice failed for booking', id, draft.error)
         }
       } catch (e) {
-        // Invoice auto-generation failure must not block the status transition
         console.error('Auto invoice exception for booking', id, e)
       }
     }
