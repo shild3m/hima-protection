@@ -381,21 +381,23 @@ export async function updateBookingStatus(
       createNotificationsForRole('bookings', 'read', notif.type, notif.title, notif.msg, 'bookings', id).catch(() => {})
     }
 
-    // Auto draft invoice when booking enters in_progress (security: non-fatal, no dup)
+    // Auto draft invoice when booking enters in_progress (non-fatal, idempotent)
+    let invoiceWarning: string | null = null
     if (newStatus === 'in_progress') {
       try {
         const { ensureDraftInvoiceForBooking } = await import('@/app/actions/invoice-draft')
         const draft = await ensureDraftInvoiceForBooking(id)
         if (!draft.success) {
-          console.error('Auto invoice failed for booking', id, draft.error)
+          invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
+          console.error('Auto invoice failed for booking', id, invoiceWarning)
         }
       } catch (e) {
-        // Invoice auto-generation failure must not block the status transition
+        invoiceWarning = 'خطأ غير متوقع في إنشاء الفاتورة'
         console.error('Auto invoice exception for booking', id, e)
       }
     }
 
-    return { success: true as const, data }
+    return { success: true as const, data, invoiceWarning }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }

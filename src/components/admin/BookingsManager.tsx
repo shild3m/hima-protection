@@ -355,7 +355,9 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   const { updateBookingStatus } = await import('@/app/actions/bookings')
   const result = await updateBookingStatus(bookingId, newStatus, undefined, warrantyInput)
   if (result.success) {
-  setNotification({ type: 'success', message: newStatus === 'completed' ? 'تم إكمال الحجز وتسجيل الضمان' : 'تم تحديث حالة الحجز بنجاح' })
+  const baseMsg = newStatus === 'completed' ? 'تم إكمال الحجز وتسجيل الضمان' : 'تم تحديث حالة الحجز بنجاح'
+  const msg = result.invoiceWarning ? `${baseMsg} ⚠️ ${result.invoiceWarning}` : baseMsg
+  setNotification({ type: result.invoiceWarning ? 'error' : 'success', message: msg })
   fetchBookings()
   fetchStats()
   if (viewingBooking?.id === bookingId) {
