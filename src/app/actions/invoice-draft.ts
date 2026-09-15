@@ -1,10 +1,17 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 
 const ALLOWED_EXISTING_STATUSES = ['draft', 'issued', 'partially_paid', 'paid']
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function ensureDraftInvoiceForBooking(bookingId: string) {
   const user = await requireAuth()
@@ -13,9 +20,9 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
   }
 
   try {
-    const supabase = await createClient()
+    const admin = getAdminClient()
 
-    const { data: booking } = await supabase
+    const { data: booking } = await admin
       .from('bookings')
       .select(`
         id, customer_id, vehicle_id, service_id, preferred_date, preferred_time, service_name_snapshot,
@@ -33,7 +40,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
 
     // Fallback: if service_id is null (old bookings), look up by service_name_snapshot
     if (!service && booking.service_name_snapshot) {
-      const { data: fallbackService } = await supabase
+      const { data: fallbackService } = await admin
         .from('services')
         .select('id, name, base_price, duration_minutes')
         .eq('name', booking.service_name_snapshot)
@@ -42,7 +49,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
     }
 
     // No duplicate: if a live invoice already exists for this booking, reuse it
-    const { data: existing } = await supabase
+    const { data: existing } = await admin
       .from('invoices')
       .select('id, invoice_number, status')
       .eq('booking_id', bookingId)
@@ -88,7 +95,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       return { success: false as const, error: 'لا توجد خدمات للحجز لإنشاء الفاتورة' }
     }
 
-    const { data: result, error } = await supabase.rpc('create_invoice', {
+    const { data: result, error } = await admin.rpc('create_invoice', {
       p_customer_id: booking.customer_id,
       p_vehicle_id: booking.vehicle_id || null,
       p_booking_id: booking.id,
