@@ -381,9 +381,9 @@ export async function updateBookingStatus(
       createNotificationsForRole('bookings', 'read', notif.type, notif.title, notif.msg, 'bookings', id).catch(() => {})
     }
 
-    // Auto draft invoice when booking enters in_progress (non-fatal, idempotent)
+    // Auto draft invoice when booking enters in_progress or completed (non-fatal, idempotent)
     let invoiceWarning: string | null = null
-    if (newStatus === 'in_progress') {
+    if (newStatus === 'in_progress' || newStatus === 'completed') {
       try {
         const { ensureDraftInvoiceForBooking } = await import('@/app/actions/invoice-draft')
         const draft = await ensureDraftInvoiceForBooking(id)
