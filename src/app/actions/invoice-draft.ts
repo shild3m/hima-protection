@@ -108,7 +108,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       p_items: items,
     })
 
-    if (error || !result || !result.success || !result.data?.id) {
+    if (error || !result || !result.success || !result.invoice_id) {
       const errMsg = error?.message || JSON.stringify(result) || 'unknown'
       console.error('Auto invoice RPC error:', errMsg)
       return { success: false as const, error: `تعذر إنشاء الفاتورة: ${errMsg}` }
@@ -118,7 +118,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       userId: user.auth_user_id,
       action: 'invoice_created_auto',
       resourceType: 'invoices',
-      resourceId: result.data.id,
+      resourceId: result.invoice_id,
       newValues: {
         booking_id: booking.id,
         customer_id: booking.customer_id,
@@ -128,7 +128,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
 
     return {
       success: true as const,
-      data: { id: result.data.id, invoice_number: result.data.invoice_number, status: 'draft' },
+      data: { id: result.invoice_id, invoice_number: result.invoice_number, status: 'draft' },
     }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
