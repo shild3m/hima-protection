@@ -174,6 +174,7 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [unpaidPrompt, setUnpaidPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
   const [unpaidMethod, setUnpaidMethod] = useState<string>('cash')
   const [unpaidSubmitting, setUnpaidSubmitting] = useState(false)
+ const [completeAfterPayment, setCompleteAfterPayment] = useState(false)
  const [warrantyStart, setWarrantyStart] = useState('')
  const [warrantyEnd, setWarrantyEnd] = useState('')
  const [warrantyYears, setWarrantyYears] = useState(1)
@@ -383,15 +384,15 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleStatusUpdate = (bookingId: string, newStatus: string) => {
   if (newStatus === 'completed') {
-    // Check if invoice is fully paid first
     const booking = bookings.find(b => b.id === bookingId)
     const linkedInvoice = (booking as BookingDetail)?.linked_invoice
     if (linkedInvoice) {
       handleCompleteWithCheck(bookingId, linkedInvoice.id)
     } else {
-      setCompleteWarrantyYears(1)
-      setCompleteNoWarranty(false)
-      setCompletePrompt({ bookingId })
+      const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
+      const basePrice = booking?.service?.base_price || 0
+      setCompleteAfterPayment(true)
+      setPaymentPrompt({ bookingId, serviceName, basePrice })
     }
     return
   }
@@ -428,6 +429,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   const confirmPayment = async () => {
     if (!paymentPrompt) return
     setPaymentSubmitting(true)
+    const shouldComplete = completeAfterPayment
     await applyStatusUpdate(paymentPrompt.bookingId, 'in_progress', undefined, {
       method: paymentMethod,
       type: paymentType,
@@ -438,6 +440,12 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     setPaymentMethod('cash')
     setPaymentType('full')
     setDepositAmount('')
+    if (shouldComplete) {
+      setCompleteAfterPayment(false)
+      setCompleteWarrantyYears(1)
+      setCompleteNoWarranty(false)
+      setCompletePrompt({ bookingId: paymentPrompt.bookingId })
+    }
   }
 
   const confirmUnpaid = async () => {
