@@ -388,7 +388,6 @@ export async function updateBookingStatus(
       try {
         const { ensureDraftInvoiceForBooking, createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
         if (paymentInput && paymentInput.method) {
-          console.error('[DEBUG] paymentInput:', JSON.stringify(paymentInput))
           const draft = await createInvoiceWithPayment(
             id,
             paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online',
@@ -397,14 +396,16 @@ export async function updateBookingStatus(
           )
           if (!draft.success) {
             invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
-            console.error('Auto invoice with payment failed for booking', id, invoiceWarning)
           }
         } else {
           const draft = await ensureDraftInvoiceForBooking(id)
           if (!draft.success) {
             invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
-            console.error('Auto invoice failed for booking', id, invoiceWarning)
           }
+        }
+        // DEBUG: show payment info in warning so user can see it
+        if (!invoiceWarning && paymentInput) {
+          invoiceWarning = `debug: received payment ${JSON.stringify(paymentInput)}`
         }
       } catch (e) {
         invoiceWarning = 'خطأ غير متوقع في إنشاء الفاتورة'
