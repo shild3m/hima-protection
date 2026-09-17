@@ -1969,7 +1969,7 @@ type="password"
    </div>
    <div className="px-5 pb-5 pt-2 flex gap-3">
    <button onClick={handleInvoiceStatusComplete} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-   {invoiceStatusPrompt.remaining > 0 ? 'استلام المتبقي وإكمال' : 'إكمال'}
+   {invoiceStatusPrompt.remaining > 0 ? 'تأكيد استلام الدفعة المتبقية' : 'إكمال'}
    </button>
    <button onClick={handleInvoiceStatusChange} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
    تغيير الدفع
