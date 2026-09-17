@@ -168,6 +168,19 @@ export async function createInvoiceWithPayment(
     }
   }
 
+  // If invoice is paid or partially_paid (booking was reset), reset to issued first
+  if (invoice.status === 'paid' || invoice.status === 'partially_paid') {
+    const { error: resetErr } = await admin
+      .from('invoices')
+      .update({ status: 'issued', paid_amount: 0, updated_at: new Date().toISOString() })
+      .eq('id', invoiceId)
+
+    if (resetErr) {
+      console.error('Invoice reset error:', resetErr)
+      return { success: false as const, error: `تعذر إعادة الفاتورة: ${resetErr.message}` }
+    }
+  }
+
   // Reset: delete old payments and reset paid_amount so we start fresh
   await admin.from('payments').delete().eq('invoice_id', invoiceId)
 
