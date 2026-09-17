@@ -388,6 +388,7 @@ export async function updateBookingStatus(
       try {
         const { ensureDraftInvoiceForBooking, createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
         if (paymentInput && paymentInput.method) {
+          console.error('[DEBUG] paymentInput:', JSON.stringify(paymentInput))
           const draft = await createInvoiceWithPayment(
             id,
             paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online',
