@@ -1966,19 +1966,12 @@ type="password"
    <span className="font-black text-[#D97706]">{invoiceStatusPrompt.remaining.toLocaleString()} ر.س</span>
    </div>
    </div>
-   {invoiceStatusPrompt.remaining > 0 && (
-   <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-3 text-center">
-   <span className="text-[#DC2626] text-xs font-bold">يجب دفع المبلغ المتبقي أولاً لإتمام الحجز</span>
-   </div>
-   )}
    </div>
    <div className="px-5 pb-5 pt-2 flex gap-3">
-   {invoiceStatusPrompt.remaining <= 0 && (
    <button onClick={handleInvoiceStatusComplete} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-   إكمال
+   {invoiceStatusPrompt.remaining > 0 ? 'استلام المتبقي وإكمال' : 'إكمال'}
    </button>
-   )}
-   <button onClick={handleInvoiceStatusChange} className={`${invoiceStatusPrompt.remaining > 0 ? 'flex-1' : 'flex-1'} px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200`}>
+   <button onClick={handleInvoiceStatusChange} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
    تغيير الدفع
    </button>
    </div>
