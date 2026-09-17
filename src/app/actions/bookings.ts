@@ -403,10 +403,6 @@ export async function updateBookingStatus(
             invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
           }
         }
-        // DEBUG: show payment info in warning so user can see it
-        if (!invoiceWarning && paymentInput) {
-          invoiceWarning = `debug: received payment ${JSON.stringify(paymentInput)}`
-        }
       } catch (e) {
         invoiceWarning = 'خطأ غير متوقع في إنشاء الفاتورة'
         console.error('Auto invoice exception for booking', id, e)
