@@ -47,10 +47,12 @@ interface Pagination {
 type Notification = { type: 'success' | 'error'; message: string } | null
 
 const PAYMENT_METHOD_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
- cash: { label: 'نقدي', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
- card: { label: 'بطاقة', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
- bank_transfer: { label: 'تحويل بنكي', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
- online: { label: 'أونلاين', color: 'text-[#0891B2]', bg: 'bg-[#ECFEFF] border-[#A5F3FC]' },
+  cash: { label: 'نقدي', color: 'text-[#059669]', bg: 'bg-[#ECFDF5] border-[#A7F3D0]' },
+  card: { label: 'بطاقة', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
+  bank_transfer: { label: 'تحويل بنكي', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
+  online: { label: 'أونلاين', color: 'text-[#0891B2]', bg: 'bg-[#ECFEFF] border-[#A5F3FC]' },
+  tabby: { label: 'تابي', color: 'text-[#6366F1]', bg: 'bg-[#EEF2FF] border-[#C7D2FE]' },
+  tamara: { label: 'تمارا', color: 'text-[#EC4899]', bg: 'bg-[#FDF2F8] border-[#FBCFE8]' },
 }
 
 function formatCurrency(amount: number): string {
@@ -159,7 +161,7 @@ export default function PaymentsManager() {
      const result = await recordPayment({
        invoice_id: paymentForm.invoice_id,
        amount: paymentForm.amount,
-        payment_method: paymentForm.payment_method as 'cash' | 'card' | 'bank_transfer' | 'online',
+        payment_method: paymentForm.payment_method as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara',
        reference_number: paymentForm.reference_number || undefined,
        notes: paymentForm.notes || undefined,
      })
@@ -426,6 +428,8 @@ export default function PaymentsManager() {
   <option value="card">بطاقة</option>
   <option value="bank_transfer">تحويل بنكي</option>
   <option value="online">أونلاين</option>
+  <option value="tabby">تابي</option>
+  <option value="tamara">تمارا</option>
   </select>
   </div>
   <div>

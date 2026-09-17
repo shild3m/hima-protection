@@ -133,7 +133,7 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
 
 export async function createInvoiceWithPayment(
   bookingId: string,
-  paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online',
+  paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara',
   paymentType: 'full' | 'deposit',
   depositAmount?: number,
 ) {
@@ -153,6 +153,19 @@ export async function createInvoiceWithPayment(
 
   if (!invoice) {
     return { success: false as const, error: 'الفاتورة غير موجودة' }
+  }
+
+  // If invoice is still draft, issue it first
+  if (invoice.status === 'draft') {
+    const { error: issueErr } = await admin
+      .from('invoices')
+      .update({ status: 'issued', updated_at: new Date().toISOString() })
+      .eq('id', invoiceId)
+
+    if (issueErr) {
+      console.error('Invoice issue error:', issueErr)
+      return { success: false as const, error: `تعذر إصدار الفاتورة: ${issueErr.message}` }
+    }
   }
 
   // Reset: delete old payments and reset paid_amount so we start fresh
@@ -182,6 +195,7 @@ export async function createInvoiceWithPayment(
     return { success: false as const, error: 'تعذر تسجيل الدفعة' }
   }
 
+  // issued → partially_paid or paid
   const newStatus = amount >= invoice.total ? 'paid' : 'partially_paid'
 
   const { error: updateErr } = await admin
@@ -233,7 +247,7 @@ export async function getInvoicePaidStatus(invoiceId: string) {
 
 export async function recordRemainingPayment(
   invoiceId: string,
-  paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online',
+  paymentMethod: 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara',
 ) {
   const user = await requireAuth()
   const admin = getAdminClient()

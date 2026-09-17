@@ -36,7 +36,7 @@ function validatePageSize(value: unknown): number {
 const PaymentSchema = z.object({
   invoice_id: z.string().uuid('معرف الفاتورة غير صحيح'),
   amount: z.number().positive('المبلغ يجب أن يكون أكبر من صفر'),
-  payment_method: z.enum(['cash', 'card', 'bank_transfer', 'online'], {
+  payment_method: z.enum(['cash', 'card', 'bank_transfer', 'online', 'tabby', 'tamara'], {
     message: 'طريقة الدفع غير صحيحة',
   }),
   reference_number: z.string().max(100).optional().nullable(),

@@ -10,10 +10,12 @@ export const metadata = {
 
 const SIZE_LABELS: Record<string, string> = { small: 'صغيرة', medium: 'متوسطة', large: 'كبيرة' }
 const METHOD_LABELS: Record<string, string> = {
-  cash: 'نقدي',
-  card: 'بطاقة',
-  bank_transfer: 'تحويل بنكي',
-  online: 'أونلاين',
+   cash: 'نقدي',
+   card: 'بطاقة',
+   bank_transfer: 'تحويل بنكي',
+   online: 'أونلاين',
+   tabby: 'تابي',
+   tamara: 'تمارا',
 }
 
 function fmt(n: number) {

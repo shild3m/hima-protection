@@ -24,9 +24,11 @@ import {
   FaMoneyBill,
   FaWrench,
   FaFileExport,
-  FaCreditCard,
-  FaUniversity,
-} from 'react-icons/fa'
+   FaCreditCard,
+   FaUniversity,
+   FaGlobe,
+   FaMobileAlt,
+ } from 'react-icons/fa'
 
 interface Invoice {
  id: string
@@ -82,10 +84,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
- cash: 'نقدي',
- card: 'بطاقة',
- bank_transfer: 'تحويل بنكي',
- online: 'أونلاين',
+  cash: 'نقدي',
+  card: 'بطاقة',
+  bank_transfer: 'تحويل بنكي',
+  online: 'أونلاين',
+  tabby: 'تابي',
+  tamara: 'تمارا',
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -146,7 +150,7 @@ const [showRefundModal, setShowRefundModal] = useState(false)
   const [refundSubmitting, setRefundSubmitting] = useState(false)
 
   const [exportTarget, setExportTarget] = useState<Invoice | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'bank_transfer'>('cash')
+   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara'>('cash')
   const [exporting, setExporting] = useState(false)
 
  useEffect(() => {
@@ -692,9 +696,12 @@ const handleOpenRefund = (invoiceId: string) => {
   <p className="text-xs font-bold text-[#62666D] mb-2">طريقة الدفع</p>
   <div className="grid grid-cols-3 gap-2 mb-5">
   {([
-  { key: 'cash' as const, label: 'نقدي', icon: FaMoneyBill },
-  { key: 'card' as const, label: 'بطاقة', icon: FaCreditCard },
-  { key: 'bank_transfer' as const, label: 'تحويل بنكي', icon: FaUniversity },
+   { key: 'cash' as const, label: 'نقدي', icon: FaMoneyBill },
+   { key: 'card' as const, label: 'بطاقة', icon: FaCreditCard },
+   { key: 'bank_transfer' as const, label: 'تحويل بنكي', icon: FaUniversity },
+   { key: 'online' as const, label: 'أونلاين', icon: FaGlobe },
+   { key: 'tabby' as const, label: 'تابي', icon: FaMobileAlt },
+   { key: 'tamara' as const, label: 'تمارا', icon: FaMobileAlt },
   ]).map(({ key, label, icon: Icon }) => (
   <button
   key={key}

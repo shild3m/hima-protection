@@ -457,14 +457,14 @@ export async function getInvoiceStats() {
 
 const ExportSchema = z.object({
   invoice_id: z.string().uuid('معرف الفاتورة غير صحيح'),
-  payment_method: z.enum(['cash', 'card', 'bank_transfer'], {
+  payment_method: z.enum(['cash', 'card', 'bank_transfer', 'online', 'tabby', 'tamara'], {
     message: 'طريقة الدفع غير صحيحة',
   }),
 })
 
 export async function exportInvoice(input: {
   invoice_id: string
-  payment_method: 'cash' | 'card' | 'bank_transfer'
+  payment_method: 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara'
 }) {
   const user = await requireAuth()
   if (!user.permissions.includes('invoices:update')) {

@@ -445,7 +445,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     setUnpaidSubmitting(true)
     try {
       const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
-      const result = await recordRemainingPayment(unpaidPrompt.invoiceId, unpaidMethod as 'cash' | 'card' | 'bank_transfer' | 'online')
+      const result = await recordRemainingPayment(unpaidPrompt.invoiceId, unpaidMethod as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara')
       if (result.success) {
         setCompleteWarrantyYears(1)
         setCompleteNoWarranty(false)
@@ -1732,7 +1732,7 @@ type="password"
   {invoiceView.data.payments && invoiceView.data.payments.length > 0 && invoiceView.data.payments[0]?.payment_method && (
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
-  <span className="text-[#111214] font-black text-xs">{invoiceView.data.payments[0].payment_method === 'cash' ? 'نقدي' : invoiceView.data.payments[0].payment_method === 'card' ? 'بطاقة' : invoiceView.data.payments[0].payment_method === 'bank_transfer' ? 'تحويل بنكي' : invoiceView.data.payments[0].payment_method}</span>
+   <span className="text-[#111214] font-black text-xs">{invoiceView.data.payments[0].payment_method === 'cash' ? 'نقدي' : invoiceView.data.payments[0].payment_method === 'card' ? 'بطاقة' : invoiceView.data.payments[0].payment_method === 'bank_transfer' ? 'تحويل بنكي' : invoiceView.data.payments[0].payment_method === 'tabby' ? 'تابي' : invoiceView.data.payments[0].payment_method === 'tamara' ? 'تمارا' : invoiceView.data.payments[0].payment_method}</span>
   </div>
   )}
   </div>
@@ -1829,14 +1829,16 @@ type="password"
   <div className="space-y-2">
   <label className="text-xs font-bold text-[#62666D]">طريقة الدفع</label>
   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm font-bold text-[#111214] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all">
-  <option value="cash">نقدي</option>
-  <option value="card">بطاقة ائتمانية</option>
-  <option value="bank_transfer">تحويل بنكي</option>
-  <option value="online">دفع إلكتروني</option>
-  </select>
-  </div>
-  <div className="space-y-2">
-  <label className="text-xs font-bold text-[#62666D]">المبلغ</label>
+   <option value="cash">نقدي</option>
+   <option value="card">بطاقة ائتمانية</option>
+   <option value="bank_transfer">تحويل بنكي</option>
+   <option value="online">دفع إلكتروني</option>
+   <option value="tabby">تابي</option>
+   <option value="tamara">تمارا</option>
+   </select>
+   </div>
+   <div className="space-y-2">
+   <label className="text-xs font-bold text-[#62666D]">المبلغ</label>
   <div className="flex gap-2">
   <button onClick={() => setPaymentType('full')} className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${paymentType === 'full' ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-[#F7F7F5] text-[#111214] border-[#E7E8EA] hover:border-[#2563EB]'}`}>
   المبلغ كامل
@@ -1892,14 +1894,16 @@ type="password"
   <div className="space-y-2">
   <label className="text-xs font-bold text-[#62666D]">طريقة استلام المبلغ المتبقي</label>
   <select value={unpaidMethod} onChange={e => setUnpaidMethod(e.target.value)} className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm font-bold text-[#111214] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20 outline-none transition-all">
-  <option value="cash">نقدي</option>
-  <option value="card">بطاقة ائتمانية</option>
-  <option value="bank_transfer">تحويل بنكي</option>
-  <option value="online">دفع إلكتروني</option>
-  </select>
-  </div>
-  </div>
-  <div className="px-6 pb-6 pt-2 flex gap-3">
+   <option value="cash">نقدي</option>
+   <option value="card">بطاقة ائتمانية</option>
+   <option value="bank_transfer">تحويل بنكي</option>
+   <option value="online">دفع إلكتروني</option>
+   <option value="tabby">تابي</option>
+   <option value="tamara">تمارا</option>
+   </select>
+   </div>
+   </div>
+   <div className="px-6 pb-6 pt-2 flex gap-3">
   <button onClick={confirmUnpaid} disabled={unpaidSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
   {unpaidSubmitting ? <><FaSpinner className="animate-spin" /> جاري التأكيد...</> : 'تأكيد استلام المبلغ المتبقي'}
   </button>

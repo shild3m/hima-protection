@@ -390,7 +390,7 @@ export async function updateBookingStatus(
         if (paymentInput && paymentInput.method) {
           const draft = await createInvoiceWithPayment(
             id,
-            paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online',
+            paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara',
             paymentInput.type,
             paymentInput.amount,
           )
