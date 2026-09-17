@@ -173,7 +173,7 @@ export async function getBookings(
       const ids = rows.map(b => b.id as string)
       const { data: invData, error: invErr } = await supabase
         .from('invoices')
-        .select('id, invoice_number, status, booking_id')
+        .select('id, invoice_number, status, booking_id, total, paid_amount')
         .in('booking_id', ids)
       if (invErr) {
         console.error('Get bookings invoice lookup error:', invErr)
@@ -183,7 +183,7 @@ export async function getBookings(
           success: true as const,
           data: mapped.map(b => {
             const iv = invByBooking.get(b.id as string)
-            return { ...b, linked_invoice: iv ? { id: iv.id, invoice_number: iv.invoice_number, status: iv.status } : null }
+            return { ...b, linked_invoice: iv ? { id: iv.id, invoice_number: iv.invoice_number, status: iv.status, total: iv.total, paid_amount: iv.paid_amount } : null }
           }),
           pagination: {
             page: currentPage,

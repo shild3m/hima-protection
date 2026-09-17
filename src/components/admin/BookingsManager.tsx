@@ -59,7 +59,7 @@ status: string
  service_date?: string | null
  warranty_start_date?: string | null
  warranty_end_date?: string | null
- linked_invoice?: { id: string; invoice_number: string; status: string } | null
+ linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number } | null
 }
 
 interface BookingDetail extends Booking {
