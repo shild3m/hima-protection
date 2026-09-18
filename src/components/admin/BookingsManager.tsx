@@ -174,8 +174,10 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [unpaidPrompt, setUnpaidPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
   const [unpaidMethod, setUnpaidMethod] = useState<string>('cash')
   const [unpaidSubmitting, setUnpaidSubmitting] = useState(false)
- const [completeAfterPayment, setCompleteAfterPayment] = useState(false)
- const [invoiceStatusPrompt, setInvoiceStatusPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
+  const [completeAfterPayment, setCompleteAfterPayment] = useState(false)
+ const [invoiceStatusPrompt, setInvoiceStatusPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number; mode: 'in_progress' | 'completed' } | null>(null)
+ const [notFullyPaidPrompt, setNotFullyPaidPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
+ const [notFullyPaidSubmitting, setNotFullyPaidSubmitting] = useState(false)
  const [warrantyStart, setWarrantyStart] = useState('')
  const [warrantyEnd, setWarrantyEnd] = useState('')
  const [warrantyYears, setWarrantyYears] = useState(1)
@@ -394,6 +396,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         total: linkedInvoice.total,
         paid: linkedInvoice.paid_amount,
         remaining: linkedInvoice.total - linkedInvoice.paid_amount,
+        mode: 'completed',
       })
     } else {
       const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
@@ -405,9 +408,21 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   }
   if (newStatus === 'in_progress') {
     const booking = bookings.find(b => b.id === bookingId)
-    const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
-    const basePrice = booking?.service?.base_price || 0
-    setPaymentPrompt({ bookingId, serviceName, basePrice })
+    const linkedInvoice = (booking as BookingDetail)?.linked_invoice
+    if (linkedInvoice) {
+      setInvoiceStatusPrompt({
+        bookingId,
+        invoiceId: linkedInvoice.id,
+        total: linkedInvoice.total,
+        paid: linkedInvoice.paid_amount,
+        remaining: linkedInvoice.total - linkedInvoice.paid_amount,
+        mode: 'in_progress',
+      })
+    } else {
+      const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
+      const basePrice = booking?.service?.base_price || 0
+      setPaymentPrompt({ bookingId, serviceName, basePrice })
+    }
     return
   }
   applyStatusUpdate(bookingId, newStatus)
@@ -446,6 +461,72 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     setCompleteAfterPayment(false)
     setPaymentPrompt({ bookingId: invoiceStatusPrompt.bookingId, serviceName, basePrice: invoiceStatusPrompt.total })
     setInvoiceStatusPrompt(null)
+  }
+
+  const handleInvoiceStatusFullPayment = async () => {
+    if (!invoiceStatusPrompt) return
+    try {
+      const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
+      const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
+      if (result.success) {
+        setInvoiceStatusPrompt(null)
+        setCompleteWarrantyYears(1)
+        setCompleteNoWarranty(false)
+        setCompletePrompt({ bookingId: invoiceStatusPrompt.bookingId })
+      } else {
+        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    }
+  }
+
+  const handleInvoiceStatusDeposit = async () => {
+    if (!invoiceStatusPrompt) return
+    try {
+      const { createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
+      const result = await createInvoiceWithPayment(invoiceStatusPrompt.bookingId, 'cash', 'deposit', invoiceStatusPrompt.paid)
+      if (result.success) {
+        setNotFullyPaidPrompt({
+          bookingId: invoiceStatusPrompt.bookingId,
+          invoiceId: invoiceStatusPrompt.invoiceId,
+          total: invoiceStatusPrompt.total,
+          paid: invoiceStatusPrompt.paid,
+          remaining: invoiceStatusPrompt.remaining,
+        })
+        setInvoiceStatusPrompt(null)
+      } else {
+        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    }
+  }
+
+  const handleNotFullyPaidConfirm = async () => {
+    if (!notFullyPaidPrompt) return
+    setNotFullyPaidSubmitting(true)
+    try {
+      const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
+      const result = await recordRemainingPayment(notFullyPaidPrompt.invoiceId, 'cash')
+      if (result.success) {
+        setNotFullyPaidPrompt(null)
+        setCompleteWarrantyYears(1)
+        setCompleteNoWarranty(false)
+        setCompletePrompt({ bookingId: notFullyPaidPrompt.bookingId })
+      } else {
+        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    }
+    setNotFullyPaidSubmitting(false)
+  }
+
+  const handleNotFullyPaidEnd = async () => {
+    if (!notFullyPaidPrompt) return
+    await applyStatusUpdate(notFullyPaidPrompt.bookingId, 'in_progress')
+    setNotFullyPaidPrompt(null)
   }
 
   const confirmPayment = async () => {
@@ -1967,12 +2048,58 @@ type="password"
    </div>
    </div>
    </div>
+   {invoiceStatusPrompt.mode === 'in_progress' ? (
    <div className="px-5 pb-5 pt-2 flex gap-3">
    <button onClick={handleInvoiceStatusComplete} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
    {invoiceStatusPrompt.remaining > 0 ? 'استلام المتبقي وإكمال' : 'إكمال'}
    </button>
    <button onClick={handleInvoiceStatusChange} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
-   تغيير الدفع
+   تعديل الدفع
+   </button>
+   </div>
+   ) : (
+   <div className="px-5 pb-5 pt-2 flex gap-3">
+   <button onClick={handleInvoiceStatusFullPayment} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+   المبلغ كامل
+   </button>
+   <button onClick={handleInvoiceStatusDeposit} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   عربون
+   </button>
+   </div>
+   )}
+   </div>
+   </div>
+   )}
+
+   {notFullyPaidPrompt && (
+   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => { if (!notFullyPaidSubmitting) setNotFullyPaidPrompt(null) }}>
+   <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+   <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3]">
+   <h3 className="text-base font-bold text-[#DC2626]">غير مدفوعة بالكامل</h3>
+   <p className="text-xs text-[#62666D] mt-1">لا يمكن إكمال الحجز قبل إكمال الفاتورة</p>
+   </div>
+   <div className="px-5 py-5 space-y-3">
+   <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 space-y-2">
+   <div className="flex justify-between text-sm">
+   <span className="text-[#62666D] font-bold">الإجمالي:</span>
+   <span className="font-black text-[#111214]">{notFullyPaidPrompt.total.toLocaleString()} ر.س</span>
+   </div>
+   <div className="flex justify-between text-sm">
+   <span className="text-[#62666D] font-bold">المدفوع:</span>
+   <span className="font-black text-[#059669]">{notFullyPaidPrompt.paid.toLocaleString()} ر.س</span>
+   </div>
+   <div className="border-t border-[#FECACA] pt-2 flex justify-between text-sm">
+   <span className="text-[#DC2626] font-bold">المتبقي:</span>
+   <span className="font-black text-[#DC2626]">{notFullyPaidPrompt.remaining.toLocaleString()} ر.س</span>
+   </div>
+   </div>
+   </div>
+   <div className="px-5 pb-5 pt-2 flex gap-3">
+   <button onClick={handleNotFullyPaidConfirm} disabled={notFullyPaidSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+   {notFullyPaidSubmitting ? <><FaSpinner className="animate-spin" /> جاري التأكيد...</> : 'تأكيد استلام المتبقي والإكمال'}
+   </button>
+   <button onClick={handleNotFullyPaidEnd} disabled={notFullyPaidSubmitting} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40">
+   إنهاء
    </button>
    </div>
    </div>
