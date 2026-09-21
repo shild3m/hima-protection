@@ -175,7 +175,7 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [unpaidMethod, setUnpaidMethod] = useState<string>('cash')
   const [unpaidSubmitting, setUnpaidSubmitting] = useState(false)
   const [completeAfterPayment, setCompleteAfterPayment] = useState(false)
- const [invoiceStatusPrompt, setInvoiceStatusPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number; mode: 'in_progress' | 'completed'; step: 1 | 2 } | null>(null)
+ const [invoiceStatusPrompt, setInvoiceStatusPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number; mode: 'in_progress' | 'completed'; step: 1 | 2 | 3 } | null>(null)
  const [notFullyPaidPrompt, setNotFullyPaidPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
  const [notFullyPaidSubmitting, setNotFullyPaidSubmitting] = useState(false)
  const [warrantyStart, setWarrantyStart] = useState('')
@@ -460,27 +460,11 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     if (!invoiceStatusPrompt) return
     if (invoiceStatusPrompt.mode === 'in_progress') {
       if (invoiceStatusPrompt.remaining <= 0) {
-        // Fully paid → just change status to in_progress
-        setInvoiceStatusPrompt(null)
-        await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+        setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 3 } : null)
       } else {
-        // Has remaining → record it
-        try {
-          const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
-          const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
-          if (result.success) {
-            setNotification({ type: 'success', message: 'تم تسجيل الدفعة المتبقية بنجاح' })
-            setInvoiceStatusPrompt(null)
-            fetchBookings()
-          } else {
-            setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
-          }
-        } catch {
-          setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
-        }
+        setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
       }
     } else {
-      // completed mode
       handleCompleteWithCheck(invoiceStatusPrompt.bookingId, invoiceStatusPrompt.invoiceId)
       setInvoiceStatusPrompt(null)
     }
@@ -527,11 +511,17 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleInvoiceStatusPayRemaining = async () => {
     if (!invoiceStatusPrompt) return
+    setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
+  }
+
+  const handleInvoiceStatusConfirmPayment = async () => {
+    if (!invoiceStatusPrompt) return
     try {
       const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
       const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
       if (result.success) {
-        setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
+        setNotification({ type: 'success', message: 'تم تسجيل الدفعة المتبقية بنجاح' })
+        setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 3 } : null)
       } else {
         setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
       }
@@ -2052,10 +2042,10 @@ type="password"
     )}
 
    {invoiceStatusPrompt && (
-   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => { if (invoiceStatusPrompt.step === 2) return; setInvoiceStatusPrompt(null) }}>
+   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => { if (invoiceStatusPrompt.step >= 2) return; setInvoiceStatusPrompt(null) }}>
    <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
 
-   {invoiceStatusPrompt.step === 1 ? (
+   {invoiceStatusPrompt.step === 1 && (
    <>
    <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3]">
    <h3 className="text-base font-bold text-[#111214]">حالة الفاتورة الحالية</h3>
@@ -2079,7 +2069,7 @@ type="password"
    {invoiceStatusPrompt.mode === 'in_progress' ? (
    <div className="px-5 pb-5 pt-2 flex gap-3">
    <button onClick={handleInvoiceStatusComplete} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-   {invoiceStatusPrompt.remaining > 0 ? 'استلام المتبقي' : 'إكمال'}
+   {invoiceStatusPrompt.remaining > 0 ? 'دفع المتبقي والإكمال' : 'إكمال'}
    </button>
    <button onClick={handleInvoiceStatusChange} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
    تعديل الدفع
@@ -2096,7 +2086,34 @@ type="password"
    </div>
    )}
    </>
-   ) : (
+   )}
+
+   {invoiceStatusPrompt.step === 2 && (
+   <>
+   <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3]">
+   <h3 className="text-base font-bold text-[#B45309] flex items-center gap-2">
+   <FaExclamationTriangle className="text-[#D97706] text-sm" />
+   تأكيد استلام الدفع
+   </h3>
+   </div>
+   <div className="px-5 py-5">
+   <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 text-center">
+   <p className="text-sm font-bold text-[#92400E]">هل أنت متأكد من استلام المبلغ المتبققي؟</p>
+   <p className="text-lg font-black text-[#B45309] mt-2">{invoiceStatusPrompt.remaining.toLocaleString()} ر.س</p>
+   </div>
+   </div>
+   <div className="px-5 pb-5 pt-2 flex gap-3">
+   <button onClick={handleInvoiceStatusConfirmPayment} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+   تأكيد استلام الدفعة والإكمال
+   </button>
+   <button onClick={() => setInvoiceStatusPrompt(null)} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   إلغاء
+   </button>
+   </div>
+   </>
+   )}
+
+   {invoiceStatusPrompt.step === 3 && (
    <>
    <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
    <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
