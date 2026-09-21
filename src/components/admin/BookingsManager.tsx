@@ -457,22 +457,28 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   const handleInvoiceStatusComplete = async () => {
     if (!invoiceStatusPrompt) return
     if (invoiceStatusPrompt.mode === 'in_progress') {
-      // Just record remaining payment, no warranty, stay in_progress
-      try {
-        const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
-        const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
-        if (result.success) {
-          setNotification({ type: 'success', message: 'تم تسجيل الدفعة المتبقية بنجاح' })
-          setInvoiceStatusPrompt(null)
-          fetchBookings()
-        } else {
-          setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+      if (invoiceStatusPrompt.remaining <= 0) {
+        // Fully paid → just change status to in_progress
+        setInvoiceStatusPrompt(null)
+        await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+      } else {
+        // Has remaining → record it
+        try {
+          const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
+          const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
+          if (result.success) {
+            setNotification({ type: 'success', message: 'تم تسجيل الدفعة المتبقية بنجاح' })
+            setInvoiceStatusPrompt(null)
+            fetchBookings()
+          } else {
+            setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+          }
+        } catch {
+          setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
         }
-      } catch {
-        setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
       }
     } else {
-      // completed mode → check if fully paid → warranty → complete
+      // completed mode
       handleCompleteWithCheck(invoiceStatusPrompt.bookingId, invoiceStatusPrompt.invoiceId)
       setInvoiceStatusPrompt(null)
     }
