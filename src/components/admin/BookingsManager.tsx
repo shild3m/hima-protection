@@ -390,14 +390,20 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     const booking = bookings.find(b => b.id === bookingId)
     const linkedInvoice = (booking as BookingDetail)?.linked_invoice
     if (linkedInvoice) {
-      setInvoiceStatusPrompt({
-        bookingId,
-        invoiceId: linkedInvoice.id,
-        total: linkedInvoice.total,
-        paid: linkedInvoice.paid_amount,
-        remaining: linkedInvoice.total - linkedInvoice.paid_amount,
-        mode: 'completed',
-      })
+      if (linkedInvoice.paid_amount >= linkedInvoice.total) {
+        setCompleteWarrantyYears(1)
+        setCompleteNoWarranty(false)
+        setCompletePrompt({ bookingId })
+      } else {
+        setInvoiceStatusPrompt({
+          bookingId,
+          invoiceId: linkedInvoice.id,
+          total: linkedInvoice.total,
+          paid: linkedInvoice.paid_amount,
+          remaining: linkedInvoice.total - linkedInvoice.paid_amount,
+          mode: 'completed',
+        })
+      }
     } else {
       const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
       const basePrice = booking?.service?.base_price || 0
@@ -409,7 +415,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   if (newStatus === 'in_progress') {
     const booking = bookings.find(b => b.id === bookingId)
     const linkedInvoice = (booking as BookingDetail)?.linked_invoice
-    if (linkedInvoice) {
+    if (linkedInvoice && linkedInvoice.paid_amount < linkedInvoice.total) {
       setInvoiceStatusPrompt({
         bookingId,
         invoiceId: linkedInvoice.id,
@@ -419,9 +425,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         mode: 'in_progress',
       })
     } else {
-      const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
-      const basePrice = booking?.service?.base_price || 0
-      setPaymentPrompt({ bookingId, serviceName, basePrice })
+      applyStatusUpdate(bookingId, newStatus)
     }
     return
   }
