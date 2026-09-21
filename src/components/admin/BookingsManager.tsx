@@ -540,9 +540,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     }
   }
 
-  const handleInvoiceStatusEnd = async () => {
-    if (!invoiceStatusPrompt) return
-    await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+  const handleInvoiceStatusEnd = () => {
     setInvoiceStatusPrompt(null)
   }
 
@@ -2100,28 +2098,66 @@ type="password"
    </>
    ) : (
    <>
-   <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3]">
-   <h3 className="text-base font-bold text-[#059669]">تم استلام المبلغ المتبققي بنجاح</h3>
+   <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
+   <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+   <FaCheckCircle className="text-[#059669] text-sm" />
+   إكمال الحجز
+   </h3>
+   <button onClick={() => setInvoiceStatusPrompt(null)} className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F7F7F5] transition-all">
+   <FaTimes className="text-sm" />
+   </button>
    </div>
    <div className="px-5 py-5 space-y-4">
-   <div className="space-y-2">
-   <label className="text-xs font-bold text-[#62666D]">سنوات الضمان</label>
-   <div className="flex gap-2">
-   {[1, 2, 3].map(y => (
-   <button key={y} onClick={() => setCompleteWarrantyYears(y)} className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${completeWarrantyYears === y ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-[#F7F7F5] text-[#111214] border-[#E7E8EA] hover:border-[#2563EB]'}`}>
-   {y} {y === 1 ? 'سنة' : y === 2 ? 'سنتين' : 'سنوات'}
+   <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl p-3 text-center">
+   <span className="text-[#059669] text-sm font-bold">تم استلام المبلغ المتبققي بنجاح</span>
+   </div>
+   <p className="text-sm text-[#4B4F55] font-semibold">اختر مدة الضمان (يبدأ من تاريخ الإكمال):</p>
+   <div className="space-y-2.5">
+   <label className="flex items-center gap-2.5 text-sm font-bold text-[#111214] cursor-pointer">
+   <input type="radio" checked={!completeNoWarranty} onChange={() => setCompleteNoWarranty(false)} className="accent-[#059669] w-4 h-4" />
+   يوجد ضمان
+   </label>
+   {!completeNoWarranty && (
+   <div className="flex items-center gap-3 ps-7">
+   <span className="text-xs font-bold text-[#62666D]">المدة:</span>
+   <div className="flex-1 relative" data-complete-years-menu>
+   <button
+   type="button"
+   onClick={() => setCompleteYearsOpen(v => !v)}
+   className="w-full flex items-center justify-between gap-2 bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2 text-sm font-bold text-[#111214] hover:border-[#059669] transition-all"
+   >
+   <span>{completeWarrantyYears === 1 ? 'سنة واحدة' : completeWarrantyYears === 2 ? 'سنتان' : `${completeWarrantyYears} سنوات`}</span>
+   <FaChevronDown className={`text-[#9CA1A6] text-[10px] transition-transform duration-200 ${completeYearsOpen ? 'rotate-180' : ''}`} />
+   </button>
+   {completeYearsOpen && (
+   <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white border border-[#E7E8EA] rounded-xl shadow-xl shadow-black/10 py-1 max-h-48 overflow-y-auto">
+   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(y => (
+   <button
+   key={y}
+   type="button"
+   onClick={() => { setCompleteWarrantyYears(y); setCompleteYearsOpen(false) }}
+   className={`w-full text-right px-3 py-2 text-sm font-bold transition-colors ${completeWarrantyYears === y ? 'text-[#059669] bg-[#ECFDF5]' : 'text-[#111214] hover:bg-[#F7F7F5]'}`}
+   >
+   {y === 1 ? 'سنة واحدة' : y === 2 ? 'سنتان' : `${y} سنوات`}
    </button>
    ))}
    </div>
-   </div>
-   <div className="flex items-center gap-2">
-   <input type="checkbox" id="noWarranty" checked={completeNoWarranty} onChange={e => setCompleteNoWarranty(e.target.checked)} className="w-4 h-4 rounded border-[#E7E8EA] text-[#2563EB] focus:ring-[#2563EB]" />
-   <label htmlFor="noWarranty" className="text-xs font-bold text-[#62666D]">بدون ضمان</label>
+   )}
    </div>
    </div>
-   <div className="px-5 pb-5 pt-2 flex gap-3">
-   <button onClick={handleInvoiceStatusConfirmWarranty} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-   تأكيد الاستلام
+   )}
+   <label className="flex items-center gap-2.5 text-sm font-bold text-[#111214] cursor-pointer">
+   <input type="radio" checked={completeNoWarranty} onChange={() => setCompleteNoWarranty(true)} className="accent-[#059669] w-4 h-4" />
+   لا يوجد ضمان
+   </label>
+   </div>
+   </div>
+   <div className="px-6 pb-6 pt-2 flex gap-3">
+   <button onClick={handleInvoiceStatusConfirmWarranty} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+   تأكيد الإكمال
+   </button>
+   <button onClick={() => setInvoiceStatusPrompt(null)} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   إلغاء
    </button>
    </div>
    </>
