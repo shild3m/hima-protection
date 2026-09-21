@@ -448,10 +448,28 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     setCompletePrompt({ bookingId })
   }
 
-  const handleInvoiceStatusComplete = () => {
+  const handleInvoiceStatusComplete = async () => {
     if (!invoiceStatusPrompt) return
-    handleCompleteWithCheck(invoiceStatusPrompt.bookingId, invoiceStatusPrompt.invoiceId)
-    setInvoiceStatusPrompt(null)
+    if (invoiceStatusPrompt.mode === 'in_progress') {
+      // Just record remaining payment, no warranty, stay in_progress
+      try {
+        const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
+        const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
+        if (result.success) {
+          setNotification({ type: 'success', message: 'تم تسجيل الدفعة المتبقية بنجاح' })
+          setInvoiceStatusPrompt(null)
+          fetchBookings()
+        } else {
+          setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+        }
+      } catch {
+        setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+      }
+    } else {
+      // completed mode → check if fully paid → warranty → complete
+      handleCompleteWithCheck(invoiceStatusPrompt.bookingId, invoiceStatusPrompt.invoiceId)
+      setInvoiceStatusPrompt(null)
+    }
   }
 
   const handleInvoiceStatusChange = () => {
