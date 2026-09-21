@@ -415,7 +415,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   if (newStatus === 'in_progress') {
     const booking = bookings.find(b => b.id === bookingId)
     const linkedInvoice = (booking as BookingDetail)?.linked_invoice
-    if (linkedInvoice && linkedInvoice.paid_amount < linkedInvoice.total) {
+    if (linkedInvoice) {
       setInvoiceStatusPrompt({
         bookingId,
         invoiceId: linkedInvoice.id,
@@ -425,7 +425,9 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         mode: 'in_progress',
       })
     } else {
-      applyStatusUpdate(bookingId, newStatus)
+      const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
+      const basePrice = booking?.service?.base_price || 0
+      setPaymentPrompt({ bookingId, serviceName, basePrice })
     }
     return
   }
