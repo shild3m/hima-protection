@@ -533,6 +533,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleNewToProgressEdit = () => {
     if (!invoiceStatusPrompt) return
+    setNewProgressPaidAmount(String(invoiceStatusPrompt.paid))
     setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
   }
 
