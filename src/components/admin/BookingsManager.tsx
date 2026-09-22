@@ -155,7 +155,8 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const [completeWarrantyYears, setCompleteWarrantyYears] = useState(1)
  const [completeNoWarranty, setCompleteNoWarranty] = useState(false)
  const [completeSubmitting, setCompleteSubmitting] = useState(false)
- const [completeYearsOpen, setCompleteYearsOpen] = useState(false)
+  const [completeYearsOpen, setCompleteYearsOpen] = useState(false)
+  const [newProgressPaidAmount, setNewProgressPaidAmount] = useState('')
  const [vehicleSizeOpen, setVehicleSizeOpen] = useState(false)
  const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
  const [serviceSearch, setServiceSearch] = useState('')
@@ -175,7 +176,7 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [unpaidMethod, setUnpaidMethod] = useState<string>('cash')
   const [unpaidSubmitting, setUnpaidSubmitting] = useState(false)
   const [completeAfterPayment, setCompleteAfterPayment] = useState(false)
- const [invoiceStatusPrompt, setInvoiceStatusPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number; mode: 'in_progress' | 'completed'; step: 1 | 2 | 3 } | null>(null)
+ const [invoiceStatusPrompt, setInvoiceStatusPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number; mode: 'new_to_progress' | 'in_progress' | 'completed'; step: 1 | 2 | 3 } | null>(null)
  const [notFullyPaidPrompt, setNotFullyPaidPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
  const [notFullyPaidSubmitting, setNotFullyPaidSubmitting] = useState(false)
  const [warrantyStart, setWarrantyStart] = useState('')
@@ -417,13 +418,14 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     const booking = bookings.find(b => b.id === bookingId)
     const linkedInvoice = (booking as BookingDetail)?.linked_invoice
     if (linkedInvoice) {
+      const isFromNew = booking?.status === 'new'
       setInvoiceStatusPrompt({
         bookingId,
         invoiceId: linkedInvoice.id,
         total: linkedInvoice.total,
         paid: linkedInvoice.paid_amount,
         remaining: linkedInvoice.total - linkedInvoice.paid_amount,
-        mode: 'in_progress',
+        mode: isFromNew ? 'new_to_progress' : 'in_progress',
         step: 1,
       })
     } else {
@@ -521,6 +523,40 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleInvoiceStatusEnd = () => {
     setInvoiceStatusPrompt(null)
+  }
+
+  const handleNewToProgressSave = async () => {
+    if (!invoiceStatusPrompt) return
+    await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+    setInvoiceStatusPrompt(null)
+  }
+
+  const handleNewToProgressEdit = () => {
+    if (!invoiceStatusPrompt) return
+    setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
+  }
+
+  const handleNewToProgressConfirmEdit = async () => {
+    if (!invoiceStatusPrompt) return
+    const amount = Number(newProgressPaidAmount)
+    if (!amount || amount <= 0) {
+      setNotification({ type: 'error', message: 'أدخل مبلغ صحيح' })
+      return
+    }
+    try {
+      if (amount >= invoiceStatusPrompt.total) {
+        const { createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
+        await createInvoiceWithPayment(invoiceStatusPrompt.bookingId, 'cash', 'full')
+      } else {
+        const { createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
+        await createInvoiceWithPayment(invoiceStatusPrompt.bookingId, 'cash', 'deposit', amount)
+      }
+      await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+      setNewProgressPaidAmount('')
+      setInvoiceStatusPrompt(null)
+    } catch {
+      setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    }
   }
 
   const handleInvoiceStatusConfirmWarranty = async () => {
@@ -2068,7 +2104,19 @@ type="password"
    </div>
    </div>
    </div>
-   {invoiceStatusPrompt.mode === 'in_progress' ? (
+   {invoiceStatusPrompt.mode === 'new_to_progress' ? (
+   <div className="px-5 pb-5 pt-2 flex gap-2">
+   <button onClick={handleNewToProgressSave} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
+   حفظ وإكمال
+   </button>
+   <button onClick={handleNewToProgressEdit} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#D97706] to-[#B45309] hover:from-[#B45309] hover:to-[#92400E] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2">
+   تعديل الفاتورة
+   </button>
+   <button onClick={handleInvoiceStatusEnd} className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   إلغاء
+   </button>
+   </div>
+   ) : invoiceStatusPrompt.mode === 'in_progress' ? (
    <div className="px-5 pb-5 pt-2 flex gap-3">
    <button onClick={handleInvoiceStatusComplete} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
    {invoiceStatusPrompt.remaining > 0 ? 'دفع المتبقي والإكمال' : 'إكمال'}
@@ -2090,7 +2138,49 @@ type="password"
    </>
    )}
 
-   {invoiceStatusPrompt.step === 2 && (
+   {invoiceStatusPrompt.step === 2 && invoiceStatusPrompt.mode === 'new_to_progress' && (
+   <>
+   <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3]">
+   <h3 className="text-base font-bold text-[#111214]">تعديل الفاتورة</h3>
+   </div>
+   <div className="px-5 py-5 space-y-4">
+   <div className="bg-[#F7F7F5] rounded-xl p-4 space-y-2">
+   <div className="flex justify-between text-sm">
+   <span className="text-[#62666D] font-bold">الإجمالي:</span>
+   <span className="font-black text-[#111214]">{invoiceStatusPrompt.total.toLocaleString()} ر.س</span>
+   </div>
+   <div className="flex justify-between text-sm">
+   <span className="text-[#62666D] font-bold">المدفوع:</span>
+   <span className="font-black text-[#059669]">{invoiceStatusPrompt.paid.toLocaleString()} ر.س</span>
+   </div>
+   <div className="border-t border-[#E7E8EA] pt-2 flex justify-between text-sm">
+   <span className="text-[#D97706] font-bold">المتبقي:</span>
+   <span className="font-black text-[#D97706]">{invoiceStatusPrompt.remaining.toLocaleString()} ر.س</span>
+   </div>
+   </div>
+   <div className="space-y-1.5">
+   <label className="text-xs font-bold text-[#62666D]">المبلغ المدفوع</label>
+   <input
+   type="number"
+   value={newProgressPaidAmount}
+   onChange={e => setNewProgressPaidAmount(e.target.value)}
+   placeholder="0"
+   className="w-full bg-white border border-[#E7E8EA] rounded-xl px-4 py-3 text-sm font-bold text-[#111214] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition-all"
+   />
+   </div>
+   </div>
+   <div className="px-5 pb-5 pt-2 flex gap-3">
+   <button onClick={handleNewToProgressConfirmEdit} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
+   تأكيد التعديل
+   </button>
+   <button onClick={() => setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 1 } : null)} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   رجوع
+   </button>
+   </div>
+   </>
+   )}
+
+   {invoiceStatusPrompt.step === 2 && invoiceStatusPrompt.mode !== 'new_to_progress' && (
    <>
    <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3]">
    <h3 className="text-base font-bold text-[#B45309] flex items-center gap-2">
