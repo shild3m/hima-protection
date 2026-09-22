@@ -197,18 +197,18 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const canManage = hasPermission('bookings', 'manage')
  const [showCreateForm, setShowCreateForm] = useState(false)
  const [services, setServices] = useState<{ id: string; name: string; base_price: number }[]>([])
- const [createFormData, setCreateFormData] = useState({
-   customerName: '',
-   customerPhone: '',
-   customerEmail: '',
-   vehicleMake: '',
-   vehicleModel: '',
-   vehicleYear: new Date().getFullYear().toString(),
-   vehicleColor: '',
-   vehiclePlate: '',
-   serviceId: '',
-   notes: '',
- })
+  const [createFormData, setCreateFormData] = useState({
+    customerName: '',
+    customerPhone: '',
+    customerEmail: '',
+    vehicleMake: '',
+    vehicleModel: '',
+    vehicleYear: new Date().getFullYear().toString(),
+    vehicleColor: '',
+    vehiclePlate: '',
+    serviceIds: [] as string[],
+    notes: '',
+  })
  const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
  const [createSubmitting, setCreateSubmitting] = useState(false)
  const [createNotification, setCreateNotification] = useState<Notification>(null)
@@ -811,7 +811,7 @@ const handleWarrantyYearsChange = (y: number) => {
   if (!createFormData.vehicleModel.trim()) errs.vehicleModel = 'حجم السيارة مطلوب'
   const yr = parseInt(createFormData.vehicleYear)
   if (!createFormData.vehicleYear || yr < 1900 || yr > new Date().getFullYear() + 1) errs.vehicleYear = 'سنة الصنع غير صحيحة'
-  if (!createFormData.serviceId) errs.serviceId = 'يرجى اختيار الخدمة'
+  if (!createFormData.serviceIds.length) errs.serviceId = 'يرجى اختيار خدمة واحدة على الأقل'
   if (Object.keys(errs).length > 0) { setCreateErrors(errs); setCreateNotification({ type: 'error', message: 'أكمل الحقول المطلوبة بشكل صحيح' }); return }
   setCreateSubmitting(true)
   try {
@@ -825,14 +825,15 @@ const handleWarrantyYearsChange = (y: number) => {
   vehicleYear: parseInt(createFormData.vehicleYear),
   vehicleColor: createFormData.vehicleColor.trim() || undefined,
   vehiclePlate: createFormData.vehiclePlate.trim() || undefined,
-  serviceId: createFormData.serviceId,
+  serviceId: createFormData.serviceIds[0],
+  serviceIds: createFormData.serviceIds,
   notes: createFormData.notes.trim() || undefined,
   })
   if (result.success) {
   setCreateNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
   setShowCreateForm(false)
   setNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
-  setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', vehicleMake: '', vehicleModel: '', vehicleYear: new Date().getFullYear().toString(), vehicleColor: '', vehiclePlate: '', serviceId: '', notes: '' })
+  setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', vehicleMake: '', vehicleModel: '', vehicleYear: new Date().getFullYear().toString(), vehicleColor: '', vehiclePlate: '', serviceIds: [], notes: '' })
   fetchBookings()
   fetchStats()
   } else {
@@ -1702,24 +1703,22 @@ return (
  <div className="rounded-2xl border border-[#E7E8EA] overflow-visible">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCalendarAlt className="text-[#DC2626] text-xs" />
- <h4 className="text-xs font-bold text-[#111214]">الخدمة</h4>
+ <h4 className="text-xs font-bold text-[#111214]">الخدمات</h4>
  </div>
  <div className="px-4 py-4 space-y-3">
 <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الخدمة *</label>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الخدمات * (اختر خدمة واحدة على الأقل)</label>
   <div className="relative" data-service-menu>
   <button
   type="button"
   onClick={() => { setServiceSearch(''); setServiceMenuOpen(v => !v) }}
-  className={`w-full flex items-center gap-2 bg-white border ${createErrors.serviceId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm transition-all ${createFormData.serviceId ? 'text-[#111214]' : 'text-[#9CA1A6]'}`}
+  className={`w-full flex items-center gap-2 bg-white border ${createErrors.serviceId ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm transition-all ${createFormData.serviceIds.length ? 'text-[#111214]' : 'text-[#9CA1A6]'}`}
   >
-  <FaWrench className={`text-xs ${createFormData.serviceId ? 'text-[#DC2626]' : 'text-[#9CA1A6]'}`} />
-  {(() => {
-  const sel = services.find(s => s.id === createFormData.serviceId)
-  return sel
-  ? <span className="font-bold flex items-center gap-2"><span className="truncate">{sel.name}</span>{sel.base_price ? <span className="text-[#DC2626] font-black shrink-0" dir="ltr">{sel.base_price.toLocaleString('en-US')} ر.س</span> : null}</span>
-  : <span className="font-semibold">اختر الخدمة</span>
-  })()}
+  <FaWrench className={`text-xs ${createFormData.serviceIds.length ? 'text-[#DC2626]' : 'text-[#9CA1A6]'}`} />
+  {createFormData.serviceIds.length > 0
+  ? <span className="font-bold">{createFormData.serviceIds.length} {createFormData.serviceIds.length === 1 ? 'خدمة محددة' : 'خدمات محددة'}</span>
+  : <span className="font-semibold">اختر الخدمات</span>
+  }
   <FaChevronDown className={`ms-auto text-[#9CA1A6] text-[10px] transition-transform duration-200 ${serviceMenuOpen ? 'rotate-180' : ''}`} />
   </button>
   {serviceMenuOpen && (
@@ -1736,18 +1735,29 @@ return (
   </div>
   </div>
   <div className="overflow-y-auto">
-  {services.filter(s => !serviceSearch.trim() || s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).map(s => (
+  {services.filter(s => !serviceSearch.trim() || s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).map(s => {
+  const isChecked = createFormData.serviceIds.includes(s.id)
+  return (
   <button
   key={s.id}
   type="button"
-  onClick={() => { setCreateFormData(p => ({ ...p, serviceId: s.id })); setCreateErrors(err => ({ ...err, serviceId: '' })); setServiceMenuOpen(false) }}
-  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors ${createFormData.serviceId === s.id ? 'bg-[#FFF5F5]' : 'hover:bg-[#F7F7F5]'}`}
+  onClick={() => {
+  setCreateFormData(p => ({
+  ...p,
+  serviceIds: isChecked ? p.serviceIds.filter(id => id !== s.id) : [...p.serviceIds, s.id]
+  }))
+  setCreateErrors(err => ({ ...err, serviceId: '' }))
+  }}
+  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors ${isChecked ? 'bg-[#FFF5F5]' : 'hover:bg-[#F7F7F5]'}`}
   >
-  <span className={`min-w-0 text-right ${createFormData.serviceId === s.id ? 'font-black text-[#111214]' : 'font-bold text-[#4B4F55]'}`}>{s.name}</span>
+  <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${isChecked ? 'bg-[#DC2626] border-[#DC2626]' : 'border-[#D1D5DB]'}`}>
+  {isChecked && <FaCheck className="text-white text-[10px]" />}
+  </div>
+  <span className={`min-w-0 text-right flex-1 ${isChecked ? 'font-black text-[#111214]' : 'font-bold text-[#4B4F55]'}`}>{s.name}</span>
   {s.base_price ? <span className="text-[#DC2626] font-black shrink-0" dir="ltr">{s.base_price.toLocaleString('en-US')} ر.س</span> : null}
-  {createFormData.serviceId === s.id && <FaCheck className="text-[#DC2626] text-xs shrink-0" />}
   </button>
-  ))}
+  )
+  })}
   {services.filter(s => !serviceSearch.trim() || s.name.toLowerCase().includes(serviceSearch.trim().toLowerCase())).length === 0 && (
   <p className="px-3 py-3 text-sm text-[#9CA1A6] font-semibold text-center">لا توجد خدمات مطابقة</p>
   )}

@@ -18,6 +18,7 @@ export interface AdminBookingInput {
   vehicleColor?: string
   vehiclePlate?: string
   serviceId: string
+  serviceIds?: string[]
   preferredDate?: string
   preferredTime?: string
   notes?: string
@@ -653,6 +654,24 @@ export async function adminCreateBooking(input: AdminBookingInput) {
         .from('bookings')
         .update({ created_by: user.auth_user_id, created_by_name: creatorName })
         .eq('id', result.booking_id)
+
+      const extraIds = (input.serviceIds || []).filter(id => id !== input.serviceId)
+      if (extraIds.length > 0) {
+        const { data: extraServices } = await admin
+          .from('services')
+          .select('id, name, base_price')
+          .in('id', extraIds)
+        if (extraServices && extraServices.length > 0) {
+          const items = extraServices.map(svc => ({
+            booking_id: result.booking_id,
+            service_id: svc.id,
+            quantity: 1,
+            unit_price: svc.base_price || 0,
+            total: svc.base_price || 0,
+          }))
+          await admin.from('booking_items').insert(items)
+        }
+      }
     }
 
     await logAudit({
