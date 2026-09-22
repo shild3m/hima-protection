@@ -161,7 +161,8 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [newProgressSubmitting, setNewProgressSubmitting] = useState(false)
   const [invoiceSubmitting, setInvoiceSubmitting] = useState(false)
  const [vehicleSizeOpen, setVehicleSizeOpen] = useState(false)
- const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
+  const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
+  const [expandedBookingItems, setExpandedBookingItems] = useState<Set<string>>(new Set())
  const [serviceSearch, setServiceSearch] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1037,12 +1038,29 @@ return (
  {booking.vehicle.make} {booking.vehicle.model}
  </span>
  )}
- {booking.service && (
- <span className="flex items-center gap-1.5 font-bold">
- <FaWrench className="text-[#62666D] text-[10px]" />
- {booking.service.name}
- </span>
- )}
+  {booking.service && (
+  <span className="flex items-center gap-1.5 font-bold">
+  <FaWrench className="text-[#62666D] text-[10px]" />
+  {booking.service.name}
+  {booking.booking_items && booking.booking_items.length > 0 && (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        setExpandedBookingItems(prev => {
+          const next = new Set(prev)
+          if (next.has(booking.id)) next.delete(booking.id)
+          else next.add(booking.id)
+          return next
+        })
+      }}
+      className="text-[#62666D] text-[10px] font-bold hover:text-[#111214] transition-colors flex items-center gap-0.5"
+    >
+      <FaChevronDown className={`text-[8px] transition-transform duration-200 ${expandedBookingItems.has(booking.id) ? 'rotate-180' : ''}`} />
+      +{booking.booking_items.length}
+    </button>
+  )}
+  </span>
+  )}
 {(booking.status === 'new' && !booking.created_by_name && booking.preferred_date) ? (
    <span className="flex items-center gap-1 rounded-lg bg-[#FFF5F5] border border-[#FECACA] px-2 py-0.5 font-black text-[11px] text-[#DC2626]">
    <FaCalendarAlt className="text-[10px]" />
@@ -1124,15 +1142,30 @@ return (
   </div>
   </div>
 
+  {expandedBookingItems.has(booking.id) && booking.booking_items && booking.booking_items.length > 0 && (
+  <div className="mt-3 pt-3 border-t border-[#F1F2F3] space-y-1 ps-6">
+    <div className="flex items-center justify-between text-xs bg-[#FBFBFA] border border-[#F1F2F3] rounded-lg px-3 py-1.5">
+      <span className="text-[#4B4F55] font-bold">{booking.service_name_snapshot || booking.service?.name || '---'}</span>
+      <span className="text-[#111214] font-black" dir="ltr">{(booking.service?.base_price || 0).toLocaleString('en-US')} ر.س</span>
+    </div>
+    {booking.booking_items.map(item => {
+      const itemService = Array.isArray(item.service) ? item.service?.[0] : item.service
+      return (
+      <div key={item.id} className="flex items-center justify-between text-xs bg-[#FBFBFA] border border-[#F1F2F3] rounded-lg px-3 py-1.5">
+        <span className="text-[#4B4F55] font-bold">{itemService?.name || 'خدمة إضافية'}</span>
+        <span className="text-[#111214] font-black" dir="ltr">{Number(item.total).toLocaleString('en-US')} ر.س</span>
+      </div>
+      )
+    })}
+  </div>
+  )}
+
   {booking.status === 'completed' && (
   <div className="mt-3 pt-3 border-t border-[#F1F2F3]">
   <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
   <span className="text-[#111214] font-bold text-sm flex items-center gap-1.5">
   <FaCheckCircle className="text-[#059669] text-xs" />
   {booking.service_name_snapshot || booking.service?.name || '---'}
-  {booking.booking_items && booking.booking_items.length > 0 && (
-    <span className="text-[#62666D] text-xs font-bold">+{booking.booking_items.length} إضافية</span>
-  )}
   </span>
   {typeof booking.service?.base_price === 'number' && (() => {
     const itemsTotal = (booking.booking_items || []).reduce((sum, i) => sum + (Number(i.total) || 0), 0)
@@ -1144,6 +1177,8 @@ return (
     </>
     )
   })()}
+  </div>
+  <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap mt-2">
 {booking.warranty_start_date && booking.warranty_end_date ? (
   <>
   <span className="h-4 w-px bg-[#E7E8EA]"></span>
