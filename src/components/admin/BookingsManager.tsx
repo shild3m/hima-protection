@@ -157,6 +157,7 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const [completeSubmitting, setCompleteSubmitting] = useState(false)
   const [completeYearsOpen, setCompleteYearsOpen] = useState(false)
   const [newProgressPaidAmount, setNewProgressPaidAmount] = useState('')
+  const [newProgressSubmitting, setNewProgressSubmitting] = useState(false)
  const [vehicleSizeOpen, setVehicleSizeOpen] = useState(false)
  const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
  const [serviceSearch, setServiceSearch] = useState('')
@@ -527,7 +528,9 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleNewToProgressSave = async () => {
     if (!invoiceStatusPrompt) return
+    setNewProgressSubmitting(true)
     await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+    setNewProgressSubmitting(false)
     setInvoiceStatusPrompt(null)
   }
 
@@ -544,6 +547,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       setNotification({ type: 'error', message: 'أدخل مبلغ صحيح' })
       return
     }
+    setNewProgressSubmitting(true)
     try {
       if (amount >= invoiceStatusPrompt.total) {
         const { createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
@@ -557,6 +561,8 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       setInvoiceStatusPrompt(null)
     } catch {
       setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+    } finally {
+      setNewProgressSubmitting(false)
     }
   }
 
@@ -2107,13 +2113,13 @@ type="password"
    </div>
    {invoiceStatusPrompt.mode === 'new_to_progress' ? (
    <div className="px-5 pb-5 pt-2 flex gap-2">
-   <button onClick={handleNewToProgressSave} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-   حفظ وإكمال
+   <button onClick={handleNewToProgressSave} disabled={newProgressSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+   {newProgressSubmitting ? <><FaSpinner className="animate-spin" /> جاري الحفظ...</> : 'حفظ وإكمال'}
    </button>
-   <button onClick={handleNewToProgressEdit} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#D97706] to-[#B45309] hover:from-[#B45309] hover:to-[#92400E] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2">
+   <button onClick={handleNewToProgressEdit} disabled={newProgressSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#D97706] to-[#B45309] hover:from-[#B45309] hover:to-[#92400E] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-amber-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
    تعديل الفاتورة
    </button>
-   <button onClick={handleInvoiceStatusEnd} className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   <button onClick={handleInvoiceStatusEnd} disabled={newProgressSubmitting} className="px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40">
    إلغاء
    </button>
    </div>
@@ -2171,10 +2177,10 @@ type="password"
    </div>
    </div>
    <div className="px-5 pb-5 pt-2 flex gap-3">
-   <button onClick={handleNewToProgressConfirmEdit} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-   تأكيد التعديل
+   <button onClick={handleNewToProgressConfirmEdit} disabled={newProgressSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+   {newProgressSubmitting ? <><FaSpinner className="animate-spin" /> جاري التعديل...</> : 'تأكيد التعديل'}
    </button>
-   <button onClick={() => setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 1 } : null)} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   <button onClick={() => setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 1 } : null)} disabled={newProgressSubmitting} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40">
    رجوع
    </button>
    </div>
