@@ -93,7 +93,8 @@ export async function getBookings(
         *,
         customer:customers(id, full_name, phone),
         vehicle:vehicles(id, make, model, year, plate_number),
-        service:services(id, name, base_price)
+        service:services(id, name, base_price),
+        booking_items:booking_items(id, service_id, quantity, unit_price, total, service:services(name))
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)

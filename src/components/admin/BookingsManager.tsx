@@ -59,7 +59,8 @@ status: string
  service_date?: string | null
  warranty_start_date?: string | null
  warranty_end_date?: string | null
- linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number } | null
+  linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number } | null
+  booking_items?: { id: string; service_id: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string; base_price: number } }[]
 }
 
 interface BookingDetail extends Booking {
@@ -1129,13 +1130,20 @@ return (
   <span className="text-[#111214] font-bold text-sm flex items-center gap-1.5">
   <FaCheckCircle className="text-[#059669] text-xs" />
   {booking.service_name_snapshot || booking.service?.name || '---'}
+  {booking.booking_items && booking.booking_items.length > 0 && (
+    <span className="text-[#62666D] text-xs font-bold">+{booking.booking_items.length} إضافية</span>
+  )}
   </span>
-{typeof booking.service?.base_price === 'number' && (
-   <>
-   <span className="h-4 w-px bg-[#E7E8EA]"></span>
-   <span className="text-[#DC2626] font-black text-sm" dir="ltr">{booking.service.base_price.toLocaleString('en-US')} ر.س</span>
-   </>
-   )}
+  {typeof booking.service?.base_price === 'number' && (() => {
+    const itemsTotal = (booking.booking_items || []).reduce((sum, i) => sum + (Number(i.total) || 0), 0)
+    const grandTotal = (booking.service.base_price || 0) + itemsTotal
+    return (
+    <>
+    <span className="h-4 w-px bg-[#E7E8EA]"></span>
+    <span className="text-[#DC2626] font-black text-sm" dir="ltr">{grandTotal.toLocaleString('en-US')} ر.س</span>
+    </>
+    )
+  })()}
 {booking.warranty_start_date && booking.warranty_end_date ? (
   <>
   <span className="h-4 w-px bg-[#E7E8EA]"></span>
