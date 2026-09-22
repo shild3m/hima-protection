@@ -158,6 +158,7 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [completeYearsOpen, setCompleteYearsOpen] = useState(false)
   const [newProgressPaidAmount, setNewProgressPaidAmount] = useState('')
   const [newProgressSubmitting, setNewProgressSubmitting] = useState(false)
+  const [invoiceSubmitting, setInvoiceSubmitting] = useState(false)
  const [vehicleSizeOpen, setVehicleSizeOpen] = useState(false)
  const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
  const [serviceSearch, setServiceSearch] = useState('')
@@ -461,6 +462,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleInvoiceStatusComplete = async () => {
     if (!invoiceStatusPrompt) return
+    setInvoiceSubmitting(true)
     if (invoiceStatusPrompt.mode === 'in_progress') {
       if (invoiceStatusPrompt.remaining <= 0) {
         setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 3 } : null)
@@ -471,6 +473,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       handleCompleteWithCheck(invoiceStatusPrompt.bookingId, invoiceStatusPrompt.invoiceId)
       setInvoiceStatusPrompt(null)
     }
+    setInvoiceSubmitting(false)
   }
 
   const handleInvoiceStatusChange = () => {
@@ -514,12 +517,16 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleInvoiceStatusPayRemaining = async () => {
     if (!invoiceStatusPrompt) return
+    setInvoiceSubmitting(true)
     setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
+    setInvoiceSubmitting(false)
   }
 
   const handleInvoiceStatusConfirmPayment = async () => {
     if (!invoiceStatusPrompt) return
+    setInvoiceSubmitting(true)
     setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 3 } : null)
+    setInvoiceSubmitting(false)
   }
 
   const handleInvoiceStatusEnd = () => {
@@ -568,16 +575,19 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleInvoiceStatusConfirmWarranty = async () => {
     if (!invoiceStatusPrompt) return
+    setInvoiceSubmitting(true)
     if (invoiceStatusPrompt.remaining > 0) {
       try {
         const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
         const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
         if (!result.success) {
           setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+          setInvoiceSubmitting(false)
           return
         }
       } catch {
         setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+        setInvoiceSubmitting(false)
         return
       }
     }
@@ -587,6 +597,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       completeNoWarranty ? { noWarranty: true } : { years: completeWarrantyYears }
     )
     setInvoiceStatusPrompt(null)
+    setInvoiceSubmitting(false)
   }
 
   const confirmPayment = async () => {
@@ -2125,19 +2136,19 @@ type="password"
    </div>
    ) : invoiceStatusPrompt.mode === 'in_progress' ? (
    <div className="px-5 pb-5 pt-2 flex gap-3">
-   <button onClick={handleInvoiceStatusComplete} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-   {invoiceStatusPrompt.remaining > 0 ? 'دفع المتبقي والإكمال' : 'إكمال'}
+   <button onClick={handleInvoiceStatusComplete} disabled={invoiceSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+   {invoiceSubmitting ? <><FaSpinner className="animate-spin" /> جاري...</> : (invoiceStatusPrompt.remaining > 0 ? 'دفع المتبقي والإكمال' : 'إكمال')}
    </button>
-   <button onClick={handleInvoiceStatusChange} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   <button onClick={handleInvoiceStatusChange} disabled={invoiceSubmitting} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40">
    تعديل الدفع
    </button>
    </div>
    ) : (
    <div className="px-5 pb-5 pt-2 flex gap-3">
-   <button onClick={handleInvoiceStatusPayRemaining} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
-   دفع المتبقي والإكمال
+   <button onClick={handleInvoiceStatusPayRemaining} disabled={invoiceSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+   {invoiceSubmitting ? <><FaSpinner className="animate-spin" /> جاري...</> : 'دفع المتبقي والإكمال'}
    </button>
-   <button onClick={handleInvoiceStatusEnd} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   <button onClick={handleInvoiceStatusEnd} disabled={invoiceSubmitting} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40">
    إلغاء
    </button>
    </div>
@@ -2202,10 +2213,10 @@ type="password"
    </div>
    </div>
    <div className="px-5 pb-5 pt-2 flex gap-3">
-   <button onClick={handleInvoiceStatusConfirmPayment} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
-   تأكيد استلام الدفعة والإكمال
+   <button onClick={handleInvoiceStatusConfirmPayment} disabled={invoiceSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+   {invoiceSubmitting ? <><FaSpinner className="animate-spin" /> جاري...</> : 'تأكيد استلام الدفعة والإكمال'}
    </button>
-   <button onClick={() => setInvoiceStatusPrompt(null)} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   <button onClick={() => setInvoiceStatusPrompt(null)} disabled={invoiceSubmitting} className="flex-1 px-4 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40">
    إلغاء
    </button>
    </div>
@@ -2269,10 +2280,10 @@ type="password"
    </div>
    </div>
    <div className="px-6 pb-6 pt-2 flex gap-3">
-   <button onClick={handleInvoiceStatusConfirmWarranty} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
-   تأكيد الإكمال
+   <button onClick={handleInvoiceStatusConfirmWarranty} disabled={invoiceSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+   {invoiceSubmitting ? <><FaSpinner className="animate-spin" /> جاري الإكمال...</> : 'تأكيد الإكمال'}
    </button>
-   <button onClick={() => setInvoiceStatusPrompt(null)} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+   <button onClick={() => setInvoiceStatusPrompt(null)} disabled={invoiceSubmitting} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-40">
    إلغاء
    </button>
    </div>
