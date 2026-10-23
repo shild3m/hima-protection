@@ -1931,13 +1931,18 @@ type="password"
   
   {(invoiceView.loading || invoiceView.data) && (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => setInvoiceView({ loading: false, data: null })}>
-  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-  <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
+  <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+  <div className="px-5 pt-5 pb-4 bg-gradient-to-l from-[#F9FAFB] to-white border-b border-[#F1F2F3] flex items-center justify-between gap-2">
   <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+  <div className="w-8 h-8 rounded-xl bg-[#2563EB]/10 flex items-center justify-center">
   <FaFileInvoiceDollar className="text-[#2563EB] text-sm" />
-  الفاتورة {invoiceView.data?.invoice_number || ''}
+  </div>
+  <div>
+  <p className="text-sm font-bold text-[#111214]">فاتورة</p>
+  {invoiceView.data?.invoice_number && <p className="text-[11px] text-[#62666D] font-semibold">{invoiceView.data.invoice_number}</p>}
+  </div>
   </h3>
-  <button onClick={() => setInvoiceView({ loading: false, data: null })} className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F7F7F5] transition-all">
+  <button onClick={() => setInvoiceView({ loading: false, data: null })} className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F1F2F3] transition-all">
   <FaTimes className="text-sm" />
   </button>
   </div>
@@ -1946,7 +1951,7 @@ type="password"
   <FaSpinner className="animate-spin text-[#DC2626]" />
   </div>
   ) : invoiceView.data ? (
-  <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+  <div className="px-5 py-4 space-y-4 max-h-[65vh] overflow-y-auto">
   {invoiceView.data.status && (
   <div className="flex items-center justify-between">
   <span className="text-xs font-bold text-[#62666D]">حالة الفاتورة</span>
@@ -1955,21 +1960,21 @@ type="password"
   </span>
   </div>
   )}
-  <div>
-  <p className="text-xs font-bold text-[#62666D] mb-1.5">البنود</p>
-  <div className="space-y-1.5">
+  <div className="rounded-xl border border-[#F1F2F3] overflow-hidden">
+  <div className="bg-[#F9FAFB] px-3 py-1.5 text-[11px] font-bold text-[#62666D]">البنود</div>
+  <div className="divide-y divide-[#F1F2F3]">
   {(invoiceView.data.items || []).map(it => (
-  <div key={it.id} className="flex items-center justify-between gap-2 text-sm">
-  <span className="text-[#62666D] font-semibold min-w-0 truncate">{it.service?.name || it.description}{it.quantity > 1 ? ` × ${it.quantity}` : ''}</span>
-  <span className="text-[#111214] font-bold shrink-0" dir="ltr">{it.total.toLocaleString('en-US')} ر.س</span>
+  <div key={it.id} className="px-3 py-2 flex items-center justify-between gap-2 text-sm">
+  <span className="text-[#111214] font-semibold min-w-0 truncate">{it.service?.name || it.description}{it.quantity > 1 ? ` × ${it.quantity}` : ''}</span>
+  <span className="text-[#111214] font-black shrink-0" dir="ltr">{it.total.toLocaleString('en-US')} ر.س</span>
   </div>
   ))}
   </div>
   </div>
-  <div className="border-t border-[#E7E8EA] pt-3 space-y-2">
+  <div className="rounded-xl bg-gradient-to-b from-[#FBFBFA] to-white border border-[#F1F2F3] p-3 space-y-1.5">
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">الإجمالي</span>
-  <span className="text-[#DC2626] font-black" dir="ltr">{invoiceView.data.total.toLocaleString('en-US')} ر.س</span>
+  <span className="text-[#111214] font-black" dir="ltr">{invoiceView.data.total.toLocaleString('en-US')} ر.س</span>
   </div>
   {typeof invoiceView.data.paid_amount === 'number' && invoiceView.data.paid_amount > 0 && (
   <div className="flex items-center justify-between text-sm">
@@ -1978,46 +1983,42 @@ type="password"
   </div>
   )}
   {typeof invoiceView.data.paid_amount === 'number' && invoiceView.data.paid_amount > 0 && invoiceView.data.paid_amount < invoiceView.data.total && (
-  <div className="flex items-center justify-between text-sm">
-  <span className="text-[#62666D] font-semibold">المتبقي</span>
-  <span className="text-[#D97706] font-black" dir="ltr">{(invoiceView.data.total - invoiceView.data.paid_amount).toLocaleString('en-US')} ر.س</span>
+  <div className="flex items-center justify-between text-sm pt-1 border-t border-[#F1F2F3]">
+  <span className="text-[#B45309] font-bold">المتبقي</span>
+  <span className="text-[#B45309] font-black" dir="ltr">{(invoiceView.data.total - invoiceView.data.paid_amount).toLocaleString('en-US')} ر.س</span>
   </div>
   )}
+  </div>
   {invoicePayments.length > 0 && (
-  <div className="pt-1 space-y-1.5">
-  <div className="flex items-center justify-between text-sm">
-  <span className="text-[#62666D] font-semibold">نوع الدفع</span>
-  <span className={`font-black text-xs px-2 py-0.5 rounded-md ${invoiceIsPartial ? 'text-[#D97706] bg-[#FFFBEB]' : 'text-[#059669] bg-[#ECFDF5]'}`}>
-  {invoiceIsPartial ? 'جزئي' : 'المبلغ كامل'}
+  <div className="space-y-2">
+  <div className="flex items-center justify-between">
+  <span className="text-xs font-bold text-[#62666D]">سجل المدفوعات</span>
+  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${invoiceIsPartial ? 'text-[#B45309] bg-[#FFFBEB]' : 'text-[#059669] bg-[#ECFDF5]'}`}>
+  {invoiceIsPartial ? 'دفع جزئي' : 'مدفوع بالكامل'}
   </span>
   </div>
   {invoicePayments.length > 1 && invoiceIsPartial ? (
   <div className="rounded-xl border border-[#F1F2F3] overflow-hidden">
-  <div className="bg-[#F9FAFB] px-2.5 py-1.5 text-[11px] font-bold text-[#62666D] flex items-center justify-between">
-  <span>تفصيل الدفعات</span>
-  <span>المبلغ / طريقة الدفع</span>
-  </div>
   <div className="divide-y divide-[#F1F2F3]">
   {invoicePayments.map((p, idx) => (
-  <div key={p.id} className="px-2.5 py-2 text-xs flex items-center justify-between">
-  <span className="text-[#111214] font-bold">{idx === 0 ? 'الجزء الأول' : idx === invoicePayments.length - 1 ? 'الجزء النهائي' : `الجزء ${idx + 1}`}</span>
-  <span className="flex items-center gap-1.5">
-  <span className="text-[#62666D] font-semibold">{PAYMENT_METHOD_LABELS[p.payment_method || ''] || p.payment_method || '—'}</span>
+  <div key={p.id} className="px-3 py-2.5 text-xs flex items-center justify-between">
+  <div>
+  <p className="text-[#111214] font-bold">{idx === 0 ? 'الجزء الأول' : idx === invoicePayments.length - 1 ? 'الجزء النهائي' : `الجزء ${idx + 1}`}</p>
+  <p className="text-[#62666D] mt-0.5">{PAYMENT_METHOD_LABELS[p.payment_method || ''] || p.payment_method || '—'}</p>
+  </div>
   <span className="text-[#111214] font-black" dir="ltr">{Number(p.amount).toLocaleString('en-US')} ر.س</span>
-  </span>
   </div>
   ))}
   </div>
   </div>
   ) : invoicePayments[0]?.payment_method ? (
-  <div className="flex items-center justify-between text-sm">
+  <div className="flex items-center justify-between rounded-xl bg-[#F9FAFB] border border-[#F1F2F3] px-3 py-2 text-sm">
   <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
   <span className="text-[#111214] font-black text-xs">{PAYMENT_METHOD_LABELS[invoicePayments[0].payment_method || ''] || invoicePayments[0].payment_method}</span>
   </div>
   ) : null}
   </div>
   )}
-  </div>
   </div>
   ) : null}
   </div>
