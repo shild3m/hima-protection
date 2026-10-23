@@ -1991,7 +1991,7 @@ type="password"
   </span>
   </div>
   )}
-  {invoicePayments.length > 0 && invoicePayments[0]?.payment_method && !(invoicePayments.length > 1 && invoiceIsPartial) && (
+  {invoicePayments.length > 0 && invoicePayments[0]?.payment_method && (
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
    <span className="text-[#111214] font-black text-xs">{PAYMENT_METHOD_LABELS[invoicePayments[0].payment_method || ''] || invoicePayments[0].payment_method}</span>
@@ -1999,6 +1999,7 @@ type="password"
   )}
   {invoicePayments.length > 1 && invoiceIsPartial && (
   <div className="space-y-1 rounded-lg bg-[#FBFBFA] border border-[#F1F2F3] px-2.5 py-2">
+  <p className="text-xs font-bold text-[#62666D] mb-1">تفصيل الدفع</p>
   {invoicePayments.map((p, idx) => (
   <div key={p.id} className="flex items-center justify-between text-xs">
   <span className="text-[#62666D] font-bold">{idx === 0 ? 'الجزء الأول' : 'الجزء النهائي'}</span>
