@@ -1234,14 +1234,16 @@ return (
   </>
   )}
   {booking.linked_invoice && (
+  <>
+  <span className="h-4 w-px bg-[#E7E8EA]"></span>
   <button
   onClick={() => handleOpenInvoice(booking.linked_invoice?.id)}
-  className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-1.5 hover:bg-[#DBEAFE] transition-all ms-auto"
+  className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-2.5 py-1 hover:bg-[#DBEAFE] transition-all"
   >
   <FaFileInvoiceDollar className="text-[11px]" />
-  عرض الفاتورة
+  عرض الفاتورة {booking.linked_invoice.invoice_number ? `(${booking.linked_invoice.invoice_number})` : ''}
   </button>
-  )}
+  </>)}
   </div>
   </div>
   )}
