@@ -423,6 +423,8 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
       const basePrice = booking?.service?.base_price || 0
       setCompleteAfterPayment(true)
+      setPaymentType('full')
+      setDepositAmount('')
       setPaymentPrompt({ bookingId, serviceName, basePrice })
     }
     return
@@ -628,8 +630,8 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     const shouldComplete = completeAfterPayment
     await applyStatusUpdate(paymentPrompt.bookingId, 'in_progress', undefined, {
       method: paymentMethod,
-      type: paymentType,
-      amount: paymentType === 'deposit' ? Number(depositAmount) : undefined,
+      type: shouldComplete ? 'full' : paymentType,
+      amount: !shouldComplete && paymentType === 'deposit' ? Number(depositAmount) : undefined,
     })
     setPaymentSubmitting(false)
     setPaymentPrompt(null)
@@ -2109,6 +2111,13 @@ type="password"
    </div>
    <div className="space-y-2">
    <label className="text-xs font-bold text-[#62666D]">المبلغ</label>
+  {completeAfterPayment ? (
+  <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-3 text-center">
+  <p className="text-sm font-bold text-[#92400E]">هل أنت متأكد من استلام المبلغ؟</p>
+  <p className="text-xs font-bold text-[#B45309] mt-1">سيتم تسجيل المبلغ كامل</p>
+  </div>
+  ) : (
+  <>
   <div className="flex gap-2">
   <button onClick={() => setPaymentType('full')} className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${paymentType === 'full' ? 'bg-[#2563EB] text-white border-[#2563EB]' : 'bg-[#F7F7F5] text-[#111214] border-[#E7E8EA] hover:border-[#2563EB]'}`}>
   المبلغ كامل
@@ -2120,11 +2129,13 @@ type="password"
   {paymentType === 'deposit' && (
   <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="أدخل مبلغ العربون" className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm font-bold text-[#111214] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 outline-none transition-all mt-2" />
   )}
+  </>
+  )}
   </div>
   </div>
   <div className="px-6 pb-6 pt-2 flex gap-3">
-  <button onClick={confirmPayment} disabled={paymentSubmitting || (paymentType === 'deposit' && (!depositAmount || Number(depositAmount) <= 0))} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
-  {paymentSubmitting ? <><FaSpinner className="animate-spin" /> جاري التأكيد...</> : 'تأكيد'}
+  <button onClick={confirmPayment} disabled={paymentSubmitting || (!completeAfterPayment && paymentType === 'deposit' && (!depositAmount || Number(depositAmount) <= 0))} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+  {paymentSubmitting ? <><FaSpinner className="animate-spin" /> جاري التأكيد...</> : completeAfterPayment ? 'تأكيد استلام المبلغ' : 'تأكيد'}
   </button>
   <button onClick={() => { if (!paymentSubmitting) setPaymentPrompt(null) }} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
   إلغاء
