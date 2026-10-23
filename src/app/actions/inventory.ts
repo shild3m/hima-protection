@@ -113,7 +113,7 @@ export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
 
     if (rpcError) {
       console.error('Adjust stock RPC error:', rpcError)
-      return { success: false as const, error: 'تعذر تعديل المخزون' }
+      return { success: false as const, error: rpcError.message || 'تعذر تعديل المخزون' }
     }
 
     if (!result || !result.success) {
@@ -195,7 +195,7 @@ export async function recordWaste(input: z.infer<typeof WasteSchema>) {
 
     if (rpcError) {
       console.error('Record waste RPC error:', rpcError)
-      return { success: false as const, error: 'تعذر تسجيل الهدر' }
+      return { success: false as const, error: rpcError.message || 'تعذر تسجيل الهدر' }
     }
 
     if (!result || !result.success) {
@@ -239,7 +239,7 @@ export async function recordReturn(input: z.infer<typeof ReturnSchema>) {
 
     if (rpcError) {
       console.error('Record return RPC error:', rpcError)
-      return { success: false as const, error: 'تعذر تسجيل الإرجاع' }
+      return { success: false as const, error: rpcError.message || 'تعذر تسجيل الإرجاع' }
     }
 
     if (!result || !result.success) {
@@ -288,7 +288,7 @@ export async function recordUsage(input: z.infer<typeof UsageSchema>) {
 
     if (rpcError) {
       console.error('Record usage RPC error:', rpcError)
-      return { success: false as const, error: 'تعذر تسجيل الاستهلاك' }
+      return { success: false as const, error: rpcError.message || 'تعذر تسجيل الاستهلاك' }
     }
 
     if (!result || !result.success) {
