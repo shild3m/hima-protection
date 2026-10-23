@@ -38,9 +38,10 @@ export default function InventoryManager() {
  const [page, setPage] = useState(1)
  const [pagination, setPagination] = useState<Pagination | null>(null)
  const [notification, setNotification] = useState<Notification>(null)
- const [showAction, setShowAction] = useState<ActionType | null>(null)
- const [actionForm, setActionForm] = useState({ material_id: '', quantity: 1, direction: 'in' as 'in' | 'out', notes: '' })
- const [saving, setSaving] = useState(false)
+  const [showAction, setShowAction] = useState<ActionType | null>(null)
+  const [actionForm, setActionForm] = useState({ material_id: '', quantity: 1, direction: 'in' as 'in' | 'out', notes: '' })
+  const [saving, setSaving] = useState(false)
+  const [actionError, setActionError] = useState('')
 
  const canAdjust = hasPermission('inventory', 'adjust')
  const canUsage = hasPermission('inventory', 'usage')
@@ -238,23 +239,28 @@ export default function InventoryManager() {
  </div>
  )}
 
- {showAction && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
- <div className="absolute inset-0 bg-black/60" onClick={() => setShowAction(null)} />
- <div className="relative bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-md">
- <div className="flex items-center justify-between mb-4">
- <h2 className="text-lg font-black text-[#111214] flex items-center gap-2">{ACTION_LABELS[showAction].icon} {ACTION_LABELS[showAction].title}</h2>
- <button onClick={() => setShowAction(null)} className="p-2 rounded-lg hover:bg-[#F1F2F3] text-[#62666D]"><FaTimes /></button>
- </div>
- <div className="space-y-4">
- <div>
- <label className="block text-[#62666D] text-xs font-bold mb-1">المادة *</label>
- <select value={actionForm.material_id} onChange={e => setActionForm({ ...actionForm, material_id: e.target.value })}
- className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
- <option value="">اختر المادة</option>
- {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
- </select>
- </div>
+  {showAction && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div className="absolute inset-0 bg-black/60" onClick={() => { setShowAction(null); setActionError('') }} />
+  <div className="relative bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-md">
+  <div className="flex items-center justify-between mb-4">
+  <h2 className="text-lg font-black text-[#111214] flex items-center gap-2">{ACTION_LABELS[showAction].icon} {ACTION_LABELS[showAction].title}</h2>
+  <button onClick={() => { setShowAction(null); setActionError('') }} className="p-2 rounded-lg hover:bg-[#F1F2F3] text-[#62666D]"><FaTimes /></button>
+  </div>
+  {actionError && (
+  <div className="mb-4 px-3 py-2 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-xs font-bold">
+  {actionError}
+  </div>
+  )}
+  <div className="space-y-4">
+  <div>
+  <label className="block text-[#62666D] text-xs font-bold mb-1">المادة *</label>
+  <select value={actionForm.material_id} onChange={e => { setActionForm({ ...actionForm, material_id: e.target.value }); setActionError('') }}
+  className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
+  <option value="">اختر المادة</option>
+  {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
+  </select>
+  </div>
  {showAction === 'adjust' && (
  <div>
  <label className="block text-[#62666D] text-xs font-bold mb-1">الاتجاه *</label>
@@ -267,21 +273,21 @@ export default function InventoryManager() {
  )}
  <div>
  <label className="block text-[#62666D] text-xs font-bold mb-1">الكمية *</label>
- <input type="number" value={actionForm.quantity} onChange={e => setActionForm({ ...actionForm, quantity: Number(e.target.value) })} min={0.01} step={0.01}
- className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]" />
+  <input type="number" value={actionForm.quantity} onChange={e => { setActionForm({ ...actionForm, quantity: Number(e.target.value) }); setActionError('') }} min={0.01} step={0.01}
+  className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]" />
  </div>
  <div>
  <label className="block text-[#62666D] text-xs font-bold mb-1">{showAction === 'waste' ? 'السبب *' : 'ملاحظات'}</label>
- <textarea value={actionForm.notes} onChange={e => setActionForm({ ...actionForm, notes: e.target.value })} rows={2}
- className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626] resize-none" />
- </div>
- <div className="flex gap-3 pt-2">
- <button onClick={handleAction} disabled={saving || !actionForm.material_id || actionForm.quantity <= 0}
- className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-[#111214] rounded-xl text-sm font-bold transition-colors">
- {saving ? <FaSpinner className="animate-spin inline" /> : 'تطبيق'}
- </button>
- <button onClick={() => setShowAction(null)} className="px-6 py-2.5 bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#111214] rounded-xl text-sm font-bold transition-colors">إلغاء</button>
- </div>
+  <textarea value={actionForm.notes} onChange={e => { setActionForm({ ...actionForm, notes: e.target.value }); setActionError('') }} rows={2}
+  className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626] resize-none" />
+  </div>
+  <div className="flex gap-3 pt-2">
+  <button onClick={handleAction} disabled={saving || !actionForm.material_id || actionForm.quantity <= 0}
+  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors">
+  {saving ? <FaSpinner className="animate-spin inline" /> : 'تطبيق'}
+  </button>
+  <button onClick={() => { setShowAction(null); setActionError('') }} className="px-6 py-2.5 bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#111214] rounded-xl text-sm font-bold transition-colors">إلغاء</button>
+  </div>
  </div>
  </div>
  </div>
