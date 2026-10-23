@@ -1177,6 +1177,24 @@ return (
   <span className="text-[#111214] font-bold text-sm flex items-center gap-1.5">
   <FaCheckCircle className="text-[#059669] text-xs" />
   {booking.service_name_snapshot || booking.service?.name || '---'}
+  {booking.booking_items && booking.booking_items.length > 0 && (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation()
+      setExpandedBookingItems(prev => {
+        const next = new Set(prev)
+        if (next.has(booking.id)) next.delete(booking.id)
+        else next.add(booking.id)
+        return next
+      })
+    }}
+    className="flex items-center gap-1 text-[#62666D] text-[10px] font-bold hover:text-[#111214] transition-colors"
+  >
+    <FaChevronDown className={`text-[9px] transition-transform duration-200 ${expandedBookingItems.has(booking.id) ? 'rotate-180' : ''}`} />
+    <span dir="ltr">+{booking.booking_items.length}</span> إضافية
+  </button>
+  )}
   </span>
   {typeof booking.service?.base_price === 'number' && (() => {
     const itemsTotal = (booking.booking_items || []).reduce((sum, i) => sum + (Number(i.total) || 0), 0)
@@ -1185,24 +1203,6 @@ return (
     <>
     <span className="h-4 w-px bg-[#E7E8EA]"></span>
     <span className="text-[#DC2626] font-black text-sm" dir="ltr">{grandTotal.toLocaleString('en-US')} ر.س</span>
-    {booking.booking_items && booking.booking_items.length > 0 && (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation()
-        setExpandedBookingItems(prev => {
-          const next = new Set(prev)
-          if (next.has(booking.id)) next.delete(booking.id)
-          else next.add(booking.id)
-          return next
-        })
-      }}
-      className="flex items-center gap-1 text-[#62666D] text-[10px] font-bold hover:text-[#111214] transition-colors"
-    >
-      <FaChevronDown className={`text-[9px] transition-transform duration-200 ${expandedBookingItems.has(booking.id) ? 'rotate-180' : ''}`} />
-      <span dir="ltr">+{booking.booking_items.length}</span> إضافية
-    </button>
-    )}
     </>
     )
   })()}
@@ -1966,7 +1966,7 @@ type="password"
   ))}
   </div>
   </div>
-  <div className="border-t border-[#E7E8EA] pt-3 space-y-1.5">
+  <div className="border-t border-[#E7E8EA] pt-3 space-y-2">
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">الإجمالي</span>
   <span className="text-[#DC2626] font-black" dir="ltr">{invoiceView.data.total.toLocaleString('en-US')} ر.س</span>
@@ -1984,34 +1984,33 @@ type="password"
   </div>
   )}
   {invoicePayments.length > 0 && (
+  <div className="pt-1 space-y-1.5">
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">نوع الدفع</span>
   <span className={`font-black text-xs px-2 py-0.5 rounded-md ${invoiceIsPartial ? 'text-[#D97706] bg-[#FFFBEB]' : 'text-[#059669] bg-[#ECFDF5]'}`}>
   {invoiceIsPartial ? 'جزئي' : 'المبلغ كامل'}
   </span>
   </div>
-  )}
-  {invoicePayments.length > 0 && (
-  <div className="text-sm space-y-1.5">
   {invoicePayments.length > 1 && invoiceIsPartial ? (
-  <>
-  <div className="flex items-center justify-between">
-  <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
+  <div className="rounded-xl border border-[#F1F2F3] overflow-hidden">
+  <div className="bg-[#F9FAFB] px-2.5 py-1.5 text-[11px] font-bold text-[#62666D] flex items-center justify-between">
+  <span>تفصيل الدفعات</span>
+  <span>المبلغ / طريقة الدفع</span>
   </div>
-  <div className="space-y-1 rounded-lg bg-[#FBFBFA] border border-[#F1F2F3] px-2.5 py-2">
+  <div className="divide-y divide-[#F1F2F3]">
   {invoicePayments.map((p, idx) => (
-  <div key={p.id} className="flex items-center justify-between text-xs">
-  <span className="text-[#62666D] font-bold">{idx === 0 ? 'الجزء الأول' : 'الجزء النهائي'}</span>
+  <div key={p.id} className="px-2.5 py-2 text-xs flex items-center justify-between">
+  <span className="text-[#111214] font-bold">{idx === 0 ? 'الجزء الأول' : idx === invoicePayments.length - 1 ? 'الجزء النهائي' : `الجزء ${idx + 1}`}</span>
   <span className="flex items-center gap-1.5">
-  <span className="text-[#9CA1A6] font-bold">{PAYMENT_METHOD_LABELS[p.payment_method || ''] || p.payment_method || '—'}</span>
+  <span className="text-[#62666D] font-semibold">{PAYMENT_METHOD_LABELS[p.payment_method || ''] || p.payment_method || '—'}</span>
   <span className="text-[#111214] font-black" dir="ltr">{Number(p.amount).toLocaleString('en-US')} ر.س</span>
   </span>
   </div>
   ))}
   </div>
-  </>
+  </div>
   ) : invoicePayments[0]?.payment_method ? (
-  <div className="flex items-center justify-between">
+  <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
   <span className="text-[#111214] font-black text-xs">{PAYMENT_METHOD_LABELS[invoicePayments[0].payment_method || ''] || invoicePayments[0].payment_method}</span>
   </div>
