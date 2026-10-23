@@ -76,6 +76,10 @@ export async function saveServiceMaterials(input: {
         qty_large: Number(r.qty_large) || 0,
       }))
 
+    if (cleanedRows.length === 0) {
+      return { success: false as const, error: 'يجب إضافة مادة على الأقل مع كمية أكبر من 0' }
+    }
+
     const validated = SaveSchema.parse({
       service_id: input.service_id,
       rows: cleanedRows,
@@ -94,16 +98,14 @@ export async function saveServiceMaterials(input: {
 
     const rows = [...new Map(validated.rows.map(r => [r.material_id, r])).values()]
 
-    if (rows.length > 0) {
-      const materialIds = [...new Set(rows.map(r => r.material_id))]
-      const { data: materials } = await supabase
-        .from('materials')
-        .select('id')
-        .in('id', materialIds)
+    const materialIds = [...new Set(rows.map(r => r.material_id))]
+    const { data: materials } = await supabase
+      .from('materials')
+      .select('id')
+      .in('id', materialIds)
 
-      if (!materials || materials.length !== materialIds.length) {
-        return { success: false as const, error: 'إحدى المواد غير موجودة' }
-      }
+    if (!materials || materials.length !== materialIds.length) {
+      return { success: false as const, error: 'إحدى المواد غير موجودة' }
     }
 
     const { error: deleteError } = await supabase
@@ -116,21 +118,19 @@ export async function saveServiceMaterials(input: {
       return { success: false as const, error: 'تعذر حفظ المواد المطلوبة' }
     }
 
-    if (rows.length > 0) {
-      const { error: insertError } = await supabase
-        .from('service_materials')
-        .insert(rows.map(r => ({
-          service_id: validated.service_id,
-          material_id: r.material_id,
-          qty_small: r.qty_small,
-          qty_medium: r.qty_medium,
-          qty_large: r.qty_large,
-        })))
+    const { error: insertError } = await supabase
+      .from('service_materials')
+      .insert(rows.map(r => ({
+        service_id: validated.service_id,
+        material_id: r.material_id,
+        qty_small: r.qty_small,
+        qty_medium: r.qty_medium,
+        qty_large: r.qty_large,
+      })))
 
-      if (insertError) {
-        console.error('Insert service materials error:', insertError)
-        return { success: false as const, error: `تعذر حفظ المواد المطلوبة: ${insertError.message}` }
-      }
+    if (insertError) {
+      console.error('Insert service materials error:', insertError)
+      return { success: false as const, error: `تعذر حفظ المواد المطلوبة: ${insertError.message}` }
     }
 
     await logAudit({
