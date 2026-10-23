@@ -1991,7 +1991,7 @@ type="password"
   </span>
   </div>
   )}
-  {invoicePayments.length > 0 && invoicePayments[0]?.payment_method && (
+  {invoicePayments.length > 0 && invoicePayments[0]?.payment_method && !(invoicePayments.length > 1 && invoiceIsPartial) && (
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
    <span className="text-[#111214] font-black text-xs">{PAYMENT_METHOD_LABELS[invoicePayments[0].payment_method || ''] || invoicePayments[0].payment_method}</span>
