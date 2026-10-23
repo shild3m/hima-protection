@@ -656,6 +656,16 @@ export async function adminCreateBooking(input: AdminBookingInput) {
         .update({ created_by: user.auth_user_id, created_by_name: creatorName })
         .eq('id', result.booking_id)
 
+      await admin
+        .from('booking_status_history')
+        .update({
+          changed_by: user.auth_user_id,
+          notes: `تم إنشاء الحجز بواسطة ${creatorName}`,
+        })
+        .eq('booking_id', result.booking_id)
+        .is('old_status', null)
+        .eq('new_status', 'new')
+
       const extraIds = (input.serviceIds || []).filter(id => id !== input.serviceId)
       if (extraIds.length > 0) {
         const { data: extraServices } = await admin
