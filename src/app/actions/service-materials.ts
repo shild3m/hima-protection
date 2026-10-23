@@ -27,15 +27,20 @@ export async function getServiceMaterials(serviceId?: string) {
 
   try {
     const supabase = await createClient()
-    let query = supabase
+    const query = supabase
       .from('service_materials')
       .select('id, service_id, material_id, qty_small, qty_medium, qty_large, material:materials(id, name, sku, unit)')
 
-    if (serviceId) {
-      query = query.eq('service_id', serviceId)
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false })
+    const { data, error } = serviceId
+      ? await supabase
+          .from('service_materials')
+          .select('id, service_id, material_id, qty_small, qty_medium, qty_large, material:materials(id, name, sku, unit)')
+          .eq('service_id', serviceId)
+          .order('created_at', { ascending: false })
+      : await supabase
+          .from('service_materials')
+          .select('id, service_id, material_id, qty_small, qty_medium, qty_large, material:materials(id, name, sku, unit)')
+          .order('created_at', { ascending: false })
 
     if (error) {
       console.error('Get service materials error:', error)
