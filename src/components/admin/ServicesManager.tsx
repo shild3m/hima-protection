@@ -103,6 +103,13 @@ const [deletingService, setDeletingService] = useState<Service | null>(null)
     if (!materialsService) return
     setMatSaving(true)
     try {
+      const hasEmptyMaterial = matRows.some(r => !r.material_id)
+      if (hasEmptyMaterial) {
+        setNotification({ type: 'error', message: 'اختر مادة لجميع الصفوف أو احذف الصف الفارغ' })
+        setMatSaving(false)
+        return
+      }
+
       const rowsToSave = matRows.filter(r => r.material_id)
       const invalid = rowsToSave.some(r => !(Number(r.qty_small) > 0 || Number(r.qty_medium) > 0 || Number(r.qty_large) > 0))
       if (invalid) {
