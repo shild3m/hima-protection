@@ -113,11 +113,19 @@ export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
 
     if (rpcError) {
       console.error('Adjust stock RPC error:', rpcError)
-      return { success: false as const, error: rpcError.message || 'تعذر تعديل المخزون' }
+      const msg = rpcError.message || ''
+      if (msg.toLowerCase().includes('insufficient stock')) {
+        return { success: false as const, error: msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:') }
+      }
+      return { success: false as const, error: msg || 'تعذر تعديل المخزون' }
     }
 
     if (!result || !result.success) {
-      return { success: false as const, error: result?.error || 'تعذر تعديل المخزون' }
+      let msg = result?.error || 'تعذر تعديل المخزون'
+      if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
+        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+      }
+      return { success: false as const, error: msg }
     }
 
     return { success: true as const, data: result }
@@ -195,11 +203,19 @@ export async function recordWaste(input: z.infer<typeof WasteSchema>) {
 
     if (rpcError) {
       console.error('Record waste RPC error:', rpcError)
-      return { success: false as const, error: rpcError.message || 'تعذر تسجيل الهدر' }
+      let msg = rpcError.message || ''
+      if (msg.toLowerCase().includes('insufficient stock')) {
+        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+      }
+      return { success: false as const, error: msg || 'تعذر تسجيل الهدر' }
     }
 
     if (!result || !result.success) {
-      return { success: false as const, error: result?.error || 'تعذر تسجيل الهدر' }
+      let msg = result?.error || 'تعذر تسجيل الهدر'
+      if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
+        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+      }
+      return { success: false as const, error: msg }
     }
 
     return { success: true as const, data: result }
@@ -239,11 +255,19 @@ export async function recordReturn(input: z.infer<typeof ReturnSchema>) {
 
     if (rpcError) {
       console.error('Record return RPC error:', rpcError)
-      return { success: false as const, error: rpcError.message || 'تعذر تسجيل الإرجاع' }
+      let msg = rpcError.message || ''
+      if (msg.toLowerCase().includes('insufficient stock')) {
+        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+      }
+      return { success: false as const, error: msg || 'تعذر تسجيل الإرجاع' }
     }
 
     if (!result || !result.success) {
-      return { success: false as const, error: result?.error || 'تعذر تسجيل الإرجاع' }
+      let msg = result?.error || 'تعذر تسجيل الإرجاع'
+      if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
+        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+      }
+      return { success: false as const, error: msg }
     }
 
     return { success: true as const, data: result }
@@ -288,11 +312,19 @@ export async function recordUsage(input: z.infer<typeof UsageSchema>) {
 
     if (rpcError) {
       console.error('Record usage RPC error:', rpcError)
-      return { success: false as const, error: rpcError.message || 'تعذر تسجيل الاستهلاك' }
+      let msg = rpcError.message || ''
+      if (msg.toLowerCase().includes('insufficient stock')) {
+        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+      }
+      return { success: false as const, error: msg || 'تعذر تسجيل الاستهلاك' }
     }
 
     if (!result || !result.success) {
-      return { success: false as const, error: result?.error || 'تعذر تسجيل الاستهلاك' }
+      let msg = result?.error || 'تعذر تسجيل الاستهلاك'
+      if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
+        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+      }
+      return { success: false as const, error: msg }
     }
 
     return { success: true as const, data: result }
