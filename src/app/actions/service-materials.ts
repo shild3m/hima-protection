@@ -1,7 +1,6 @@
 'use server'
 
 import { z } from 'zod'
-import { createClient } from '@/utils/supabase/server'
 import { requireAuth, getSupabaseAdmin } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 
@@ -26,21 +25,16 @@ export async function getServiceMaterials(serviceId?: string) {
   }
 
   try {
-    const supabase = await createClient()
-    const query = supabase
+    const supabase = getSupabaseAdmin()
+    let query = supabase
       .from('service_materials')
       .select('id, service_id, material_id, qty_small, qty_medium, qty_large, material:materials(id, name, sku, unit)')
 
-    const { data, error } = serviceId
-      ? await supabase
-          .from('service_materials')
-          .select('id, service_id, material_id, qty_small, qty_medium, qty_large, material:materials(id, name, sku, unit)')
-          .eq('service_id', serviceId)
-          .order('created_at', { ascending: false })
-      : await supabase
-          .from('service_materials')
-          .select('id, service_id, material_id, qty_small, qty_medium, qty_large, material:materials(id, name, sku, unit)')
-          .order('created_at', { ascending: false })
+    if (serviceId) {
+      query = query.eq('service_id', serviceId)
+    }
+
+    const { data, error } = await query.order('id', { ascending: true })
 
     if (error) {
       console.error('Get service materials error:', error)
