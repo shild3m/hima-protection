@@ -424,7 +424,20 @@ const hasInitial = !!initialServices
 {/* Service Materials Modal */}
   {materialsService && (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setMaterialsService(null)}>
-  <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+  <div className="relative bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+  {notification && (
+  <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg border font-bold text-xs flex items-center gap-2 ${
+    notification.type === 'success'
+      ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#065F46]'
+      : 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+  }`}>
+  {notification.type === 'success' ? <FaCheck className="text-[10px]" /> : <FaExclamationTriangle className="text-[10px]" />}
+  {notification.message}
+  <button onClick={() => setNotification(null)} className="mr-2 opacity-60 hover:opacity-100 transition">
+  <FaTimes className="text-[9px]" />
+  </button>
+  </div>
+  )}
   <div className="flex items-center justify-between px-6 py-4 border-b border-[#E7E8EA]">
   <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
   <div className="w-7 h-7 rounded-lg bg-[#FFFBEB] flex items-center justify-center">
