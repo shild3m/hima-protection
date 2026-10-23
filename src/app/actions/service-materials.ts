@@ -62,7 +62,28 @@ export async function saveServiceMaterials(input: {
   if (!rl.ok) return { success: false as const, error: rl.error }
 
   try {
-    const validated = SaveSchema.parse(input)
+    const cleanedRows = (input.rows || [])
+      .filter((r) => {
+        const mid = String(r.material_id || '').trim()
+        if (!mid) return false
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        if (!uuidRegex.test(mid)) return false
+        const small = Number(r.qty_small) || 0
+        const medium = Number(r.qty_medium) || 0
+        const large = Number(r.qty_large) || 0
+        return small > 0 || medium > 0 || large > 0
+      })
+      .map((r) => ({
+        material_id: String(r.material_id).trim(),
+        qty_small: Number(r.qty_small) || 0,
+        qty_medium: Number(r.qty_medium) || 0,
+        qty_large: Number(r.qty_large) || 0,
+      }))
+
+    const validated = SaveSchema.parse({
+      service_id: input.service_id,
+      rows: cleanedRows,
+    })
     const supabase = await createClient()
 
     const { data: service } = await supabase
@@ -75,7 +96,7 @@ export async function saveServiceMaterials(input: {
       return { success: false as const, error: 'الخدمة غير موجودة' }
     }
 
-    const rows = validated.rows.filter(r => r.qty_small > 0 || r.qty_medium > 0 || r.qty_large > 0)
+    const rows = validated.rows
 
     if (rows.length > 0) {
       const materialIds = [...new Set(rows.map(r => r.material_id))]
