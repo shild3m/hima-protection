@@ -115,6 +115,11 @@ export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
       console.error('Adjust stock RPC error:', rpcError)
       const msg = rpcError.message || ''
       if (msg.toLowerCase().includes('insufficient stock')) {
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) {
+          const name = m[2].trim()
+          return { success: false as const, error: `المخزون غير كافي، المتاح ${m[1]} من ${name}` }
+        }
         return { success: false as const, error: msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:') }
       }
       return { success: false as const, error: msg || 'تعذر تعديل المخزون' }
@@ -123,7 +128,9 @@ export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
     if (!result || !result.success) {
       let msg = result?.error || 'تعذر تعديل المخزون'
       if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
-        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} ${m[2].trim()}`
+        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
       }
       return { success: false as const, error: msg }
     }
@@ -205,15 +212,19 @@ export async function recordWaste(input: z.infer<typeof WasteSchema>) {
       console.error('Record waste RPC error:', rpcError)
       let msg = rpcError.message || ''
       if (msg.toLowerCase().includes('insufficient stock')) {
-        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} من ${m[2].trim()}`
+        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي، المتاح:')
       }
-      return { success: false as const, error: msg || 'تعذر تسجيل الهدر' }
+      return { success: false as const, error: msg || 'لا يمكن تسجيل الهدر بسبب نقص المخزون' }
     }
 
     if (!result || !result.success) {
-      let msg = result?.error || 'تعذر تسجيل الهدر'
+      let msg = result?.error || 'لا يمكن تسجيل الهدر بسبب نقص المخزون'
       if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
-        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} من ${m[2].trim()}`
+        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي، المتاح:')
       }
       return { success: false as const, error: msg }
     }
@@ -257,7 +268,9 @@ export async function recordReturn(input: z.infer<typeof ReturnSchema>) {
       console.error('Record return RPC error:', rpcError)
       let msg = rpcError.message || ''
       if (msg.toLowerCase().includes('insufficient stock')) {
-        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} ${m[2].trim()}`
+        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
       }
       return { success: false as const, error: msg || 'تعذر تسجيل الإرجاع' }
     }
@@ -265,7 +278,9 @@ export async function recordReturn(input: z.infer<typeof ReturnSchema>) {
     if (!result || !result.success) {
       let msg = result?.error || 'تعذر تسجيل الإرجاع'
       if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
-        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} ${m[2].trim()}`
+        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
       }
       return { success: false as const, error: msg }
     }
@@ -314,15 +329,19 @@ export async function recordUsage(input: z.infer<typeof UsageSchema>) {
       console.error('Record usage RPC error:', rpcError)
       let msg = rpcError.message || ''
       if (msg.toLowerCase().includes('insufficient stock')) {
-        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} من ${m[2].trim()}`
+        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
       }
-      return { success: false as const, error: msg || 'تعذر تسجيل الاستهلاك' }
+      return { success: false as const, error: msg || 'لا يمكن تسجيل الاستهلاك بسبب نقص المخزون' }
     }
 
     if (!result || !result.success) {
-      let msg = result?.error || 'تعذر تسجيل الاستهلاك'
+      let msg = result?.error || 'لا يمكن تسجيل الاستهلاك بسبب نقص المخزون'
       if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
-        msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
+        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} من ${m[2].trim()}`
+        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
       }
       return { success: false as const, error: msg }
     }
