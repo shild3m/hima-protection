@@ -1042,23 +1042,6 @@ return (
   <span className="flex items-center gap-1.5 font-bold">
   <FaWrench className="text-[#62666D] text-[10px]" />
   {booking.service.name}
-  {booking.booking_items && booking.booking_items.length > 0 && (
-    <button
-      onClick={(e) => {
-        e.stopPropagation()
-        setExpandedBookingItems(prev => {
-          const next = new Set(prev)
-          if (next.has(booking.id)) next.delete(booking.id)
-          else next.add(booking.id)
-          return next
-        })
-      }}
-      className="text-[#62666D] text-[10px] font-bold hover:text-[#111214] transition-colors flex items-center gap-0.5"
-    >
-      <FaChevronDown className={`text-[8px] transition-transform duration-200 ${expandedBookingItems.has(booking.id) ? 'rotate-180' : ''}`} />
-      +{booking.booking_items.length}
-    </button>
-  )}
   </span>
   )}
 {(booking.status === 'new' && !booking.created_by_name && booking.preferred_date) ? (
@@ -1174,11 +1157,27 @@ return (
     <>
     <span className="h-4 w-px bg-[#E7E8EA]"></span>
     <span className="text-[#DC2626] font-black text-sm" dir="ltr">{grandTotal.toLocaleString('en-US')} ر.س</span>
+    {booking.booking_items && booking.booking_items.length > 0 && (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        setExpandedBookingItems(prev => {
+          const next = new Set(prev)
+          if (next.has(booking.id)) next.delete(booking.id)
+          else next.add(booking.id)
+          return next
+        })
+      }}
+      className="flex items-center gap-1 text-[#62666D] text-[10px] font-bold hover:text-[#111214] transition-colors"
+    >
+      <FaChevronDown className={`text-[9px] transition-transform duration-200 ${expandedBookingItems.has(booking.id) ? 'rotate-180' : ''}`} />
+      <span dir="ltr">+{booking.booking_items.length}</span> إضافية
+    </button>
+    )}
     </>
     )
   })()}
-  </div>
-  <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap mt-2">
 {booking.warranty_start_date && booking.warranty_end_date ? (
   <>
   <span className="h-4 w-px bg-[#E7E8EA]"></span>
