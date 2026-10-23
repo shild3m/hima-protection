@@ -246,6 +246,14 @@ export async function getInvoicePaidStatus(invoiceId: string) {
     return { success: false as const, error: 'الفاتورة غير موجودة' }
   }
 
+  const { data: firstPayment } = await admin
+    .from('payments')
+    .select('payment_method')
+    .eq('invoice_id', invoiceId)
+    .order('paid_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
   return {
     success: true as const,
     data: {
@@ -254,6 +262,7 @@ export async function getInvoicePaidStatus(invoiceId: string) {
       remaining: invoice.total - invoice.paid_amount,
       is_fully_paid: invoice.paid_amount >= invoice.total,
       status: invoice.status,
+      payment_method: firstPayment?.payment_method || null,
     },
   }
 }

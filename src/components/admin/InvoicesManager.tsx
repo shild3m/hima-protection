@@ -857,9 +857,9 @@ const handleOpenRefund = (invoiceId: string) => {
   {viewingInvoice.paid_amount > 0 && viewingInvoice.payments && viewingInvoice.payments.length > 0 && (
   <div className="flex justify-between">
   <span className="text-[#62666D]">نوع الدفع:</span>
-  <span className={`font-bold ${viewingInvoice.paid_amount >= viewingInvoice.total ? 'text-[#059669]' : 'text-[#D97706]'}`}>
-  {viewingInvoice.paid_amount >= viewingInvoice.total ? 'المبلغ كامل' : 'عربون'}
-  </span>
+   <span className={`font-bold ${viewingInvoice.paid_amount >= viewingInvoice.total && (viewingInvoice.payments?.length || 0) <= 1 ? 'text-[#059669]' : 'text-[#D97706]'}`}>
+   {viewingInvoice.paid_amount >= viewingInvoice.total && (viewingInvoice.payments?.length || 0) <= 1 ? 'المبلغ كامل' : 'جزئي'}
+   </span>
   </div>
   )}
   {viewingInvoice.payments && viewingInvoice.payments.length > 0 && viewingInvoice.payments[0]?.payment_method && (

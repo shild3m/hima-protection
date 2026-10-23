@@ -137,6 +137,15 @@ const INVOICE_STATUS_CONFIG: Record<string, { label: string; color: string; bg: 
   refunded: { label: 'مسترجعة', color: 'text-[#7C3AED]', bg: 'bg-[#FAF5FF] border-[#DDD6FE]' },
 }
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'نقدي',
+  card: 'بطاقة ائتمانية',
+  bank_transfer: 'تحويل بنكي',
+  online: 'دفع إلكتروني',
+  tabby: 'تابي',
+  tamara: 'تمارا',
+}
+
 export default function BookingsManager() {
   const { hasPermission, staffInfo } = useAuth()
   const isSuperAdmin = staffInfo?.role === 'super_admin'
@@ -447,6 +456,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       const { getInvoicePaidStatus } = await import('@/app/actions/invoice-draft')
       const result = await getInvoicePaidStatus(invoiceId)
       if (result.success && !result.data!.is_fully_paid) {
+        if (result.data!.payment_method) setUnpaidMethod(result.data!.payment_method)
         setUnpaidPrompt({
           bookingId,
           invoiceId,
@@ -469,6 +479,11 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       if (invoiceStatusPrompt.remaining <= 0) {
         setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 3 } : null)
       } else {
+        try {
+          const { getInvoicePaidStatus } = await import('@/app/actions/invoice-draft')
+          const result = await getInvoicePaidStatus(invoiceStatusPrompt.invoiceId)
+          if (result.success && result.data.payment_method) setUnpaidMethod(result.data.payment_method)
+        } catch {}
         setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
       }
     } else {
@@ -491,7 +506,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     if (!invoiceStatusPrompt) return
     try {
       const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
-      const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
+      const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, unpaidMethod as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara')
       if (result.success) {
         setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
       } else {
@@ -506,7 +521,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     if (!invoiceStatusPrompt) return
     try {
       const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
-      const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
+      const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, unpaidMethod as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara')
       if (result.success) {
         setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
       } else {
@@ -520,6 +535,11 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   const handleInvoiceStatusPayRemaining = async () => {
     if (!invoiceStatusPrompt) return
     setInvoiceSubmitting(true)
+    try {
+      const { getInvoicePaidStatus } = await import('@/app/actions/invoice-draft')
+      const result = await getInvoicePaidStatus(invoiceStatusPrompt.invoiceId)
+      if (result.success && result.data.payment_method) setUnpaidMethod(result.data.payment_method)
+    } catch {}
     setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
     setInvoiceSubmitting(false)
   }
@@ -581,7 +601,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     if (invoiceStatusPrompt.remaining > 0) {
       try {
         const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
-        const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, 'cash')
+        const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, unpaidMethod as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara')
         if (!result.success) {
           setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
           setInvoiceSubmitting(false)
@@ -888,6 +908,9 @@ const statusIcon = (status: string) => {
   }
 
  const totalPages = pagination?.totalPages || 1
+
+ const invoicePayments = invoiceView.data?.payments || []
+ const invoiceIsPartial = !!invoiceView.data && (invoicePayments.length > 1 || invoiceView.data.paid_amount < invoiceView.data.total)
 
 return (
   <div className="space-y-6">
@@ -1955,18 +1978,31 @@ type="password"
   <span className="text-[#D97706] font-black" dir="ltr">{(invoiceView.data.total - invoiceView.data.paid_amount).toLocaleString('en-US')} ر.س</span>
   </div>
   )}
-  {typeof invoiceView.data.paid_amount === 'number' && invoiceView.data.paid_amount > 0 && (
+  {invoicePayments.length > 0 && (
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">نوع الدفع</span>
-  <span className={`font-black text-xs px-2 py-0.5 rounded-md ${invoiceView.data.paid_amount >= invoiceView.data.total ? 'text-[#059669] bg-[#ECFDF5]' : 'text-[#D97706] bg-[#FFFBEB]'}`}>
-  {invoiceView.data.paid_amount >= invoiceView.data.total ? 'المبلغ كامل' : 'عربون'}
+  <span className={`font-black text-xs px-2 py-0.5 rounded-md ${invoiceIsPartial ? 'text-[#D97706] bg-[#FFFBEB]' : 'text-[#059669] bg-[#ECFDF5]'}`}>
+  {invoiceIsPartial ? 'جزئي' : 'المبلغ كامل'}
   </span>
   </div>
   )}
-  {invoiceView.data.payments && invoiceView.data.payments.length > 0 && invoiceView.data.payments[0]?.payment_method && (
+  {invoicePayments.length > 1 && (
+  <div className="space-y-1 rounded-lg bg-[#FBFBFA] border border-[#F1F2F3] px-2.5 py-2">
+  {invoicePayments.map((p, idx) => (
+  <div key={p.id} className="flex items-center justify-between text-xs">
+  <span className="text-[#62666D] font-bold">{idx === 0 ? 'الجزء الأول' : 'الجزء النهائي'}</span>
+  <span className="flex items-center gap-1.5">
+  <span className="text-[#9CA1A6] font-bold">{PAYMENT_METHOD_LABELS[p.payment_method || ''] || p.payment_method || '—'}</span>
+  <span className="text-[#111214] font-black" dir="ltr">{Number(p.amount).toLocaleString('en-US')} ر.س</span>
+  </span>
+  </div>
+  ))}
+  </div>
+  )}
+  {invoicePayments.length > 0 && invoicePayments[0]?.payment_method && (
   <div className="flex items-center justify-between text-sm">
   <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
-   <span className="text-[#111214] font-black text-xs">{invoiceView.data.payments[0].payment_method === 'cash' ? 'نقدي' : invoiceView.data.payments[0].payment_method === 'card' ? 'بطاقة' : invoiceView.data.payments[0].payment_method === 'bank_transfer' ? 'تحويل بنكي' : invoiceView.data.payments[0].payment_method === 'tabby' ? 'تابي' : invoiceView.data.payments[0].payment_method === 'tamara' ? 'تمارا' : invoiceView.data.payments[0].payment_method}</span>
+   <span className="text-[#111214] font-black text-xs">{PAYMENT_METHOD_LABELS[invoicePayments[0].payment_method || ''] || invoicePayments[0].payment_method}</span>
   </div>
   )}
   </div>
@@ -2258,10 +2294,21 @@ type="password"
    تأكيد استلام الدفع
    </h3>
    </div>
-   <div className="px-5 py-5">
+   <div className="px-5 py-5 space-y-4">
    <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4 text-center">
-   <p className="text-sm font-bold text-[#92400E]">هل أنت متأكد من استلام المبلغ المتبققي؟</p>
+   <p className="text-sm font-bold text-[#92400E]">هل أنت متأكد من استلام المبلغ المتبقي؟</p>
    <p className="text-lg font-black text-[#B45309] mt-2">{invoiceStatusPrompt.remaining.toLocaleString()} ر.س</p>
+   </div>
+   <div className="space-y-2">
+   <label className="text-xs font-bold text-[#62666D]">طريقة استلام المبلغ المتبقي</label>
+   <select value={unpaidMethod} onChange={e => setUnpaidMethod(e.target.value)} className="w-full bg-[#F7F7F5] border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm font-bold text-[#111214] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/20 outline-none transition-all">
+    <option value="cash">نقدي</option>
+    <option value="card">بطاقة ائتمانية</option>
+    <option value="bank_transfer">تحويل بنكي</option>
+    <option value="online">دفع إلكتروني</option>
+    <option value="tabby">تابي</option>
+    <option value="tamara">تمارا</option>
+   </select>
    </div>
    </div>
    <div className="px-5 pb-5 pt-2 flex gap-3">
@@ -2288,7 +2335,7 @@ type="password"
    </div>
    <div className="px-5 py-5 space-y-4">
    <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl p-3 text-center">
-   <span className="text-[#059669] text-sm font-bold">تم استلام المبلغ المتبققي بنجاح</span>
+   <span className="text-[#059669] text-sm font-bold">تم استلام المبلغ المتبقي بنجاح</span>
    </div>
    <p className="text-sm text-[#4B4F55] font-semibold">اختر مدة الضمان (يبدأ من تاريخ الإكمال):</p>
    <div className="space-y-2.5">
