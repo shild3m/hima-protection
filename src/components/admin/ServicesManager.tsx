@@ -103,10 +103,17 @@ const [deletingService, setDeletingService] = useState<Service | null>(null)
     if (!materialsService) return
     setMatSaving(true)
     try {
+      const rowsToSave = matRows.filter(r => r.material_id)
+      const invalid = rowsToSave.some(r => !(Number(r.qty_small) > 0 || Number(r.qty_medium) > 0 || Number(r.qty_large) > 0))
+      if (invalid) {
+        setNotification({ type: 'error', message: 'أدخل كمية أكبر من 0 لأحد الأحجام لكل مادة محددة' })
+        return
+      }
+
       const { saveServiceMaterials } = await import('@/app/actions/service-materials')
       const result = await saveServiceMaterials({
         service_id: materialsService.id,
-        rows: matRows.filter(r => r.material_id && (r.qty_small > 0 || r.qty_medium > 0 || r.qty_large > 0)),
+        rows: rowsToSave,
       })
       if (result.success) {
         setNotification({ type: 'success', message: 'تم حفظ المواد المطلوبة' })

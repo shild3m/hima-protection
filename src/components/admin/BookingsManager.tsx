@@ -1047,12 +1047,18 @@ return (
  {meta.icon}
  </div>
  <div className="flex-1 min-w-0">
- <div className="flex items-center gap-2 flex-wrap">
- <h4 className="text-[17px] font-bold text-[#111214] truncate">
- {booking.customer?.full_name || 'عميل'}
- </h4>
- {statusBadge(booking.status)}
- </div>
+  <div className="flex items-center gap-2 flex-wrap">
+  <h4 className="text-[17px] font-bold text-[#111214] truncate">
+  {booking.customer?.full_name || 'عميل'}
+  </h4>
+  {statusBadge(booking.status)}
+  {booking.linked_invoice?.invoice_number && (
+  <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-full px-2 py-0.5">
+  <FaFileInvoiceDollar className="text-[9px]" />
+  {booking.linked_invoice.invoice_number}
+  </span>
+  )}
+  </div>
  <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-[14px] text-[#62666D] font-semibold flex-wrap">
  {booking.customer?.phone && (
  <span className="flex items-center gap-1.5 font-bold" dir="ltr">
@@ -1241,7 +1247,7 @@ return (
   className="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-2.5 py-1 hover:bg-[#DBEAFE] transition-all"
   >
   <FaFileInvoiceDollar className="text-[11px]" />
-  عرض الفاتورة {booking.linked_invoice.invoice_number ? `(${booking.linked_invoice.invoice_number})` : ''}
+  عرض الفاتورة
   </button>
   </>)}
   </div>
