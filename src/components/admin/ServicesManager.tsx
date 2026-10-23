@@ -111,6 +111,13 @@ const [deletingService, setDeletingService] = useState<Service | null>(null)
       }
 
       const rowsToSave = matRows.filter(r => r.material_id)
+      const materialIds = rowsToSave.map(r => r.material_id)
+      if (new Set(materialIds).size !== materialIds.length) {
+        setNotification({ type: 'error', message: 'لا يمكن اختيار نفس المادة أكثر من مرة' })
+        setMatSaving(false)
+        return
+      }
+
       const invalid = rowsToSave.some(r => !(Number(r.qty_small) > 0 || Number(r.qty_medium) > 0 || Number(r.qty_large) > 0))
       if (invalid) {
         setNotification({ type: 'error', message: 'أدخل كمية أكبر من 0 لأحد الأحجام لكل مادة محددة' })

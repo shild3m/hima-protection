@@ -2,15 +2,14 @@
 
 import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
-import { requireAuth } from '@/lib/auth'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { requireAuth, getSupabaseAdmin } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 
 const ServiceMaterialRowSchema = z.object({
   material_id: z.string().uuid('معرف المادة غير صحيح'),
-  qty_small: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر').max(100000).default(0),
-  qty_medium: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر').max(100000).default(0),
-  qty_large: z.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر').max(100000).default(0),
+  qty_small: z.coerce.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر').max(100000).default(0),
+  qty_medium: z.coerce.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر').max(100000).default(0),
+  qty_large: z.coerce.number().min(0, 'الكمية يجب أن تكون 0 أو أكثر').max(100000).default(0),
 })
 
 const SaveSchema = z.object({
@@ -58,9 +57,6 @@ export async function saveServiceMaterials(input: {
     return { success: false as const, error: 'غير مصرح' }
   }
 
-  const rl = await checkRateLimit('service-materials:save')
-  if (!rl.ok) return { success: false as const, error: rl.error }
-
   try {
     const cleanedRows = (input.rows || [])
       .filter((r) => {
@@ -84,7 +80,7 @@ export async function saveServiceMaterials(input: {
       service_id: input.service_id,
       rows: cleanedRows,
     })
-    const supabase = await createClient()
+    const supabase = getSupabaseAdmin()
 
     const { data: service } = await supabase
       .from('services')
@@ -96,7 +92,7 @@ export async function saveServiceMaterials(input: {
       return { success: false as const, error: 'الخدمة غير موجودة' }
     }
 
-    const rows = validated.rows
+    const rows = [...new Map(validated.rows.map(r => [r.material_id, r])).values()]
 
     if (rows.length > 0) {
       const materialIds = [...new Set(rows.map(r => r.material_id))]
@@ -133,7 +129,7 @@ export async function saveServiceMaterials(input: {
 
       if (insertError) {
         console.error('Insert service materials error:', insertError)
-        return { success: false as const, error: 'تعذر حفظ المواد المطلوبة' }
+        return { success: false as const, error: `تعذر حفظ المواد المطلوبة: ${insertError.message}` }
       }
     }
 
