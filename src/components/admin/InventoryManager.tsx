@@ -71,53 +71,54 @@ export default function InventoryManager() {
  setShowAction(type)
  }
 
- const handleAction = async () => {
- setSaving(true); setNotification(null)
- try {
- if (!actionForm.material_id) { setNotification({ type: 'error', message: 'اختر المادة' }); setSaving(false); return }
- if (actionForm.quantity <= 0) { setNotification({ type: 'error', message: 'الكمية يجب أن تكون أكبر من صفر' }); setSaving(false); return }
+  const handleAction = async () => {
+  setSaving(true); setNotification(null); setActionError('')
+  try {
+  if (!actionForm.material_id) { setActionError('اختر المادة'); setSaving(false); return }
+  if (actionForm.quantity <= 0) { setActionError('الكمية يجب أن تكون أكبر من صفر'); setSaving(false); return }
 
- if (showAction === 'adjust') {
- const { adjustStock } = await import('@/app/actions/inventory')
- const res = await adjustStock({ material_id: actionForm.material_id, quantity: actionForm.quantity, direction: actionForm.direction, notes: actionForm.notes || null })
- if (res.success) {
- setNotification({ type: 'success', message: `تم ${actionForm.direction === 'in' ? 'إضافة' : 'خصم'} ${actionForm.quantity} من المخزون` })
- } else {
- setNotification({ type: 'error', message: res.error }); setSaving(false); return
- }
- } else if (showAction === 'waste') {
- if (!actionForm.notes) { setNotification({ type: 'error', message: 'سبب الهدر مطلوب' }); setSaving(false); return }
- const { recordWaste } = await import('@/app/actions/inventory')
- const res = await recordWaste({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes })
- if (res.success) {
- setNotification({ type: 'success', message: `تم تسجيل هدر ${actionForm.quantity} من المخزون` })
- } else {
- setNotification({ type: 'error', message: res.error }); setSaving(false); return
- }
- } else if (showAction === 'return') {
- const { recordReturn } = await import('@/app/actions/inventory')
- const res = await recordReturn({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes || null })
- if (res.success) {
- setNotification({ type: 'success', message: `تم تسجيل إرجاع ${actionForm.quantity} إلى المخزون` })
- } else {
- setNotification({ type: 'error', message: res.error }); setSaving(false); return
- }
- } else if (showAction === 'usage') {
- const { recordUsage } = await import('@/app/actions/inventory')
- const res = await recordUsage({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes || null })
- if (res.success) {
- setNotification({ type: 'success', message: `تم تسجيل استهلاك ${actionForm.quantity} من المخزون` })
- } else {
- setNotification({ type: 'error', message: res.error }); setSaving(false); return
- }
- }
+  if (showAction === 'adjust') {
+  const { adjustStock } = await import('@/app/actions/inventory')
+  const res = await adjustStock({ material_id: actionForm.material_id, quantity: actionForm.quantity, direction: actionForm.direction, notes: actionForm.notes || null })
+  if (res.success) {
+  setNotification({ type: 'success', message: `تم ${actionForm.direction === 'in' ? 'إضافة' : 'خصم'} ${actionForm.quantity} من المخزون` })
+  } else {
+  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
+  }
+  } else if (showAction === 'waste') {
+  if (!actionForm.notes) { setActionError('سبب الهدر مطلوب'); setSaving(false); return }
+  const { recordWaste } = await import('@/app/actions/inventory')
+  const res = await recordWaste({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes })
+  if (res.success) {
+  setNotification({ type: 'success', message: `تم تسجيل هدر ${actionForm.quantity} من المخزون` })
+  } else {
+  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
+  }
+  } else if (showAction === 'return') {
+  const { recordReturn } = await import('@/app/actions/inventory')
+  const res = await recordReturn({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes || null })
+  if (res.success) {
+  setNotification({ type: 'success', message: `تم تسجيل إرجاع ${actionForm.quantity} إلى المخزون` })
+  } else {
+  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
+  }
+  } else if (showAction === 'usage') {
+  const { recordUsage } = await import('@/app/actions/inventory')
+  const res = await recordUsage({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes || null })
+  if (res.success) {
+  setNotification({ type: 'success', message: `تم تسجيل استهلاك ${actionForm.quantity} من المخزون` })
+  } else {
+  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
+  }
+  }
 
- setShowAction(null)
- setActionForm({ material_id: '', quantity: 1, direction: 'in', notes: '' })
- loadMovements(materialFilter, typeFilter, page)
- loadMaterials()
- } finally { setSaving(false) }
- }
+  setShowAction(null)
+  setActionForm({ material_id: '', quantity: 1, direction: 'in', notes: '' })
+  setActionError('')
+  loadMovements(materialFilter, typeFilter, page)
+  loadMaterials()
+  } finally { setSaving(false) }
+  }
 
  const ACTION_LABELS: Record<ActionType, { title: string; icon: React.ReactNode }> = {
  adjust: { title: 'تعديل المخزون', icon: <FaTools className="text-[#DC2626]" /> },
