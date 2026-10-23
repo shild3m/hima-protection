@@ -1991,6 +1991,12 @@ type="password"
   </span>
   </div>
   )}
+  {invoicePayments.length > 0 && invoicePayments[0]?.payment_method && (
+  <div className="flex items-center justify-between text-sm">
+  <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
+   <span className="text-[#111214] font-black text-xs">{PAYMENT_METHOD_LABELS[invoicePayments[0].payment_method || ''] || invoicePayments[0].payment_method}</span>
+  </div>
+  )}
   {invoicePayments.length > 1 && invoiceIsPartial && (
   <div className="space-y-1 rounded-lg bg-[#FBFBFA] border border-[#F1F2F3] px-2.5 py-2">
   {invoicePayments.map((p, idx) => (
@@ -2002,12 +2008,6 @@ type="password"
   </span>
   </div>
   ))}
-  </div>
-  )}
-  {invoicePayments.length > 0 && invoicePayments[0]?.payment_method && !(invoicePayments.length > 1 && invoiceIsPartial) && (
-  <div className="flex items-center justify-between text-sm">
-  <span className="text-[#62666D] font-semibold">طريقة الدفع</span>
-   <span className="text-[#111214] font-black text-xs">{PAYMENT_METHOD_LABELS[invoicePayments[0].payment_method || ''] || invoicePayments[0].payment_method}</span>
   </div>
   )}
   </div>
