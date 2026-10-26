@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import {
- FaSearch, FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle,
+ FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle,
  FaExclamationTriangle, FaTimes, FaArrowUp, FaArrowDown, FaExchangeAlt,
- FaPlus, FaMinus, FaTools, FaTrash, FaUndo, FaFlask,
+ FaPlus, FaMinus,
 } from 'react-icons/fa'
 
 interface Material { id: string; name: string; sku: string; unit: string; current_stock: number; min_stock: number; is_active: boolean }
@@ -26,7 +26,7 @@ const TYPE_MAP: Record<string, { label: string; color: string; icon: React.React
  return: { label: 'إضافة', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> },
 }
 
-type ActionType = 'adjust' | 'waste' | 'return' | 'usage'
+type ActionType = 'in' | 'out'
 
 export default function InventoryManager() {
  const { hasPermission } = useAuth()
@@ -44,7 +44,6 @@ export default function InventoryManager() {
   const [actionError, setActionError] = useState('')
 
  const canAdjust = hasPermission('inventory', 'adjust')
- const canUsage = hasPermission('inventory', 'usage')
 
  const loadMovements = useCallback(async (mId: string, type: string, p: number) => {
  setLoading(true)
@@ -66,9 +65,9 @@ export default function InventoryManager() {
  useEffect(() => { loadMovements('', 'all', 1); loadMaterials() }, [loadMovements, loadMaterials])
  useEffect(() => { loadMovements(materialFilter, typeFilter, page) }, [materialFilter, typeFilter, page, loadMovements])
 
- const openAction = (type: ActionType) => {
- setActionForm({ material_id: '', quantity: 1, direction: type === 'adjust' ? 'in' : 'out', notes: '' })
- setShowAction(type)
+ const openAction = (direction: ActionType) => {
+ setActionForm({ material_id: '', quantity: 1, direction, notes: '' })
+ setShowAction(direction)
  }
 
   const handleAction = async () => {
@@ -77,40 +76,12 @@ export default function InventoryManager() {
   if (!actionForm.material_id) { setActionError('اختر المادة'); setSaving(false); return }
   if (actionForm.quantity <= 0) { setActionError('الكمية يجب أن تكون أكبر من صفر'); setSaving(false); return }
 
-  if (showAction === 'adjust') {
   const { adjustStock } = await import('@/app/actions/inventory')
   const res = await adjustStock({ material_id: actionForm.material_id, quantity: actionForm.quantity, direction: actionForm.direction, notes: actionForm.notes || null })
-  if (res.success) {
+  if (!res.success) {
+  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
+  }
   setNotification({ type: 'success', message: `تم ${actionForm.direction === 'in' ? 'إضافة' : 'خصم'} ${actionForm.quantity} من المخزون` })
-  } else {
-  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
-  }
-  } else if (showAction === 'waste') {
-  if (!actionForm.notes) { setActionError('سبب الهدر مطلوب'); setSaving(false); return }
-  const { recordWaste } = await import('@/app/actions/inventory')
-  const res = await recordWaste({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes })
-  if (res.success) {
-  setNotification({ type: 'success', message: `تم تسجيل هدر ${actionForm.quantity} من المخزون` })
-  } else {
-  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
-  }
-  } else if (showAction === 'return') {
-  const { recordReturn } = await import('@/app/actions/inventory')
-  const res = await recordReturn({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes || null })
-  if (res.success) {
-  setNotification({ type: 'success', message: `تم تسجيل إرجاع ${actionForm.quantity} إلى المخزون` })
-  } else {
-  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
-  }
-  } else if (showAction === 'usage') {
-  const { recordUsage } = await import('@/app/actions/inventory')
-  const res = await recordUsage({ material_id: actionForm.material_id, quantity: actionForm.quantity, notes: actionForm.notes || null })
-  if (res.success) {
-  setNotification({ type: 'success', message: `تم تسجيل استهلاك ${actionForm.quantity} من المخزون` })
-  } else {
-  setActionError(res.error || 'حدث خطأ'); setSaving(false); return
-  }
-  }
 
   setShowAction(null)
   setActionForm({ material_id: '', quantity: 1, direction: 'in', notes: '' })
@@ -121,10 +92,8 @@ export default function InventoryManager() {
   }
 
  const ACTION_LABELS: Record<ActionType, { title: string; icon: React.ReactNode }> = {
- adjust: { title: 'تعديل المخزون', icon: <FaTools className="text-[#DC2626]" /> },
- waste: { title: 'تسجيل هدر', icon: <FaTrash className="text-[#DC2626]" /> },
- return: { title: 'تسجيل إرجاع', icon: <FaUndo className="text-[#7C3AED]" /> },
- usage: { title: 'تسجيل استهلاك', icon: <FaFlask className="text-[#2563EB]" /> },
+ in: { title: 'إضافة للمخزون', icon: <FaPlus className="text-[#059669]" /> },
+ out: { title: 'خصم من المخزون', icon: <FaMinus className="text-[#DC2626]" /> },
  }
 
  return (
@@ -134,26 +103,14 @@ export default function InventoryManager() {
  <h1 className="text-2xl font-black text-[#111214] mb-1">المخزون</h1>
  <p className="text-[#62666D] text-sm">حركات المخزون وتعديلات</p>
  </div>
- {(canAdjust || canUsage) && (
- <div className="flex gap-2 flex-wrap">
  {canAdjust && (
- <>
- <button onClick={() => openAction('adjust')} className="flex items-center gap-2 px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs font-bold transition-colors">
- <FaTools className="text-xs" /> تعديل
+ <div className="flex gap-2 flex-wrap">
+ <button onClick={() => openAction('in')} className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-colors">
+ <FaPlus className="text-xs" /> إضافة
  </button>
- <button onClick={() => openAction('waste')} className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-[#111214] rounded-xl text-xs font-bold transition-colors">
- <FaTrash className="text-xs" /> هدر
+ <button onClick={() => openAction('out')} className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors">
+ <FaMinus className="text-xs" /> خصم
  </button>
- <button onClick={() => openAction('return')} className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors">
- <FaUndo className="text-xs" /> إرجاع
- </button>
- </>
- )}
- {canUsage && (
- <button onClick={() => openAction('usage')} className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors">
- <FaFlask className="text-xs" /> استهلاك
- </button>
- )}
  </div>
  )}
  </div>
@@ -262,29 +219,19 @@ export default function InventoryManager() {
   {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
   </select>
   </div>
- {showAction === 'adjust' && (
- <div>
- <label className="block text-[#62666D] text-xs font-bold mb-1">الاتجاه *</label>
- <select value={actionForm.direction} onChange={e => setActionForm({ ...actionForm, direction: e.target.value as 'in' | 'out' })}
- className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
- <option value="in">وارد (زيادة)</option>
- <option value="out">صادر (خصم)</option>
- </select>
- </div>
- )}
  <div>
  <label className="block text-[#62666D] text-xs font-bold mb-1">الكمية *</label>
   <input type="number" value={actionForm.quantity} onChange={e => { setActionForm({ ...actionForm, quantity: Number(e.target.value) }); setActionError('') }} min={0.01} step={0.01}
   className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]" />
  </div>
  <div>
- <label className="block text-[#62666D] text-xs font-bold mb-1">{showAction === 'waste' ? 'السبب *' : 'ملاحظات'}</label>
+ <label className="block text-[#62666D] text-xs font-bold mb-1">ملاحظات</label>
   <textarea value={actionForm.notes} onChange={e => { setActionForm({ ...actionForm, notes: e.target.value }); setActionError('') }} rows={2}
   className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626] resize-none" />
   </div>
   <div className="flex gap-3 pt-2">
   <button onClick={handleAction} disabled={saving || !actionForm.material_id || actionForm.quantity <= 0}
-  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors">
+  className={`flex-1 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors ${showAction === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
   {saving ? <FaSpinner className="animate-spin inline" /> : 'تطبيق'}
   </button>
   <button onClick={() => { setShowAction(null); setActionError('') }} className="px-6 py-2.5 bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#111214] rounded-xl text-sm font-bold transition-colors">إلغاء</button>
