@@ -45,7 +45,7 @@ export async function getStockMovements(
 ) {
   const user = await requireAuth()
   if (!user.permissions.includes('inventory:read')) {
-    return { success: false as const, error: 'غير مصرح' }
+    return { success: false as const, error: 'ليس لديك صلاحية لعرض حركات المخزون' }
   }
 
   const currentPage = validatePage(page)
@@ -73,7 +73,7 @@ export async function getStockMovements(
 
     if (error) {
       console.error('Get stock movements error:', error)
-      return { success: false as const, error: 'تعذر جلب حركات المخزون' }
+      return { success: false as const, error: 'تعذر عرض حركات المخزون، يرجى المحاولة مرة أخرى' }
     }
 
     return {
@@ -87,14 +87,14 @@ export async function getStockMovements(
       },
     }
   } catch {
-    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+    return { success: false as const, error: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى' }
   }
 }
 
 export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
   const user = await requireAuth()
   if (!user.permissions.includes('inventory:adjust')) {
-    return { success: false as const, error: 'غير مصرح' }
+    return { success: false as const, error: 'ليس لديك صلاحية لتعديل المخزون' }
   }
 
   try {
@@ -118,19 +118,19 @@ export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
         const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
         if (m) {
           const name = m[2].trim()
-          return { success: false as const, error: `المخزون غير كافي، المتاح ${m[1]} من ${name}` }
+          return { success: false as const, error: `المخزون غير كافي، المتاح حالياً ${m[1]} من ${name}` }
         }
-        return { success: false as const, error: msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:') }
+        return { success: false as const, error: 'المخزون غير كافي لإتمام هذه العملية' }
       }
-      return { success: false as const, error: msg || 'تعذر تعديل المخزون' }
+      return { success: false as const, error: 'تعذر تعديل المخزون، يرجى المحاولة مرة أخرى' }
     }
 
     if (!result || !result.success) {
-      let msg = result?.error || 'تعذر تعديل المخزون'
+      let msg = result?.error || 'تعذر تعديل المخزون، يرجى المحاولة مرة أخرى'
       if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
         const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
-        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} ${m[2].trim()}`
-        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        if (m) msg = `المخزون غير كافي، المتاح حالياً ${m[1]} من ${m[2].trim()}`
+        else msg = 'المخزون غير كافي لإتمام هذه العملية'
       }
       return { success: false as const, error: msg }
     }
@@ -138,16 +138,16 @@ export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
     return { success: true as const, data: result }
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false as const, error: err.issues[0]?.message || 'بيانات غير صحيحة' }
+      return { success: false as const, error: err.issues[0]?.message || 'تحقق من صحة البيانات المدخلة' }
     }
-    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+    return { success: false as const, error: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى' }
   }
 }
 
 export async function getInventorySummary() {
   const user = await requireAuth()
   if (!user.permissions.includes('inventory:read')) {
-    return { success: false as const, error: 'غير مصرح' }
+    return { success: false as const, error: 'ليس لديك صلاحية لعرض حركات المخزون' }
   }
 
   try {
@@ -159,7 +159,7 @@ export async function getInventorySummary() {
       .order('name', { ascending: true })
 
     if (error) {
-      return { success: false as const, error: 'تعذر جلب ملخص المخزون' }
+      return { success: false as const, error: 'تعذر عرض ملخص المخزون، يرجى المحاولة مرة أخرى' }
     }
 
     const active = (materials || []).filter(m => m.is_active)
@@ -178,20 +178,20 @@ export async function getInventorySummary() {
       },
     }
   } catch {
-    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+    return { success: false as const, error: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى' }
   }
 }
 
 const WasteSchema = z.object({
   material_id: z.string().uuid('معرف المادة غير صحيح'),
   quantity: z.number().positive('الكمية يجب أن تكون أكبر من صفر'),
-  notes: z.string().min(1, 'السبب مطلوب').max(1000),
+  notes: z.string().min(1, 'سبب الهدر مطلوب').max(1000),
 })
 
 export async function recordWaste(input: z.infer<typeof WasteSchema>) {
   const user = await requireAuth()
   if (!user.permissions.includes('inventory:adjust')) {
-    return { success: false as const, error: 'غير مصرح' }
+    return { success: false as const, error: 'ليس لديك صلاحية للقيام بهذه العملية' }
   }
 
   try {
@@ -330,18 +330,18 @@ export async function recordUsage(input: z.infer<typeof UsageSchema>) {
       let msg = rpcError.message || ''
       if (msg.toLowerCase().includes('insufficient stock')) {
         const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
-        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} من ${m[2].trim()}`
-        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        if (m) msg = `المخزون غير كافي، المتاح حالياً ${m[1]} من ${m[2].trim()}`
+        else msg = 'المخزون غير كافي لإتمام عملية تسجيل الاستهلاك'
       }
-      return { success: false as const, error: msg || 'لا يمكن تسجيل الاستهلاك بسبب نقص المخزون' }
+      return { success: false as const, error: msg || 'المخزون غير كافي لإتمام عملية تسجيل الاستهلاك' }
     }
 
     if (!result || !result.success) {
-      let msg = result?.error || 'لا يمكن تسجيل الاستهلاك بسبب نقص المخزون'
+      let msg = result?.error || 'المخزون غير كافي لإتمام عملية تسجيل الاستهلاك'
       if (typeof msg === 'string' && msg.toLowerCase().includes('insufficient stock')) {
         const m = msg.match(/available:\s*([0-9.]+)\s*of\s*(.+)/i)
-        if (m) msg = `المخزون غير كافي، المتاح ${m[1]} من ${m[2].trim()}`
-        else msg = msg.replace(/Insufficient stock\. Available:/i, 'المخزون غير كافي. المتاح:')
+        if (m) msg = `المخزون غير كافي، المتاح حالياً ${m[1]} من ${m[2].trim()}`
+        else msg = 'المخزون غير كافي لإتمام عملية تسجيل الاستهلاك'
       }
       return { success: false as const, error: msg }
     }
@@ -349,8 +349,8 @@ export async function recordUsage(input: z.infer<typeof UsageSchema>) {
     return { success: true as const, data: result }
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false as const, error: err.issues[0]?.message || 'بيانات غير صحيحة' }
+      return { success: false as const, error: err.issues[0]?.message || 'تحقق من صحة البيانات المدخلة' }
     }
-    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+    return { success: false as const, error: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى' }
   }
 }
