@@ -20,10 +20,10 @@ type Notification = { type: 'success' | 'error'; message: string } | null
 
 const TYPE_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
  purchase: { label: 'شراء', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> },
- usage: { label: 'استهلاك', color: 'text-[#2563EB] bg-[#EFF6FF]', icon: <FaArrowUp className="text-xs" /> },
- waste: { label: 'هدر', color: 'text-[#DC2626] bg-[#FEF2F2]', icon: <FaTrash className="text-xs" /> },
+ usage: { label: 'خصم', color: 'text-[#DC2626] bg-[#FEF2F2]', icon: <FaArrowUp className="text-xs" /> },
+ waste: { label: 'خصم', color: 'text-[#DC2626] bg-[#FEF2F2]', icon: <FaArrowUp className="text-xs" /> },
  adjustment: { label: 'تعديل', color: 'text-[#D97706] bg-[#FFFBEB]', icon: <FaExchangeAlt className="text-xs" /> },
- return: { label: 'إرجاع', color: 'text-[#7C3AED] bg-[#FAF5FF]', icon: <FaUndo className="text-xs" /> },
+ return: { label: 'إضافة', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> },
 }
 
 type ActionType = 'adjust' | 'waste' | 'return' | 'usage'
