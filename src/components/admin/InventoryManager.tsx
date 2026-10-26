@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider'
 import {
  FaSearch, FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle,
  FaExclamationTriangle, FaTimes, FaArrowUp, FaArrowDown, FaExchangeAlt,
- FaTools, FaTrash, FaUndo, FaFlask,
+ FaPlus, FaMinus,
 } from 'react-icons/fa'
 
 interface Material { id: string; name: string; sku: string; unit: string; current_stock: number; min_stock: number; is_active: boolean }
