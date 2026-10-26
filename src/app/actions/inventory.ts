@@ -66,7 +66,13 @@ export async function getStockMovements(
     }
 
     if (type && type !== 'all') {
-      query = query.eq('type', type)
+      if (type === 'in') {
+        query = query.gt('quantity', 0)
+      } else if (type === 'out') {
+        query = query.lt('quantity', 0)
+      } else {
+        query = query.eq('type', type)
+      }
     }
 
     const { data, error, count } = await query

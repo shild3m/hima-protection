@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import {
  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle,
- FaExclamationTriangle, FaTimes, FaArrowUp, FaArrowDown, FaExchangeAlt,
+ FaExclamationTriangle, FaTimes, FaArrowUp, FaArrowDown,
  FaPlus, FaMinus,
 } from 'react-icons/fa'
 
@@ -18,12 +18,21 @@ interface StockMovement {
 interface Pagination { page: number; pageSize: number; total: number; totalPages: number }
 type Notification = { type: 'success' | 'error'; message: string } | null
 
-const TYPE_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
- purchase: { label: 'شراء', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> },
- usage: { label: 'خصم', color: 'text-[#DC2626] bg-[#FEF2F2]', icon: <FaArrowUp className="text-xs" /> },
- waste: { label: 'خصم', color: 'text-[#DC2626] bg-[#FEF2F2]', icon: <FaArrowUp className="text-xs" /> },
- adjustment: { label: 'تعديل', color: 'text-[#D97706] bg-[#FFFBEB]', icon: <FaExchangeAlt className="text-xs" /> },
- return: { label: 'إضافة', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> },
+const FILTER_OPTIONS = [
+ { value: 'all', label: 'كل الأنواع' },
+ { value: 'in', label: 'إضافة' },
+ { value: 'out', label: 'خصم' },
+ { value: 'purchase', label: 'شراء' },
+]
+
+function getTypeInfo(type: string, quantity: number): { label: string; color: string; icon: React.ReactNode } {
+ if (type === 'purchase') {
+ return { label: 'شراء', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> }
+ }
+ if (quantity > 0) {
+ return { label: 'إضافة', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> }
+ }
+ return { label: 'خصم', color: 'text-[#DC2626] bg-[#FEF2F2]', icon: <FaArrowUp className="text-xs" /> }
 }
 
 type ActionType = 'in' | 'out'
@@ -132,7 +141,7 @@ export default function InventoryManager() {
  <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
  className="px-3 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
  <option value="all">كل الأنواع</option>
- {Object.entries(TYPE_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+ {FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
  </select>
  </div>
 
@@ -156,7 +165,7 @@ export default function InventoryManager() {
  </thead>
  <tbody>
  {movements.map(m => {
- const typeInfo = TYPE_MAP[m.type] || { label: m.type, color: 'text-[#62666D] bg-[#F1F2F3]', icon: null }
+ const typeInfo = getTypeInfo(m.type, m.quantity)
  return (
  <tr key={m.id} className="border-b border-[#E7E8EA] hover:bg-[#F1F2F3]">
  <td className="px-4 py-3">
