@@ -129,12 +129,12 @@ export default function InventoryManager() {
 
  <div className="flex flex-col sm:flex-row gap-3 mb-4">
  <select value={materialFilter} onChange={e => { setMaterialFilter(e.target.value); setPage(1) }}
- className="px-3 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
+ className="w-full sm:w-72 px-3 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
  <option value="">كل المواد</option>
  {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
  </select>
  <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
- className="px-3 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
+ className="w-full sm:w-44 px-3 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
  <option value="all">كل الأنواع</option>
  {FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
  </select>
