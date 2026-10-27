@@ -81,32 +81,83 @@ export async function getInvoices(
 
   try {
     const supabase = await createClient()
-    let query = supabase
-      .from('invoices')
-      .select(`
-        *,
-        customer:customers(id, full_name, phone),
-        vehicle:vehicles(id, make, model, plate_number),
-        booking:bookings(id, status),
-        items:invoice_items(id, description, quantity)
-      `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
 
-    if (status && status !== 'all') {
-      query = query.eq('status', status)
+    /**
+     * `!inner` only on the search branch: it makes the embedded filter restrict
+     * the parent rows. The plain listing keeps a non-inner join.
+     */
+    const buildQuery = (innerCustomer = false) => {
+      const customerRel = innerCustomer ? 'customers!inner' : 'customers'
+
+      let query = supabase
+        .from('invoices')
+        .select(`
+          *,
+          customer:${customerRel}(id, full_name, phone),
+          vehicle:vehicles(id, make, model, plate_number),
+          booking:bookings(id, status),
+          items:invoice_items(id, description, quantity)
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status)
+      }
+
+      return query
     }
 
-    if (search && search.trim()) {
+    /**
+     * PostgREST rejects `or=(invoice_number,customer.full_name)` (PGRST100), so
+     * the invoice-number and customer branches run in parallel (one round trip)
+     * and are merged/deduped here.
+     */
+    const runQuery = async (): Promise<{
+      data: any[] | null
+      error: { message?: string } | null
+      count: number | null
+    }> => {
+      if (!search || !search.trim()) {
+        return buildQuery().range(from, to)
+      }
+
       const sanitized = sanitizeSearch(search)
-      query = query.or(`
-        invoice_number.ilike.%${sanitized}%,
-        customer.full_name.ilike.%${sanitized}%,
-        customer.phone.ilike.%${sanitized}%
-      `)
+      const [byNumber, byCustomer] = await Promise.all([
+        buildQuery()
+          .range(0, to)
+          .or(`invoice_number.ilike.%${sanitized}%`),
+        buildQuery(true)
+          .range(0, to)
+          .or(`full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%`, {
+            referencedTable: 'customer',
+          }),
+      ])
+
+      const error = byNumber.error || byCustomer.error
+      if (error) return { data: null, error, count: null }
+
+      const seen = new Set<string>()
+      const merged = [
+        ...((byNumber.data || []) as any[]),
+        ...((byCustomer.data || []) as any[]),
+      ].filter((row) => {
+        const id = String(row.id)
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+
+      merged.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+
+      return {
+        data: merged.slice(from, to + 1),
+        error: null,
+        // Upper bound: a row matching both branches is counted twice.
+        count: (byNumber.count || 0) + (byCustomer.count || 0),
+      }
     }
 
-    const { data, error, count } = await query
+    const { data, error, count } = await runQuery()
 
     if (error) {
       console.error('Get invoices error:', error)
@@ -123,6 +174,44 @@ export async function getInvoices(
         totalPages: Math.ceil((count || 0) / size),
       },
     }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+/**
+ * Lightweight invoice list for the "record payment" dropdown.
+ *
+ * The old code called `getInvoices(..., 1, 500)`, which is clamped to 50 rows
+ * and pulled every invoice item/vehicle/booking embed. This returns only the
+ * fields the select renders and filters out settled invoices in SQL.
+ */
+export async function getInvoiceOptions() {
+  const user = await requireAuth()
+  if (!user.permissions.includes('invoices:read')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, total, paid_amount, status, customer:customers(full_name)')
+      .neq('status', 'cancelled')
+      .neq('status', 'paid')
+      .neq('status', 'refunded')
+      .order('created_at', { ascending: false })
+      .limit(1000)
+
+    if (error) {
+      console.error('Get invoice options error:', error)
+      return { success: false as const, error: 'تعذر جلب الفواتير' }
+    }
+
+    const rows = (data || []).filter(
+      (i: { total: number; paid_amount: number }) => Number(i.paid_amount) < Number(i.total)
+    )
+    return { success: true as const, data: rows }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
@@ -427,26 +516,26 @@ export async function getInvoiceStats() {
   try {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
-      .from('invoices')
-      .select('status')
+    const STATUSES = ['draft', 'issued', 'partially_paid', 'paid', 'cancelled', 'refunded'] as const
+    const counts: Record<string, number> = {}
 
-    if (error) {
-      console.error('Get invoice stats error:', error)
+    // HEAD count queries return a count with no rows, so the payload no longer
+    // grows with the table (it used to select every invoice and count in JS).
+    const results = await Promise.all([
+      ...STATUSES.map((status) =>
+        supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('status', status)
+      ),
+      supabase.from('invoices').select('*', { count: 'exact', head: true }),
+    ])
+
+    const failed = results.find((r) => r.error)
+    if (failed?.error) {
+      console.error('Get invoice stats error:', failed.error)
       return { success: false as const, error: 'تعذر جلب إحصائيات الفواتير' }
     }
 
-    const counts: Record<string, number> = {}
-    for (const status of ['draft', 'issued', 'partially_paid', 'paid', 'cancelled', 'refunded']) {
-      counts[status] = 0
-    }
-    for (const row of data || []) {
-      if (row.status in counts) {
-        counts[row.status]++
-      }
-    }
-
-    const total = data?.length || 0
+    STATUSES.forEach((status, i) => { counts[status] = results[i].count || 0 })
+    const total = results[results.length - 1].count || 0
 
     return {
       success: true as const,

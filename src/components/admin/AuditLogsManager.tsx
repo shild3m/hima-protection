@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
  FaSearch,
  FaSpinner,
@@ -13,25 +13,28 @@ interface AuditLog {
  action: string
  resource_type: string
  resource_id: string | null
- old_values: any
- new_values: any
  ip_address: string | null
  created_at: string
 }
 
-export default function AuditLogsManager() {
- const [logs, setLogs] = useState<AuditLog[]>([])
- const [loading, setLoading] = useState(true)
+export default function AuditLogsManager({ initialLogs, initialTotal }: {
+ initialLogs?: AuditLog[]
+ initialTotal?: number
+} = {}) {
+ const skipInitialFetch = useRef(initialLogs !== undefined)
+ const [logs, setLogs] = useState<AuditLog[]>(initialLogs ?? [])
+ const [loading, setLoading] = useState(initialLogs === undefined)
  const [search, setSearch] = useState('')
+ const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [total, setTotal] = useState(0)
+ const [total, setTotal] = useState(initialTotal ?? 0)
  const [pageSize] = useState(20)
 
  const loadLogs = useCallback(async (p: number) => {
  setLoading(true)
  try {
  const { getAuditLogs } = await import('@/app/actions/audit-logs')
- const result = await getAuditLogs(search || undefined, p, pageSize)
+ const result = await getAuditLogs(debouncedSearch || undefined, p, pageSize)
  if (result.success) {
  setLogs(result.data || [])
  setTotal(result.pagination?.total || 0)
@@ -39,9 +42,20 @@ export default function AuditLogsManager() {
  } finally {
  setLoading(false)
  }
- }, [search, pageSize])
+ }, [debouncedSearch, pageSize])
 
- useEffect(() => { loadLogs(page) }, [page, loadLogs])
+ useEffect(() => {
+   const t = setTimeout(() => setDebouncedSearch(search), 300)
+   return () => clearTimeout(t)
+ }, [search])
+
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   loadLogs(page)
+ }, [page, loadLogs])
 
  const totalPages = Math.ceil(total / pageSize)
 

@@ -8,7 +8,7 @@ export async function getAuditLogs(search?: string, page = 1, pageSize = 20) {
     const admin = getSupabaseAdmin()
     let query = admin
       .from('audit_logs')
-      .select('id, user_id, action, resource_type, resource_id, old_values, new_values, ip_address, created_at', { count: 'exact' })
+      .select('id, user_id, action, resource_type, resource_id, ip_address, created_at', { count: 'exact' })
 
     if (search && search.trim()) {
       const sanitized = search.trim().replace(/[%_]/g, '')

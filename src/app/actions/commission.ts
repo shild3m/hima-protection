@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/auth";
+import { getActionUser } from "@/lib/action-auth";
 import { createNotificationsForRole } from "@/app/actions/notifications";
 import type {
   CommissionWithDetails,
@@ -84,22 +85,13 @@ export async function getCommissions(
 ): Promise<PaginatedResult<CommissionWithDetails>> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commissions",
-      p_action: "read",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("commissions:read")) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
@@ -163,21 +155,12 @@ export async function getCommission(
 ): Promise<CommissionWithDetails | null> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) return null;
+    if (!user) return null;
     if (!isValidUUID(commissionId)) return null;
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commissions",
-      p_action: "read",
-    });
-
-    if (!hasPerm) return null;
+    if (!user.permissions.includes("commissions:read")) return null;
 
     const { data, error } = await supabase
       .from("commissions")
@@ -204,22 +187,13 @@ export async function approveCommission(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commissions",
-      p_action: "approve",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("commissions:approve")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -298,22 +272,13 @@ export async function cancelCommission(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commissions",
-      p_action: "update",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("commissions:update")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -382,22 +347,13 @@ export async function payCommission(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commissions",
-      p_action: "pay",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("commissions:pay")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -480,12 +436,9 @@ export async function getMyCommissions(
 ): Promise<PaginatedResult<CommissionWithDetails>> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
@@ -551,9 +504,7 @@ export async function getMyCommissionStats(): Promise<{
 }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
     if (!user) {
       return { total: 0, pending: 0, approved: 0, paid: 0, cancelled: 0, pending_amount: 0, approved_amount: 0, paid_amount: 0 };
     }
@@ -601,22 +552,13 @@ export async function getCommissionRules(
 ): Promise<PaginatedResult<CommissionRuleWithDetails>> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commissions",
-      p_action: "read",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("commissions:read")) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
@@ -676,22 +618,13 @@ export async function createCommissionRule(input: {
 }): Promise<{ success: boolean; rule?: CommissionRule; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commission_rules",
-      p_action: "create",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("commission_rules:create")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -767,22 +700,13 @@ export async function updateCommissionRule(
 ): Promise<{ success: boolean; rule?: CommissionRule; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commission_rules",
-      p_action: "update",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("commission_rules:update")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -839,20 +763,11 @@ export async function getCommissionMonthlyReport(
 ): Promise<CommissionMonthlyReport[]> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) return [];
+    if (!user) return [];
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "commissions",
-      p_action: "read",
-    });
-
-    if (!hasPerm) return [];
+    if (!user.permissions.includes("commissions:read")) return [];
 
     const targetMonth = month || new Date().toISOString().slice(0, 7);
     const startDate = `${targetMonth}-01T00:00:00`;

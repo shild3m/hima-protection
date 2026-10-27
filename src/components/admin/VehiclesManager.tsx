@@ -51,14 +51,18 @@ interface Pagination {
 
 type Notification = { type: 'success' | 'error'; message: string } | null
 
-export default function VehiclesManager() {
+export default function VehiclesManager({ initialVehicles, initialPagination }: {
+ initialVehicles?: Vehicle[]
+ initialPagination?: Pagination
+} = {}) {
  const { hasPermission } = useAuth()
- const [vehicles, setVehicles] = useState<Vehicle[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialFetch = useRef(initialVehicles !== undefined)
+ const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles ?? [])
+ const [loading, setLoading] = useState(initialVehicles === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
@@ -102,6 +106,10 @@ export default function VehiclesManager() {
  }, [debouncedSearch, page])
 
  useEffect(() => {
+ if (skipInitialFetch.current) {
+   skipInitialFetch.current = false
+   return
+ }
  fetchVehicles()
  }, [fetchVehicles])
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import {
  FaExchangeAlt,
@@ -40,12 +40,16 @@ interface Pagination {
 
 type Notification = { type: 'success' | 'error'; message: string } | null
 
-export default function CommissionRulesManager() {
+export default function CommissionRulesManager({ initialRules, initialPagination }: {
+  initialRules?: CommissionRule[]
+  initialPagination?: Pagination
+} = {}) {
  const { hasPermission } = useAuth()
- const [rules, setRules] = useState<CommissionRule[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialFetch = useRef(initialRules !== undefined)
+ const [rules, setRules] = useState<CommissionRule[]>(initialRules ?? [])
+ const [loading, setLoading] = useState(initialRules === undefined)
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingRule, setEditingRule] = useState<CommissionRule | null>(null)
@@ -82,7 +86,13 @@ export default function CommissionRulesManager() {
    }
  }, [page])
 
- useEffect(() => { fetchRules() }, [fetchRules])
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   fetchRules()
+ }, [fetchRules])
 
  useEffect(() => {
    if (!notification) return
@@ -91,20 +101,29 @@ export default function CommissionRulesManager() {
  }, [notification])
 
  const loadDropdownData = async () => {
+   const tasks: Promise<void>[] = []
+
    if (dealers.length === 0) {
-     try {
-       const { getDealers } = await import('@/app/actions/dealer')
-       const res = await getDealers()
-       if ('data' in res) setDealers((res.data || []).map((d: { id: string; business_name: string }) => ({ id: d.id, business_name: d.business_name })))
-     } catch {}
+     tasks.push((async () => {
+       try {
+         const { getDealers } = await import('@/app/actions/dealer')
+         const res = await getDealers()
+         if ('data' in res) setDealers((res.data || []).map((d: { id: string; business_name: string }) => ({ id: d.id, business_name: d.business_name })))
+       } catch {}
+     })())
    }
+
    if (services.length === 0) {
-     try {
-       const { getServices } = await import('@/app/actions/services')
-       const res = await getServices()
-       if (res.success) setServices(res.data || [])
-     } catch {}
+     tasks.push((async () => {
+       try {
+         const { getServices } = await import('@/app/actions/services')
+         const res = await getServices()
+         if (res.success) setServices(res.data || [])
+       } catch {}
+     })())
    }
+
+   await Promise.all(tasks)
  }
 
  const handleOpenForm = async (rule?: CommissionRule) => {

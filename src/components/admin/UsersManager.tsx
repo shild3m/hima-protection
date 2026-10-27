@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import {
  FaSearch,
@@ -30,13 +30,18 @@ interface Staff {
  created_at: string
 }
 
-export default function UsersManager() {
+export default function UsersManager({ initialStaff, initialTotal }: {
+ initialStaff?: Staff[]
+ initialTotal?: number
+} = {}) {
  const { hasPermission } = useAuth()
- const [staff, setStaff] = useState<Staff[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialFetch = useRef(initialStaff !== undefined)
+ const [staff, setStaff] = useState<Staff[]>(initialStaff ?? [])
+ const [loading, setLoading] = useState(initialStaff === undefined)
  const [search, setSearch] = useState('')
+ const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [total, setTotal] = useState(0)
+ const [total, setTotal] = useState(initialTotal ?? 0)
  const [pageSize] = useState(20)
  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
  const [showForm, setShowForm] = useState(false)
@@ -60,7 +65,7 @@ export default function UsersManager() {
  setLoading(true)
  try {
  const { getStaff } = await import('@/app/actions/staff')
- const result = await getStaff(search || undefined, p, pageSize)
+ const result = await getStaff(debouncedSearch || undefined, p, pageSize)
  if (result.success) {
  setStaff(result.data || [])
  setTotal(result.pagination?.total || 0)
@@ -68,9 +73,20 @@ export default function UsersManager() {
  } finally {
  setLoading(false)
  }
- }, [search, pageSize])
+ }, [debouncedSearch, pageSize])
 
- useEffect(() => { loadStaff(page) }, [page, loadStaff])
+ useEffect(() => {
+   const t = setTimeout(() => setDebouncedSearch(search), 300)
+   return () => clearTimeout(t)
+ }, [search])
+
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   loadStaff(page)
+ }, [page, loadStaff])
 
  const totalPages = Math.ceil(total / pageSize)
 

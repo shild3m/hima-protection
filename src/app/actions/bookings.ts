@@ -87,34 +87,88 @@ export async function getBookings(
 
   try {
     const supabase = await createClient()
-    let query = supabase
-      .from('bookings')
-      .select(`
-        *,
-        customer:customers(id, full_name, phone),
-        vehicle:vehicles(id, make, model, year, plate_number),
-        service:services(id, name, base_price),
-        booking_items:booking_items(id, service_id, quantity, unit_price, total, service:services(name)),
-        invoices(id, invoice_number, status, total, paid_amount),
-        booking_status_history(created_at, new_status)
-      `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
 
-    if (status && status !== 'all') {
-      query = query.eq('status', status)
+    /**
+     * `!inner` is only added for the search branches: it is what makes an
+     * embedded filter restrict the parent rows (and keeps `count` exact). The
+     * normal listing keeps the plain join so a user who can read bookings but
+     * not customers still sees their rows.
+     */
+    const buildQuery = (inner: 'customer' | 'vehicle' | null = null) => {
+      const customerRel = inner === 'customer' ? 'customers!inner' : 'customers'
+      const vehicleRel = inner === 'vehicle' ? 'vehicles!inner' : 'vehicles'
+
+      let query = supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:${customerRel}(id, full_name, phone),
+          vehicle:${vehicleRel}(id, make, model, year, plate_number),
+          service:services(id, name, base_price),
+          booking_items:booking_items(id, service_id, quantity, unit_price, total, service:services(name)),
+          invoices(id, invoice_number, status, total, paid_amount),
+          booking_status_history(created_at, new_status)
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status)
+      }
+
+      return query
     }
 
-    if (search && search.trim()) {
+    /**
+     * PostgREST rejects `or=(customer.full_name,vehicle.make)` (PGRST100), so the
+     * search runs as two parallel branches over the embedded resources — same
+     * round-trip cost as one query, then merged/deduped here.
+     */
+    const runQuery = async (): Promise<{
+      data: any[] | null
+      error: { message?: string } | null
+      count: number | null
+    }> => {
+      if (!search || !search.trim()) {
+        return buildQuery().range(from, to)
+      }
+
       const sanitized = sanitizeSearch(search)
-      query = query.or(`
-        customer.full_name.ilike.%${sanitized}%,
-        customer.phone.ilike.%${sanitized}%,
-        vehicle.make.ilike.%${sanitized}%,
-        vehicle.model.ilike.%${sanitized}%,
-        vehicle.plate_number.ilike.%${sanitized}%,
-        service.name.ilike.%${sanitized}%
-      `)
+      const [byCustomer, byVehicle] = await Promise.all([
+        buildQuery('customer')
+          .range(0, to)
+          .or(`full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%`, {
+            referencedTable: 'customer',
+          }),
+        buildQuery('vehicle')
+          .range(0, to)
+          .or(
+            `make.ilike.%${sanitized}%,model.ilike.%${sanitized}%,plate_number.ilike.%${sanitized}%`,
+            { referencedTable: 'vehicle' }
+          ),
+      ])
+
+      const error = byCustomer.error || byVehicle.error
+      if (error) return { data: null, error, count: null }
+
+      const seen = new Set<string>()
+      const merged = [
+        ...((byCustomer.data || []) as any[]),
+        ...((byVehicle.data || []) as any[]),
+      ].filter((row) => {
+        const id = String(row.id)
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+
+      merged.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+
+      return {
+        data: merged.slice(from, to + 1),
+        error: null,
+        // Upper bound: a row matching both branches is counted twice.
+        count: (byCustomer.count || 0) + (byVehicle.count || 0),
+      }
     }
 
     // This used to be four sequential round trips (bookings → staff names →
@@ -126,7 +180,7 @@ export async function getBookings(
     )
 
     const [bookingsRes, staffRes] = await Promise.all([
-      query,
+      runQuery(),
       admin.from('staff').select('user_id, full_name'),
     ])
 
@@ -481,22 +535,24 @@ export async function getBookingStats() {
 
     const ALL_STATUSES = ['new', 'contacted', 'in_progress', 'completed', 'cancelled'] as const
     const counts: Record<string, number> = {}
-    for (const s of ALL_STATUSES) counts[s] = 0
 
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('status')
+    // HEAD count queries return a count with no rows, so the payload no longer
+    // grows with the table (it used to select every booking and count in JS).
+    const results = await Promise.all([
+      ...ALL_STATUSES.map((status) =>
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', status)
+      ),
+      supabase.from('bookings').select('*', { count: 'exact', head: true }),
+    ])
 
-    if (error) {
-      console.error('Get booking stats error:', error)
+    const failed = results.find((r) => r.error)
+    if (failed?.error) {
+      console.error('Get booking stats error:', failed.error)
       return { success: false as const, error: 'تعذر جلب إحصائيات الحجوزات' }
     }
 
-    for (const row of data || []) {
-      if (row.status in counts) counts[row.status]++
-    }
-
-    const total = data?.length || 0
+    ALL_STATUSES.forEach((status, i) => { counts[status] = results[i].count || 0 })
+    const total = results[results.length - 1].count || 0
 
     return {
       success: true as const,

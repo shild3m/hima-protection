@@ -42,14 +42,18 @@ function formatCurrency(amount: number): string {
  return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
-export default function ExpensesManager() {
+export default function ExpensesManager({ initialExpenses, initialPagination }: {
+ initialExpenses?: Expense[]
+ initialPagination?: Pagination
+} = {}) {
  const { hasPermission } = useAuth()
- const [expenses, setExpenses] = useState<Expense[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialFetch = useRef(initialExpenses !== undefined)
+ const [expenses, setExpenses] = useState<Expense[]>(initialExpenses ?? [])
+ const [loading, setLoading] = useState(initialExpenses === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
@@ -96,7 +100,13 @@ export default function ExpensesManager() {
  }
  }, [debouncedSearch, page])
 
- useEffect(() => { fetchExpenses() }, [fetchExpenses])
+ useEffect(() => {
+ if (skipInitialFetch.current) {
+   skipInitialFetch.current = false
+   return
+ }
+ fetchExpenses()
+ }, [fetchExpenses])
  useEffect(() => {
  if (!notification) return
  const t = setTimeout(() => setNotification(null), 4000)

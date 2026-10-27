@@ -205,46 +205,50 @@ export async function getDashboardKPIs(): Promise<{
     if (hasPerm(perms, 'invoices:read') || hasPerm(perms, 'payments:read')) {
       queries.push(
         (async () => {
-          // Revenue: AGGREGATE via RPC (server-side SUM), bounded fallback
-          kpis.revenue = await tryRpc(
-            admin,
-            'dashboard_revenue_month',
-            { p_month_start: monthStart },
-            async () => {
-              const { data } = await admin
-                .from('invoices')
-                .select('paid_amount')
-                .in('status', ['paid', 'partially_paid'])
-                .gte('updated_at', monthStart)
-                .lte('updated_at', new Date().toISOString())
-              return data
-                ? data.reduce((sum: number, inv: { paid_amount?: number }) => sum + (inv.paid_amount || 0), 0)
-                : 0
-            }
-          )
-
-          // Pending payments: AGGREGATE via RPC, bounded fallback
-          const pendingResult = await tryRpc(
-            admin,
-            'dashboard_pending_payments',
-            {},
-            async () => {
-              const { data } = await admin
-                .from('invoices')
-                .select('total, paid_amount')
-                .in('status', ['issued', 'partially_paid'])
-                .order('created_at', { ascending: false })
-                .limit(500)
-              if (!data) return { pending_total: 0, pending_count: 0 }
-              return {
-                pending_total: data.reduce(
-                  (sum: number, inv: { total: number; paid_amount?: number }) =>
-                    sum + (inv.total - (inv.paid_amount || 0)), 0
-                ),
-                pending_count: data.length,
+          // Revenue and pending totals are independent — run them in parallel
+          // instead of two sequential round trips.
+          const [revenueResult, pendingResult] = await Promise.all([
+            tryRpc(
+              admin,
+              'dashboard_revenue_month',
+              { p_month_start: monthStart },
+              async () => {
+                const { data } = await admin
+                  .from('invoices')
+                  .select('paid_amount')
+                  .in('status', ['paid', 'partially_paid'])
+                  .gte('updated_at', monthStart)
+                  .lte('updated_at', new Date().toISOString())
+                return data
+                  ? data.reduce((sum: number, inv: { paid_amount?: number }) => sum + (inv.paid_amount || 0), 0)
+                  : 0
               }
-            }
-          )
+            ),
+            tryRpc(
+              admin,
+              'dashboard_pending_payments',
+              {},
+              async () => {
+                const { data } = await admin
+                  .from('invoices')
+                  .select('total, paid_amount')
+                  .in('status', ['issued', 'partially_paid'])
+                  .order('created_at', { ascending: false })
+                  .limit(500)
+                if (!data) return { pending_total: 0, pending_count: 0 }
+                return {
+                  pending_total: data.reduce(
+                    (sum: number, inv: { total: number; paid_amount?: number }) =>
+                      sum + (inv.total - (inv.paid_amount || 0)), 0
+                  ),
+                  pending_count: data.length,
+                }
+              }
+            ),
+          ])
+
+          kpis.revenue = Number(revenueResult) || 0
+
           if (typeof pendingResult === 'object' && pendingResult !== null) {
             const pr = pendingResult as { pending_total: number; pending_count: number }
             kpis.pendingPayments = Number(pr.pending_total) || 0

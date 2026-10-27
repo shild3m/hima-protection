@@ -37,6 +37,7 @@ export default function DealersPage() {
   const [dealers, setDealers] = useState<DealerWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sort, setSort] = useState<SortConfig>({
     field: "created_at",
@@ -58,11 +59,16 @@ export default function DealersPage() {
   });
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       const filters: DealerFilters = {};
-      if (search) filters.search = search;
+      if (debouncedSearch) filters.search = debouncedSearch;
       if (statusFilter) filters.status = statusFilter;
       const result = await getDealers(filters, sort, page, 20);
       if (cancelled) return;
@@ -73,7 +79,7 @@ export default function DealersPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [search, statusFilter, sort, page]);
+  }, [debouncedSearch, statusFilter, sort, page]);
 
   const handleCreate = async () => {
     setCreating(true);

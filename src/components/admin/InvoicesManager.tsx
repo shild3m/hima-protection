@@ -105,16 +105,22 @@ function formatCurrency(amount: number): string {
  return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
-export default function InvoicesManager() {
+export default function InvoicesManager({ initialInvoices, initialPagination, initialStats }: {
+  initialInvoices?: Invoice[]
+  initialPagination?: Pagination
+  initialStats?: Stats
+} = {}) {
  const { hasPermission } = useAuth()
- const [invoices, setInvoices] = useState<Invoice[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialInvoicesFetch = useRef(initialInvoices !== undefined)
+ const skipInitialStatsFetch = useRef(initialStats !== undefined)
+ const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices ?? [])
+ const [loading, setLoading] = useState(initialInvoices === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [statusFilter, setStatusFilter] = useState('all')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
- const [stats, setStats] = useState<Stats | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
+ const [stats, setStats] = useState<Stats | null>(initialStats ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [viewingInvoice, setViewingInvoice] = useState<InvoiceDetail | null>(null)
  const [loadingDetail, setLoadingDetail] = useState(false)
@@ -161,16 +167,15 @@ const [showRefundModal, setShowRefundModal] = useState(false)
 
  useEffect(() => {
    if (showCreateForm && customers.length === 0) {
-     import('@/app/actions/customers').then(({ getCustomers }) => {
-       getCustomers(undefined, 1, 500).then(res => {
-         if (res.success && res.data) setCustomers(res.data.map((c: { id: string; full_name: string; phone: string }) => ({ id: c.id, full_name: c.full_name, phone: c.phone })))
-       })
-     })
-     import('@/app/actions/services').then(({ getServices }) => {
-       getServices().then(res => {
-         if (res.success) setServices(res.data || [])
-       })
-     })
+     ;(async () => {
+       const [{ getCustomerOptions }, { getServices }] = await Promise.all([
+         import('@/app/actions/customers'),
+         import('@/app/actions/services'),
+       ])
+       const [cRes, sRes] = await Promise.all([getCustomerOptions(), getServices()])
+       if (cRes.success && cRes.data) setCustomers(cRes.data.map((c: { id: string; full_name: string; phone: string }) => ({ id: c.id, full_name: c.full_name, phone: c.phone })))
+       if (sRes.success) setServices(sRes.data || [])
+     })()
    }
  }, [showCreateForm, customers.length])
 
@@ -254,8 +259,20 @@ const [showRefundModal, setShowRefundModal] = useState(false)
  } catch {}
  }, [])
 
- useEffect(() => { fetchInvoices() }, [fetchInvoices])
- useEffect(() => { fetchStats() }, [fetchStats])
+ useEffect(() => {
+ if (skipInitialInvoicesFetch.current) {
+   skipInitialInvoicesFetch.current = false
+   return
+ }
+ fetchInvoices()
+ }, [fetchInvoices])
+ useEffect(() => {
+ if (skipInitialStatsFetch.current) {
+   skipInitialStatsFetch.current = false
+   return
+ }
+ fetchStats()
+ }, [fetchStats])
  useEffect(() => {
  if (!notification) return
  const t = setTimeout(() => setNotification(null), 4000)

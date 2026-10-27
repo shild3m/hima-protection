@@ -122,23 +122,18 @@ export async function getPurchase(id: string) {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('purchases')
-      .select('*, supplier:suppliers(id, name)')
+      .select('*, supplier:suppliers(id, name), items:purchase_items(*, material:materials(id, name, sku, unit))')
       .eq('id', id)
+      .order('created_at', { referencedTable: 'purchase_items', ascending: true })
       .single()
 
     if (error || !data) {
       return { success: false as const, error: 'الشراء غير موجود' }
     }
 
-    const { data: items } = await supabase
-      .from('purchase_items')
-      .select('*, material:materials(id, name, sku, unit)')
-      .eq('purchase_id', id)
-      .order('created_at', { ascending: true })
-
     return {
       success: true as const,
-      data: { ...data, items: items || [] },
+      data: { ...data, items: data.items || [] },
     }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }

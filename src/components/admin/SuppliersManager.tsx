@@ -17,14 +17,18 @@ interface Pagination { page: number; pageSize: number; total: number; totalPages
 
 type Notification = { type: 'success' | 'error'; message: string } | null
 
-export default function SuppliersManager() {
+export default function SuppliersManager({ initialSuppliers, initialPagination }: {
+ initialSuppliers?: Supplier[]
+ initialPagination?: Pagination
+} = {}) {
  const { hasPermission } = useAuth()
- const [suppliers, setSuppliers] = useState<Supplier[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialFetch = useRef(initialSuppliers !== undefined)
+ const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers ?? [])
+ const [loading, setLoading] = useState(initialSuppliers === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
@@ -55,7 +59,13 @@ export default function SuppliersManager() {
  return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
  }, [search])
 
- useEffect(() => { loadSuppliers(debouncedSearch, page) }, [debouncedSearch, page, loadSuppliers])
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   loadSuppliers(debouncedSearch, page)
+ }, [debouncedSearch, page, loadSuppliers])
 
  const openCreate = () => { setEditingSupplier(null); setForm({ name: '', phone: '', email: '', address: '', notes: '' }); setShowForm(true) }
  const openEdit = (s: Supplier) => { setEditingSupplier(s); setForm({ name: s.name, phone: s.phone || '', email: s.email || '', address: s.address || '', notes: s.notes || '' }); setShowForm(true) }

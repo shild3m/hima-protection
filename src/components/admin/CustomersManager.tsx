@@ -71,14 +71,18 @@ const sourceConfig: Record<string, { label: string; icon: React.ReactNode; class
  phone: { label: 'هاتف', icon: <FaPhone className="text-[9px]" />, class: 'bg-[#ECFEFF] text-cyan-300 border-[#A5F3FC]' },
 }
 
-export default function CustomersManager() {
+export default function CustomersManager({ initialCustomers, initialPagination }: {
+ initialCustomers?: Customer[]
+ initialPagination?: Pagination
+} = {}) {
  const { hasPermission } = useAuth()
- const [customers, setCustomers] = useState<Customer[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialFetch = useRef(initialCustomers !== undefined)
+ const [customers, setCustomers] = useState<Customer[]>(initialCustomers ?? [])
+ const [loading, setLoading] = useState(initialCustomers === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
@@ -130,6 +134,10 @@ export default function CustomersManager() {
  }, [debouncedSearch, page])
 
  useEffect(() => {
+ if (skipInitialFetch.current) {
+   skipInitialFetch.current = false
+   return
+ }
  fetchCustomers()
  }, [fetchCustomers])
 

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/auth";
+import { getActionUser } from "@/lib/action-auth";
 import type {
   Offer,
   OfferWithService,
@@ -97,22 +98,13 @@ export async function getOffers(
 ): Promise<PaginatedResult<OfferWithService>> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "offers",
-      p_action: "read",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("offers:read")) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
@@ -173,22 +165,13 @@ export async function createOffer(input: {
 }): Promise<{ success: boolean; offer?: Offer; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "offers",
-      p_action: "create",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("offers:create")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -268,22 +251,13 @@ export async function updateOffer(
 ): Promise<{ success: boolean; offer?: Offer; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "offers",
-      p_action: "update",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("offers:update")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -350,22 +324,13 @@ export async function deleteOffer(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "offers",
-      p_action: "delete",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("offers:delete")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 

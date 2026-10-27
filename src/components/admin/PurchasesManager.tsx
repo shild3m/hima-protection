@@ -26,17 +26,21 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
  cancelled: { label: 'ملغي', color: 'text-[#DC2626] bg-[#FEF2F2]' },
 }
 
-export default function PurchasesManager() {
+export default function PurchasesManager({ initialPurchases, initialPagination }: {
+ initialPurchases?: Purchase[]
+ initialPagination?: Pagination
+} = {}) {
  const { hasPermission } = useAuth()
- const [purchases, setPurchases] = useState<Purchase[]>([])
+ const skipInitialFetch = useRef(initialPurchases !== undefined)
+ const [purchases, setPurchases] = useState<Purchase[]>(initialPurchases ?? [])
  const [suppliers, setSuppliers] = useState<Supplier[]>([])
  const [materials, setMaterials] = useState<Material[]>([])
- const [loading, setLoading] = useState(true)
+ const [loading, setLoading] = useState(initialPurchases === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [statusFilter, setStatusFilter] = useState('all')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [viewingPurchase, setViewingPurchase] = useState<Purchase | null>(null)
@@ -71,17 +75,21 @@ export default function PurchasesManager() {
 
  const loadFormData = useCallback(async () => {
  try {
- const { getSupplierOptions } = await import('@/app/actions/suppliers')
- const sRes = await getSupplierOptions()
+ const [{ getSupplierOptions }, { getMaterialOptions }] = await Promise.all([
+   import('@/app/actions/suppliers'),
+   import('@/app/actions/materials'),
+ ])
+ const [sRes, mRes] = await Promise.all([getSupplierOptions(), getMaterialOptions()])
  if (sRes.success) setSuppliers(sRes.data)
-
- const { getMaterialOptions } = await import('@/app/actions/materials')
- const mRes = await getMaterialOptions()
  if (mRes.success) setMaterials(mRes.data)
  } catch { /* ignore */ }
  }, [])
 
- useEffect(() => { loadFormData() }, [loadFormData])
+ useEffect(() => {
+   // Only needed when the create form opens; avoids two extra actions on
+   // every visit to the purchases page.
+   if (showForm) loadFormData()
+ }, [showForm, loadFormData])
 
  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -89,7 +97,13 @@ export default function PurchasesManager() {
  return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
  }, [search])
 
- useEffect(() => { loadPurchases(debouncedSearch, statusFilter, page) }, [debouncedSearch, statusFilter, page, loadPurchases])
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   loadPurchases(debouncedSearch, statusFilter, page)
+ }, [debouncedSearch, statusFilter, page, loadPurchases])
 
  const openCreate = () => {
  setForm({ supplier_id: '', purchase_date: new Date().toISOString().split('T')[0], notes: '', items: [{ material_id: '', quantity: 1, unit_cost: 0 }] })

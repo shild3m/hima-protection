@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
  FaUserShield,
  FaSpinner,
@@ -22,11 +22,15 @@ interface Permission {
  action: string
 }
 
-export default function RolesManager() {
- const [roles, setRoles] = useState<Role[]>([])
- const [permissions, setPermissions] = useState<Permission[]>([])
+export default function RolesManager({ initialRoles, initialPermissions }: {
+ initialRoles?: Role[]
+ initialPermissions?: Permission[]
+} = {}) {
+ const skipInitialFetch = useRef(initialRoles !== undefined || initialPermissions !== undefined)
+ const [roles, setRoles] = useState<Role[]>(initialRoles ?? [])
+ const [permissions, setPermissions] = useState<Permission[]>(initialPermissions ?? [])
  const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>({})
- const [loading, setLoading] = useState(true)
+ const [loading, setLoading] = useState(initialRoles === undefined && initialPermissions === undefined)
  const [selectedRole, setSelectedRole] = useState<Role | null>(null)
 
  const loadData = useCallback(async () => {
@@ -44,7 +48,13 @@ export default function RolesManager() {
  }
  }, [])
 
- useEffect(() => { loadData() }, [loadData])
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   loadData()
+ }, [loadData])
 
  const loadRolePermissions = async (roleId: string) => {
  try {

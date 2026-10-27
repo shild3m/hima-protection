@@ -31,15 +31,21 @@ function stockStatus(m: Material): { label: string; color: string } {
  return { label: 'متوفر', color: 'text-[#059669] bg-[#ECFDF5]' }
 }
 
-export default function MaterialsManager() {
+export default function MaterialsManager({ initialMaterials, initialPagination, initialSuppliers }: {
+ initialMaterials?: Material[]
+ initialPagination?: Pagination
+ initialSuppliers?: Supplier[]
+} = {}) {
  const { hasPermission } = useAuth()
- const [materials, setMaterials] = useState<Material[]>([])
- const [suppliers, setSuppliers] = useState<Supplier[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialMaterialsFetch = useRef(initialMaterials !== undefined)
+ const skipInitialSuppliersFetch = useRef(initialSuppliers !== undefined)
+ const [materials, setMaterials] = useState<Material[]>(initialMaterials ?? [])
+ const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers ?? [])
+ const [loading, setLoading] = useState(initialMaterials === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null)
@@ -77,7 +83,13 @@ export default function MaterialsManager() {
  } catch { /* ignore */ }
  }, [])
 
- useEffect(() => { loadSuppliers() }, [loadSuppliers])
+ useEffect(() => {
+   if (skipInitialSuppliersFetch.current) {
+     skipInitialSuppliersFetch.current = false
+     return
+   }
+   loadSuppliers()
+ }, [loadSuppliers])
 
  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -85,7 +97,13 @@ export default function MaterialsManager() {
  return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
  }, [search])
 
- useEffect(() => { loadMaterials(debouncedSearch, page) }, [debouncedSearch, page, loadMaterials])
+ useEffect(() => {
+   if (skipInitialMaterialsFetch.current) {
+     skipInitialMaterialsFetch.current = false
+     return
+   }
+   loadMaterials(debouncedSearch, page)
+ }, [debouncedSearch, page, loadMaterials])
 
  const openCreate = () => {
  setEditingMaterial(null)

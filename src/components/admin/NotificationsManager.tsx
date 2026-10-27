@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
  FaCheck,
  FaCheckDouble,
@@ -20,11 +20,15 @@ interface Notification {
  created_at: string
 }
 
-export default function NotificationsManager() {
- const [notifications, setNotifications] = useState<Notification[]>([])
- const [loading, setLoading] = useState(true)
+export default function NotificationsManager({ initialNotifications, initialTotal }: {
+ initialNotifications?: Notification[]
+ initialTotal?: number
+} = {}) {
+ const skipInitialFetch = useRef(initialNotifications !== undefined)
+ const [notifications, setNotifications] = useState<Notification[]>(initialNotifications ?? [])
+ const [loading, setLoading] = useState(initialNotifications === undefined)
  const [page, setPage] = useState(1)
- const [total, setTotal] = useState(0)
+ const [total, setTotal] = useState(initialTotal ?? 0)
  const [pageSize] = useState(20)
 
  const loadNotifications = useCallback(async (p: number) => {
@@ -41,7 +45,13 @@ export default function NotificationsManager() {
  }
  }, [pageSize])
 
- useEffect(() => { loadNotifications(page) }, [page, loadNotifications])
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   loadNotifications(page)
+ }, [page, loadNotifications])
 
  const handleMarkRead = async (id: string) => {
  try {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import {
   FaSearch,
@@ -42,11 +42,15 @@ interface Referral {
   created_at: string
 }
 
-export default function DealersManager() {
+export default function DealersManager({ initialDealers }: {
+  initialDealers?: Dealer[]
+} = {}) {
   const { hasPermission } = useAuth()
-  const [dealers, setDealers] = useState<Dealer[]>([])
-  const [loading, setLoading] = useState(true)
+  const skipInitialFetch = useRef(initialDealers !== undefined)
+  const [dealers, setDealers] = useState<Dealer[]>(initialDealers ?? [])
+  const [loading, setLoading] = useState(initialDealers === undefined)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null)
   const [dealerReferrals, setDealerReferrals] = useState<Referral[]>([])
   const [loadingReferrals, setLoadingReferrals] = useState(false)
@@ -72,14 +76,25 @@ export default function DealersManager() {
     setLoading(true)
     try {
       const { getDealers } = await import('@/app/actions/dealer')
-      const result = await getDealers({ search: search || undefined })
+      const result = await getDealers({ search: debouncedSearch || undefined })
       if ('data' in result) setDealers(result.data || [])
     } finally {
       setLoading(false)
     }
+  }, [debouncedSearch])
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
   }, [search])
 
-  useEffect(() => { loadDealers() }, [loadDealers])
+  useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false
+      return
+    }
+    loadDealers()
+  }, [loadDealers])
 
   const loadDealerReferrals = async (dealerId: string) => {
     setLoadingReferrals(true)

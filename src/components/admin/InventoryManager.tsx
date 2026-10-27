@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import SelectList from '@/components/ui/SelectList'
 import {
@@ -33,15 +33,21 @@ function getTypeInfo(quantity: number): { label: string; color: string; icon: Re
 
 type ActionType = 'in' | 'out'
 
-export default function InventoryManager() {
+export default function InventoryManager({ initialMovements, initialPagination, initialMaterials }: {
+ initialMovements?: StockMovement[]
+ initialPagination?: Pagination
+ initialMaterials?: Material[]
+} = {}) {
  const { hasPermission } = useAuth()
- const [movements, setMovements] = useState<StockMovement[]>([])
- const [materials, setMaterials] = useState<Material[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialMovementsFetch = useRef(initialMovements !== undefined)
+ const skipInitialMaterialsFetch = useRef(initialMaterials !== undefined)
+ const [movements, setMovements] = useState<StockMovement[]>(initialMovements ?? [])
+ const [materials, setMaterials] = useState<Material[]>(initialMaterials ?? [])
+ const [loading, setLoading] = useState(initialMovements === undefined)
  const [materialFilter, setMaterialFilter] = useState('')
  const [typeFilter, setTypeFilter] = useState('all')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
   const [showAction, setShowAction] = useState<ActionType | null>(null)
   const [actionForm, setActionForm] = useState({ material_id: '', quantity: 1, direction: 'in' as 'in' | 'out', notes: '' })
@@ -67,8 +73,20 @@ export default function InventoryManager() {
  } catch { /* ignore */ }
  }, [])
 
- useEffect(() => { loadMaterials() }, [loadMaterials])
- useEffect(() => { loadMovements(materialFilter, typeFilter, page) }, [materialFilter, typeFilter, page, loadMovements])
+ useEffect(() => {
+   if (skipInitialMaterialsFetch.current) {
+     skipInitialMaterialsFetch.current = false
+     return
+   }
+   loadMaterials()
+ }, [loadMaterials])
+ useEffect(() => {
+   if (skipInitialMovementsFetch.current) {
+     skipInitialMovementsFetch.current = false
+     return
+   }
+   loadMovements(materialFilter, typeFilter, page)
+ }, [materialFilter, typeFilter, page, loadMovements])
 
  const openAction = (direction: ActionType) => {
  setActionForm({ material_id: '', quantity: 1, direction, notes: '' })

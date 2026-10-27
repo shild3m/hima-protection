@@ -112,27 +112,80 @@ export async function getPayments(
 
   try {
     const supabase = await createClient()
-    let query = supabase
-      .from('payments')
-      .select(`
-        *,
-        invoice:invoices(id, invoice_number, customer_id, total, paid_amount, status,
-          customer:customers(id, full_name, phone))
-      `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
 
-    if (search && search.trim()) {
-      const sanitized = sanitizeSearch(search)
-      query = query.or(`
-        invoice.invoice_number.ilike.%${sanitized}%,
-        invoice.customer.full_name.ilike.%${sanitized}%,
-        invoice.customer.phone.ilike.%${sanitized}%,
-        reference_number.ilike.%${sanitized}%
-      `)
+    /**
+     * `!inner` only on the search branches (same reason as bookings: an embedded
+     * filter only restricts parent rows through an inner join).
+     */
+    const buildQuery = (inner = false) => {
+      const invoiceRel = inner ? 'invoices!inner' : 'invoices'
+      const customerRel = inner ? 'customers!inner' : 'customers'
+
+      return supabase
+        .from('payments')
+        .select(`
+          *,
+          invoice:${invoiceRel}(id, invoice_number, customer_id, total, paid_amount, status,
+            customer:${customerRel}(id, full_name, phone))
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
     }
 
-    const { data, error, count } = await query
+    /**
+     * PostgREST rejects `or=(invoice.invoice_number,invoice.customer.full_name)`
+     * (PGRST100), so each searchable relation runs as its own parallel branch
+     * (one round trip) and the rows are merged/deduped here.
+     */
+    const runQuery = async (): Promise<{
+      data: any[] | null
+      error: { message?: string } | null
+      count: number | null
+    }> => {
+      if (!search || !search.trim()) {
+        return buildQuery().range(from, to)
+      }
+
+      const sanitized = sanitizeSearch(search)
+      const [byReference, byInvoice, byCustomer] = await Promise.all([
+        buildQuery()
+          .range(0, to)
+          .or(`reference_number.ilike.%${sanitized}%`),
+        buildQuery(true)
+          .range(0, to)
+          .or(`invoice_number.ilike.%${sanitized}%`, { referencedTable: 'invoice' }),
+        buildQuery(true)
+          .range(0, to)
+          .or(`full_name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%`, {
+            referencedTable: 'invoice.customer',
+          }),
+      ])
+
+      const error = byReference.error || byInvoice.error || byCustomer.error
+      if (error) return { data: null, error, count: null }
+
+      const seen = new Set<string>()
+      const merged = [
+        ...((byReference.data || []) as any[]),
+        ...((byInvoice.data || []) as any[]),
+        ...((byCustomer.data || []) as any[]),
+      ].filter((row) => {
+        const id = String(row.id)
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+
+      merged.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+
+      return {
+        data: merged.slice(from, to + 1),
+        error: null,
+        // Upper bound: a row matching more than one branch is counted twice.
+        count: (byReference.count || 0) + (byInvoice.count || 0) + (byCustomer.count || 0),
+      }
+    }
+
+    const { data, error, count } = await runQuery()
 
     if (error) {
       console.error('Get payments error:', error)

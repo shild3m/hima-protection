@@ -59,14 +59,18 @@ function formatCurrency(amount: number): string {
  return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
-export default function PaymentsManager() {
+export default function PaymentsManager({ initialPayments, initialPagination }: {
+ initialPayments?: Payment[]
+ initialPagination?: Pagination
+} = {}) {
  const { hasPermission } = useAuth()
- const [payments, setPayments] = useState<Payment[]>([])
- const [loading, setLoading] = useState(true)
+ const skipInitialFetch = useRef(initialPayments !== undefined)
+ const [payments, setPayments] = useState<Payment[]>(initialPayments ?? [])
+ const [loading, setLoading] = useState(initialPayments === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
  const [loadingDetail, setLoadingDetail] = useState(false)
@@ -109,7 +113,13 @@ export default function PaymentsManager() {
  }
  }, [debouncedSearch, page])
 
- useEffect(() => { fetchPayments() }, [fetchPayments])
+ useEffect(() => {
+ if (skipInitialFetch.current) {
+   skipInitialFetch.current = false
+   return
+ }
+ fetchPayments()
+ }, [fetchPayments])
  useEffect(() => {
  if (!notification) return
  const t = setTimeout(() => setNotification(null), 4000)
@@ -132,17 +142,20 @@ export default function PaymentsManager() {
    setShowRecordPayment(true)
    if (invoices.length === 0) {
      try {
-       const { getInvoices } = await import('@/app/actions/invoices')
-       const res = await getInvoices(undefined, 'issued', 1, 500)
+       const { getInvoiceOptions } = await import('@/app/actions/invoices')
+       const res = await getInvoiceOptions()
        if (res.success && res.data) {
-         setInvoices(res.data.filter((i: { status: string; total: number; paid_amount: number }) => i.status !== 'cancelled' && i.status !== 'paid' && i.status !== 'refunded' && i.paid_amount < i.total).map((i: { id: string; invoice_number: string; total: number; paid_amount: number; customer?: { full_name: string } }) => ({
-           id: i.id,
-           invoice_number: i.invoice_number,
-           total: i.total,
-           paid_amount: i.paid_amount,
-           remaining: i.total - i.paid_amount,
-           customer_name: i.customer?.full_name || '---',
-         })))
+         setInvoices(res.data.map((i) => {
+           const customer = Array.isArray(i.customer) ? i.customer[0] : i.customer
+           return {
+             id: i.id,
+             invoice_number: i.invoice_number,
+             total: i.total,
+             paid_amount: i.paid_amount,
+             remaining: i.total - i.paid_amount,
+             customer_name: customer?.full_name || '---',
+           }
+         }))
        }
      } catch {}
    }

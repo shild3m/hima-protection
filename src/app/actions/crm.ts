@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getSupabaseAdmin } from "@/lib/auth";
+import { getSupabaseAdmin, getCurrentUser } from "@/lib/auth";
 import type {
   Customer,
   CustomerNote,
@@ -124,15 +124,11 @@ const VEHICLE_SORT_FIELDS = [
 type AuthenticatedUser = { id: string; email?: string };
 
 async function requireAuth(): Promise<AuthenticatedUser> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error("UNAUTHORIZED");
   }
-  return { id: user.id, email: user.email };
+  return { id: user.auth_user_id, email: user.email };
 }
 
 async function requirePermission(
@@ -140,13 +136,14 @@ async function requirePermission(
   resource: string,
   action: string
 ): Promise<void> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("has_permission", {
-    p_user_id: userId,
-    p_resource: resource,
-    p_action: action,
-  });
-  if (error || !data) {
+  // Permission check from the short-lived user cache (same source as the RPC),
+  // so this costs no extra round trip after requireAuth().
+  const user = await getCurrentUser();
+  if (
+    !user ||
+    user.auth_user_id !== userId ||
+    !user.permissions.includes(`${resource}:${action}`)
+  ) {
     throw new Error("FORBIDDEN");
   }
 }

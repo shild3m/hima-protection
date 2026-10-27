@@ -53,15 +53,19 @@ function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
 }
 
-export default function OffersManager() {
+export default function OffersManager({ initialOffers, initialPagination }: {
+  initialOffers?: Offer[]
+  initialPagination?: Pagination
+} = {}) {
   const { hasPermission } = useAuth()
-  const [offers, setOffers] = useState<Offer[]>([])
-  const [loading, setLoading] = useState(true)
+  const skipInitialFetch = useRef(initialOffers !== undefined)
+  const [offers, setOffers] = useState<Offer[]>(initialOffers ?? [])
+  const [loading, setLoading] = useState(initialOffers === undefined)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -115,7 +119,13 @@ export default function OffersManager() {
     }
   }, [debouncedSearch, typeFilter, page])
 
-  useEffect(() => { fetchOffers() }, [fetchOffers])
+  useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false
+      return
+    }
+    fetchOffers()
+  }, [fetchOffers])
 
   const handleOpenForm = (offer?: Offer) => {
     if (offer) {

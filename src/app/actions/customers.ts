@@ -99,6 +99,38 @@ export async function getCustomers(search?: string, page?: number, pageSize?: nu
   }
 }
 
+/**
+ * Lightweight customer list for dropdowns.
+ *
+ * The generic `getCustomers` clamps page size to 50 (the old dropdown called it
+ * with 500 and silently lost rows). This returns the columns a select actually
+ * needs and does not compute counts or embed stats.
+ */
+export async function getCustomerOptions() {
+  const user = await requireAuth()
+  if (!user.permissions.includes('customers:read')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id, full_name, phone')
+      .order('full_name', { ascending: true })
+      .limit(1000)
+
+    if (error) {
+      console.error('Get customer options error:', error)
+      return { success: false as const, error: 'تعذر جلب العملاء' }
+    }
+
+    return { success: true as const, data: data || [] }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
 export async function getCustomer(id: string) {
   const user = await requireAuth()
   if (!user.permissions.includes('customers:read')) {

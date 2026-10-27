@@ -38,100 +38,30 @@ export default function GlobalSearch({ permissions }: GlobalSearchProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const canSearchCustomers = permissions.includes('customers:read')
-  const canSearchVehicles = permissions.includes('vehicles:read')
-  const canSearchBookings = permissions.includes('bookings:read')
-  const canSearchInvoices = permissions.includes('invoices:read')
+  const canSearchAnything = permissions.some(p =>
+    ['customers:read', 'vehicles:read', 'bookings:read', 'invoices:read'].includes(p)
+  )
+  const requestIdRef = useRef(0)
 
   const doSearch = useCallback(async (q: string) => {
-    if (q.length < 2) {
+    if (q.length < 2 || !canSearchAnything) {
       setResults([])
       return
     }
 
+    // Ignore responses that arrive after the query changed again.
+    const requestId = ++requestIdRef.current
     setLoading(true)
     try {
-      const found: SearchResult[] = []
-
-      if (canSearchCustomers) {
-        try {
-          const { getCustomers } = await import('@/app/actions/customers')
-          const res = await getCustomers(q, 1, 3)
-          if (res.success && res.data) {
-            for (const c of res.data) {
-              found.push({
-                id: c.id,
-                type: 'customer',
-                title: c.full_name,
-                subtitle: c.phone,
-                href: `/admin/customers?id=${c.id}`,
-              })
-            }
-          }
-        } catch { /* ignore */ }
-      }
-
-      if (canSearchVehicles) {
-        try {
-          const { getVehicles } = await import('@/app/actions/vehicles')
-          const res = await getVehicles(q, 1, 3)
-          if (res.success && res.data) {
-            for (const v of res.data) {
-              found.push({
-                id: v.id,
-                type: 'vehicle',
-                title: `${v.make} ${v.model}`,
-                subtitle: v.plate_number || v.vin || '',
-                href: `/admin/vehicles?id=${v.id}`,
-              })
-            }
-          }
-        } catch { /* ignore */ }
-      }
-
-      if (canSearchBookings) {
-        try {
-          const { getBookings } = await import('@/app/actions/bookings')
-          const res = await getBookings(q, undefined, 1, 3)
-          if (res.success && res.data) {
-            for (const b of res.data) {
-              found.push({
-                id: b.id,
-                type: 'booking',
-                title: `حجز ${b.id.slice(0, 8)}`,
-                subtitle: b.status,
-                href: `/admin/bookings?id=${b.id}`,
-              })
-            }
-          }
-        } catch { /* ignore */ }
-      }
-
-      if (canSearchInvoices) {
-        try {
-          const { getInvoices } = await import('@/app/actions/invoices')
-          const res = await getInvoices(q, undefined, 1, 3)
-          if (res.success && res.data) {
-            for (const inv of res.data) {
-              found.push({
-                id: inv.id,
-                type: 'invoice',
-                title: inv.invoice_number,
-                subtitle: `${inv.total.toLocaleString('en-GB')} ر.س — ${inv.status}`,
-                href: `/admin/invoices?id=${inv.id}`,
-              })
-            }
-          }
-        } catch { /* ignore */ }
-      }
-
-      setResults(found)
+      const { globalSearch } = await import('@/app/actions/global-search')
+      const found = await globalSearch(q)
+      if (requestId === requestIdRef.current) setResults(found)
     } catch {
-      setResults([])
+      if (requestId === requestIdRef.current) setResults([])
     } finally {
-      setLoading(false)
+      if (requestId === requestIdRef.current) setLoading(false)
     }
-  }, [canSearchCustomers, canSearchVehicles, canSearchBookings, canSearchInvoices])
+  }, [canSearchAnything])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)

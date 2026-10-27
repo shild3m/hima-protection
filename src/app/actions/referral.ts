@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/auth";
+import { getActionUser } from "@/lib/action-auth";
 import { createNotificationsForRole } from "@/app/actions/notifications";
 import type {
   Referral,
@@ -123,12 +124,9 @@ export async function createReferral(input: {
 }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
@@ -275,12 +273,9 @@ export async function getMyReferrals(
 ): Promise<PaginatedResult<ReferralWithServices>> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
@@ -343,9 +338,7 @@ export async function getMyReferralStats(): Promise<{
 }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
     if (!user) {
       return { total: 0, created: 0, contacted: 0, redeemed: 0, completed: 0, cancelled: 0 };
     }
@@ -355,19 +348,29 @@ export async function getMyReferralStats(): Promise<{
       return { total: 0, created: 0, contacted: 0, redeemed: 0, completed: 0, cancelled: 0 };
     }
 
-    const { data } = await supabase
-      .from("referrals")
-      .select("status")
-      .eq("dealer_id", dealerId);
+    // HEAD counts: no row payload is transferred, unlike selecting every status.
+    const STATUSES = ["created", "contacted", "redeemed", "completed", "cancelled"] as const;
+    const results = await Promise.all([
+      ...STATUSES.map((status) =>
+        supabase
+          .from("referrals")
+          .select("*", { count: "exact", head: true })
+          .eq("dealer_id", dealerId)
+          .eq("status", status)
+      ),
+      supabase
+        .from("referrals")
+        .select("*", { count: "exact", head: true })
+        .eq("dealer_id", dealerId),
+    ]);
 
-    const rows = data || [];
     return {
-      total: rows.length,
-      created: rows.filter((r) => r.status === "created").length,
-      contacted: rows.filter((r) => r.status === "contacted").length,
-      redeemed: rows.filter((r) => r.status === "redeemed").length,
-      completed: rows.filter((r) => r.status === "completed").length,
-      cancelled: rows.filter((r) => r.status === "cancelled").length,
+      total: results[STATUSES.length].count || 0,
+      created: results[0].count || 0,
+      contacted: results[1].count || 0,
+      redeemed: results[2].count || 0,
+      completed: results[3].count || 0,
+      cancelled: results[4].count || 0,
     };
   } catch {
     return { total: 0, created: 0, contacted: 0, redeemed: 0, completed: 0, cancelled: 0 };
@@ -386,22 +389,13 @@ export async function getReferrals(
 ): Promise<PaginatedResult<ReferralWithServices>> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "referrals",
-      p_action: "read",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("referrals:read")) {
       return { data: [], total: 0, page: 1, per_page: 20, total_pages: 0 };
     }
 
@@ -462,22 +456,13 @@ export async function redeemReferral(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "referrals",
-      p_action: "update",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("referrals:update")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -587,22 +572,13 @@ export async function updateReferralStatus(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) {
+    if (!user) {
       return { success: false, error: "يجب تسجيل الدخول" };
     }
 
-    const { data: hasPerm } = await supabase.rpc("has_permission", {
-      p_user_id: user.id,
-      p_resource: "referrals",
-      p_action: "update",
-    });
-
-    if (!hasPerm) {
+    if (!user.permissions.includes("referrals:update")) {
       return { success: false, error: "ليس لديك صلاحية" };
     }
 
@@ -705,12 +681,9 @@ export async function getReferral(
 ): Promise<ReferralWithServices | null> {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getActionUser();
 
-    if (authError || !user) return null;
+    if (!user) return null;
 
     if (!isValidUUID(referralId)) return null;
 

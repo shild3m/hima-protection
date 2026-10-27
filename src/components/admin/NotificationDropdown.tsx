@@ -6,16 +6,18 @@ import type { Notification } from '@/lib/types'
 
 interface NotificationDropdownProps {
   className?: string
+  initialUnreadCount?: number
 }
 
-export default function NotificationDropdown({ className = '' }: NotificationDropdownProps) {
+export default function NotificationDropdown({ className = '', initialUnreadCount }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadCount, setUnreadCount] = useState(initialUnreadCount ?? 0)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const skipInitialCount = useRef(initialUnreadCount !== undefined)
 
   const loadUnreadCount = useCallback(async () => {
     try {
@@ -41,7 +43,13 @@ export default function NotificationDropdown({ className = '' }: NotificationDro
     } finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { loadUnreadCount() }, [loadUnreadCount])
+  useEffect(() => {
+    if (skipInitialCount.current) {
+      skipInitialCount.current = false
+      return
+    }
+    loadUnreadCount()
+  }, [loadUnreadCount])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

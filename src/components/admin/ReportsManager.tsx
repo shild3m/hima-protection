@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
  FaSpinner,
  FaCalendarCheck,
@@ -17,10 +17,16 @@ interface InvoiceStats {
  total: number
 }
 
-export default function ReportsManager() {
- const [bookingStats, setBookingStats] = useState<BookingStats | null>(null)
- const [invoiceStats, setInvoiceStats] = useState<InvoiceStats | null>(null)
- const [loading, setLoading] = useState(true)
+export default function ReportsManager({ initialBookingStats, initialInvoiceStats }: {
+ initialBookingStats?: BookingStats | null
+ initialInvoiceStats?: InvoiceStats | null
+} = {}) {
+ const skipInitialFetch = useRef(
+   initialBookingStats !== undefined || initialInvoiceStats !== undefined
+ )
+ const [bookingStats, setBookingStats] = useState<BookingStats | null>(initialBookingStats ?? null)
+ const [invoiceStats, setInvoiceStats] = useState<InvoiceStats | null>(initialInvoiceStats ?? null)
+ const [loading, setLoading] = useState(initialBookingStats === undefined && initialInvoiceStats === undefined)
 
  const loadStats = useCallback(async () => {
  setLoading(true)
@@ -40,7 +46,13 @@ export default function ReportsManager() {
  }
  }, [])
 
- useEffect(() => { loadStats() }, [loadStats])
+ useEffect(() => {
+   if (skipInitialFetch.current) {
+     skipInitialFetch.current = false
+     return
+   }
+   loadStats()
+ }, [loadStats])
 
  const statusLabels: Record<string, string> = {
  new: 'جديد',

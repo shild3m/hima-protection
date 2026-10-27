@@ -35,6 +35,7 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<CustomerWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [sort, setSort] = useState<SortConfig>({
     field: "created_at",
@@ -55,11 +56,16 @@ export default function CustomersPage() {
   });
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       const filters: CustomerFilters = {};
-      if (search) filters.search = search;
+      if (debouncedSearch) filters.search = debouncedSearch;
       if (sourceFilter) filters.source = sourceFilter;
       const result = await getCustomers(filters, sort, page, 20);
       if (cancelled) return;
@@ -70,7 +76,7 @@ export default function CustomersPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [search, sourceFilter, sort, page]);
+  }, [debouncedSearch, sourceFilter, sort, page]);
 
   const handleCreate = async () => {
     setCreating(true);
