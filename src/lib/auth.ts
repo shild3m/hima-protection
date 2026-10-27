@@ -72,20 +72,30 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const cachedById = getCachedUser(session?.sub ?? null, session?.tokenFp)
   if (cachedById) return cachedById
 
+  const admin = getSupabaseAdmin()
+
+  // Warm the role/permission lookup while the token is still being verified.
+  // The row is fetched by the cookie's `sub`, but it is only ever USED when
+  // auth.getUser() confirms the same id below - an unverified cookie can never
+  // grant access, it only removes one round trip from the cold path.
+  const staffSelect = 'id, email, user_id, role_id, role, is_active, roles(role_permissions(permissions(resource, action)))'
+  const prefetchedStaff = session?.sub
+    ? admin.from('staff').select(staffSelect).eq('user_id', session.sub).maybeSingle()
+    : null
+
   const sessionUser = await getSessionUser()
   if (!sessionUser?.id) return null
 
   const cached = getCachedUser(sessionUser.id, session?.tokenFp)
   if (cached) return cached
 
-  const admin = getSupabaseAdmin()
-
-  // 1 query: staff + roles + role_permissions (nested join)
-  const { data: staff } = await admin
-    .from('staff')
-     .select('id, email, user_id, role_id, role, is_active, roles(role_permissions(permissions(resource, action)))')
-     .eq('user_id', sessionUser.id)
-     .maybeSingle()
+  const { data: staff } = prefetchedStaff && session?.sub === sessionUser.id
+    ? await prefetchedStaff
+    : await admin
+      .from('staff')
+      .select(staffSelect)
+      .eq('user_id', sessionUser.id)
+      .maybeSingle()
 
   if (staff) {
     if (staff.is_active === false) return null
@@ -113,20 +123,23 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     return result
   }
 
-  // 1 query: dealer lookup
-  const { data: dealer } = await admin
-    .from('dealers')
-    .select('id, email, user_id, is_active, status')
-    .eq('user_id', sessionUser.id)
-    .maybeSingle()
-
-  if (dealer && dealer.is_active && dealer.status === 'active') {
-    // 1 query: dealer role + permissions (nested join)
-    const { data: dealerRole } = await admin
+  // Dealer fallback: dealer row + dealer role in one parallel batch.
+  const [dealerRes, dealerRoleRes] = await Promise.all([
+    admin
+      .from('dealers')
+      .select('id, email, user_id, is_active, status')
+      .eq('user_id', sessionUser.id)
+      .maybeSingle(),
+    admin
       .from('roles')
       .select('id, role_permissions(permissions(resource, action))')
       .eq('name', 'dealer')
-      .maybeSingle()
+      .maybeSingle(),
+  ])
+
+  const dealer = dealerRes.data
+  if (dealer && dealer.is_active && dealer.status === 'active') {
+    const dealerRole = dealerRoleRes.data
 
     const dealerRoleId = dealerRole?.id
     let permissions: string[] = []
