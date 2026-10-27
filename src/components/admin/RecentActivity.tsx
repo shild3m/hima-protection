@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaUsers, FaFileInvoiceDollar, FaSync, FaInbox } from 'react-icons/fa'
 import { getRecentActivity, type RecentActivityItem } from '@/app/actions/dashboard'
 
@@ -49,9 +49,16 @@ function ActivitySkeleton() {
   )
 }
 
-export default function RecentActivity() {
-  const [res, setRes] = useState<{ success: boolean; data?: RecentActivityItem[]; error?: string } | null>(null)
+interface RecentActivityProps {
+  initialData?: RecentActivityItem[]
+}
+
+export default function RecentActivity({ initialData }: RecentActivityProps = {}) {
+  const [res, setRes] = useState<{ success: boolean; data?: RecentActivityItem[]; error?: string } | null>(
+    initialData ? { success: true, data: initialData } : null
+  )
   const [isPending, setIsPending] = useState(false)
+  const skipInitialLoad = useRef(initialData !== undefined)
 
   const load = useCallback(async () => {
     setIsPending(true)
@@ -61,6 +68,10 @@ export default function RecentActivity() {
   }, [])
 
   useEffect(() => {
+    if (skipInitialLoad.current) {
+      skipInitialLoad.current = false
+      return
+    }
     load()
   }, [load])
 

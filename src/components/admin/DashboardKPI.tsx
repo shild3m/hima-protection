@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   FaCalendarCheck,
   FaUsers,
@@ -40,6 +40,7 @@ const KPI_CARDS: KPIDef[] = [
 
 interface DashboardKPIProps {
   permissions: string[]
+  initialKPIs?: DashboardKPIs
 }
 
 function Skeleton({ permissions }: DashboardKPIProps) {
@@ -69,9 +70,12 @@ function formatValue(value: number, format?: string) {
   return value.toLocaleString('en-GB')
 }
 
-export default function DashboardKPI({ permissions }: DashboardKPIProps) {
-  const [res, setRes] = useState<{ success: boolean; data?: DashboardKPIs; error?: string } | null>(null)
+export default function DashboardKPI({ permissions, initialKPIs }: DashboardKPIProps) {
+  const [res, setRes] = useState<{ success: boolean; data?: DashboardKPIs; error?: string } | null>(
+    initialKPIs ? { success: true, data: initialKPIs } : null
+  )
   const [isPending, setIsPending] = useState(false)
+  const skipInitialLoad = useRef(initialKPIs !== undefined)
 
   const load = useCallback(async () => {
     setIsPending(true)
@@ -81,6 +85,10 @@ export default function DashboardKPI({ permissions }: DashboardKPIProps) {
   }, [])
 
   useEffect(() => {
+    if (skipInitialLoad.current) {
+      skipInitialLoad.current = false
+      return
+    }
     load()
   }, [load])
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   getRevenueChartData,
   getBookingsChartData,
@@ -264,8 +264,17 @@ function DualBarChart({ labels, series1, series2, label1, label2, color1 = '#C41
   )
 }
 
+interface ChartBundle {
+  revenue: RevenueChartData | null
+  bookings: BookingsChartData | null
+  services: ServicesChartData | null
+  dealerPerf: DealerPerformanceData | null
+  inventory: InventoryChartData | null
+}
+
 interface DashboardChartsProps {
   permissions: string[]
+  initialBundle?: ChartBundle
 }
 
 function ChartsSkeleton() {
@@ -281,16 +290,11 @@ function ChartsSkeleton() {
   )
 }
 
-export default function DashboardCharts({ permissions }: DashboardChartsProps) {
+export default function DashboardCharts({ permissions, initialBundle }: DashboardChartsProps) {
   const [rangeIdx, setRangeIdx] = useState(1)
-  const [bundle, setBundle] = useState<{
-    revenue: RevenueChartData | null
-    bookings: BookingsChartData | null
-    services: ServicesChartData | null
-    dealerPerf: DealerPerformanceData | null
-    inventory: InventoryChartData | null
-  } | null>(null)
+  const [bundle, setBundle] = useState<ChartBundle | null>(initialBundle ?? null)
   const [isPending, setIsPending] = useState(false)
+  const skipInitialLoad = useRef(initialBundle !== undefined)
 
   const canViewBookings = permissions.includes('bookings:read')
   const canViewInvoices = permissions.includes('invoices:read')
@@ -319,6 +323,10 @@ export default function DashboardCharts({ permissions }: DashboardChartsProps) {
   }, [canViewBookings, canViewInvoices, canViewReferrals, canViewMaterials])
 
   useEffect(() => {
+    if (skipInitialLoad.current) {
+      skipInitialLoad.current = false
+      return
+    }
     load(range.from, range.to)
   }, [load, range.from, range.to])
 

@@ -146,17 +146,26 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   tamara: 'تمارا',
 }
 
-export default function BookingsManager() {
+interface BookingsManagerProps {
+  initialBookings?: Booking[]
+  initialPagination?: Pagination
+  initialStats?: Stats
+}
+
+export default function BookingsManager({ initialBookings, initialPagination, initialStats }: BookingsManagerProps = {}) {
   const { hasPermission, staffInfo } = useAuth()
   const isSuperAdmin = staffInfo?.role === 'super_admin'
- const [bookings, setBookings] = useState<Booking[]>([])
- const [loading, setLoading] = useState(true)
+ // Server-rendered first page: skip the client-side duplicate fetch on mount.
+ const skipInitialBookingsFetch = useRef(initialBookings !== undefined)
+ const skipInitialStatsFetch = useRef(initialStats !== undefined)
+ const [bookings, setBookings] = useState<Booking[]>(initialBookings ?? [])
+ const [loading, setLoading] = useState(initialBookings === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [statusFilter, setStatusFilter] = useState('all')
  const [page, setPage] = useState(1)
- const [pagination, setPagination] = useState<Pagination | null>(null)
- const [stats, setStats] = useState<Stats | null>(null)
+ const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
+ const [stats, setStats] = useState<Stats | null>(initialStats ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [viewingBooking, setViewingBooking] = useState<BookingDetail | null>(null)
  const [loadingDetail, setLoadingDetail] = useState(false)
@@ -293,10 +302,18 @@ useEffect(() => {
  }, [])
 
  useEffect(() => {
+ if (skipInitialBookingsFetch.current) {
+   skipInitialBookingsFetch.current = false
+   return
+ }
  fetchBookings()
  }, [fetchBookings])
 
  useEffect(() => {
+ if (skipInitialStatsFetch.current) {
+   skipInitialStatsFetch.current = false
+   return
+ }
  fetchStats()
  }, [fetchStats])
 
