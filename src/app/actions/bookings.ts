@@ -94,7 +94,9 @@ export async function getBookings(
         customer:customers(id, full_name, phone),
         vehicle:vehicles(id, make, model, year, plate_number),
         service:services(id, name, base_price),
-        booking_items:booking_items(id, service_id, quantity, unit_price, total, service:services(name))
+        booking_items:booking_items(id, service_id, quantity, unit_price, total, service:services(name)),
+        invoices(id, invoice_number, status, total, paid_amount),
+        booking_status_history(created_at, new_status)
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)
@@ -115,87 +117,62 @@ export async function getBookings(
       `)
     }
 
-    const { data, error, count } = await query
+    // This used to be four sequential round trips (bookings → staff names →
+    // status history → invoices). History and invoices now come embedded in the
+    // main query, and the staff lookup runs in parallel with it.
+    const admin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const [bookingsRes, staffRes] = await Promise.all([
+      query,
+      admin.from('staff').select('user_id, full_name'),
+    ])
+
+    const { data, error, count } = bookingsRes
 
     if (error) {
       console.error('Get bookings error:', error)
       return { success: false as const, error: 'تعذر جلب الحجوزات' }
     }
 
-    const rows = data || []
-    const createdByIds = [...new Set(rows.map(b => (b.created_by as string | null)).filter(Boolean))] as string[]
-    let creatorNames: Record<string, string> = {}
-    if (createdByIds.length > 0) {
-      const admin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
-      const { data: staffRows } = await admin
-        .from('staff')
-        .select('user_id, full_name')
-        .in('user_id', createdByIds)
-      if (staffRows) {
-        creatorNames = Object.fromEntries(staffRows.map(s => [s.user_id, s.full_name]))
-      }
+    const creatorNames: Record<string, string> = {}
+    for (const s of staffRes.data || []) {
+      if (s.user_id) creatorNames[s.user_id] = s.full_name
     }
 
-    const mapped = rows.map((b) => {
+    const rows = data || []
+    const mapped = rows.map((row) => {
+      const { invoices, booking_status_history, ...booking } = row
+      const history = (booking_status_history || []) as { created_at: string; new_status: string }[]
+
+      let serviceDate = booking.service_date as string | null
+      if (booking.status === 'completed') {
+        let latest = ''
+        for (const h of history) {
+          if (h.new_status === 'completed' && h.created_at > latest) latest = h.created_at
+        }
+        if (latest) serviceDate = latest.slice(0, 10)
+      }
+
+      const invoice = Array.isArray(invoices) ? invoices[0] : invoices
+
       return {
-        ...b,
-        created_by_name: b.created_by ? creatorNames[b.created_by] || null : null,
-        linked_invoice: null,
+        ...booking,
+        service_date: serviceDate,
+        created_by_name: booking.created_by ? creatorNames[booking.created_by] || null : null,
+        linked_invoice: invoice
+          ? {
+              id: invoice.id,
+              invoice_number: invoice.invoice_number,
+              status: invoice.status,
+              total: invoice.total,
+              paid_amount: invoice.paid_amount,
+            }
+          : null,
       }
     })
-
-    const completedIds = mapped.filter(b => b.status === 'completed' && b.id).map(b => b.id as string)
-    if (completedIds.length > 0) {
-      const { data: hist } = await supabase
-        .from('booking_status_history')
-        .select('booking_id, created_at')
-        .in('booking_id', completedIds)
-        .eq('new_status', 'completed')
-      if (hist && hist.length > 0) {
-        const completedAt = new Map<string, string>()
-        for (const h of hist) {
-          const bid = h.booking_id as string
-          const t = h.created_at as string
-          if (!completedAt.has(bid) || t > completedAt.get(bid)!) {
-            completedAt.set(bid, t)
-          }
-        }
-        for (const b of mapped) {
-          if (b.status === 'completed' && completedAt.has(b.id as string)) {
-            b.service_date = (completedAt.get(b.id as string) as string).slice(0, 10)
-          }
-        }
-      }
-    }
-
-    if (rows.length > 0) {
-      const ids = rows.map(b => b.id as string)
-      const { data: invData, error: invErr } = await supabase
-        .from('invoices')
-        .select('id, invoice_number, status, booking_id, total, paid_amount')
-        .in('booking_id', ids)
-      if (invErr) {
-        console.error('Get bookings invoice lookup error:', invErr)
-      } else if (invData) {
-        const invByBooking = new Map(invData.map(iv => [iv.booking_id as string, iv]))
-        return {
-          success: true as const,
-          data: mapped.map(b => {
-            const iv = invByBooking.get(b.id as string)
-            return { ...b, linked_invoice: iv ? { id: iv.id, invoice_number: iv.invoice_number, status: iv.status, total: iv.total, paid_amount: iv.paid_amount } : null }
-          }),
-          pagination: {
-            page: currentPage,
-            pageSize: size,
-            total: count || 0,
-            totalPages: Math.ceil((count || 0) / size),
-          },
-        }
-      }
-    }
 
     return {
       success: true as const,
