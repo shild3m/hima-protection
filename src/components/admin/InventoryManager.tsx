@@ -22,13 +22,9 @@ const FILTER_OPTIONS = [
  { value: 'all', label: 'كل الأنواع' },
  { value: 'in', label: 'إضافة' },
  { value: 'out', label: 'خصم' },
- { value: 'purchase', label: 'شراء' },
 ]
 
-function getTypeInfo(type: string, quantity: number): { label: string; color: string; icon: React.ReactNode } {
- if (type === 'purchase') {
- return { label: 'شراء', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> }
- }
+function getTypeInfo(quantity: number): { label: string; color: string; icon: React.ReactNode } {
  if (quantity > 0) {
  return { label: 'إضافة', color: 'text-[#059669] bg-[#ECFDF5]', icon: <FaArrowDown className="text-xs" /> }
  }
@@ -165,7 +161,7 @@ export default function InventoryManager() {
  </thead>
  <tbody>
  {movements.map(m => {
- const typeInfo = getTypeInfo(m.type, m.quantity)
+ const typeInfo = getTypeInfo(m.quantity)
  return (
  <tr key={m.id} className="border-b border-[#E7E8EA] hover:bg-[#F1F2F3]">
  <td className="px-4 py-3">
