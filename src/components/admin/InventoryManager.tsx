@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider'
 import {
  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle,
  FaExclamationTriangle, FaTimes, FaArrowUp, FaArrowDown,
- FaPlus, FaMinus,
+ FaPlus, FaMinus, FaChevronDown, FaFilter,
 } from 'react-icons/fa'
 
 interface Material { id: string; name: string; sku: string; unit: string; current_stock: number; min_stock: number; is_active: boolean }
@@ -74,6 +74,12 @@ export default function InventoryManager() {
  setShowAction(direction)
  }
 
+  const changeQuantity = (delta: number) => {
+  const current = Number.isFinite(actionForm.quantity) ? actionForm.quantity : 0
+  setActionForm(f => ({ ...f, quantity: Math.max(1, current + delta) }))
+  setActionError('')
+  }
+
   const handleAction = async () => {
   setSaving(true); setNotification(null); setActionError('')
   try {
@@ -128,16 +134,30 @@ export default function InventoryManager() {
  )}
 
  <div className="flex flex-col sm:flex-row gap-3 mb-4">
- <select value={materialFilter} onChange={e => { setMaterialFilter(e.target.value); setPage(1) }}
- className="w-full sm:w-72 px-3 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
+ <div className="w-full sm:flex-1 sm:min-w-72">
+ <label htmlFor="material-filter" className="block text-[#62666D] text-[11px] font-bold mb-1.5">المادة</label>
+ <div className="relative">
+ <FaBoxOpen className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9DA3] text-sm" />
+ <select id="material-filter" value={materialFilter} onChange={e => { setMaterialFilter(e.target.value); setPage(1) }}
+ className="appearance-none w-full h-11 pr-9 pl-9 bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm font-medium shadow-sm cursor-pointer transition-all hover:border-[#DC2626]/40 hover:shadow focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10">
  <option value="">كل المواد</option>
  {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
  </select>
- <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
- className="w-full sm:w-44 px-3 py-2.5 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
+ <FaChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] text-[10px]" />
+ </div>
+ </div>
+ <div className="w-full sm:w-44">
+ <label htmlFor="type-filter" className="block text-[#62666D] text-[11px] font-bold mb-1.5">النوع</label>
+ <div className="relative">
+ <FaFilter className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9DA3] text-xs" />
+ <select id="type-filter" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
+ className="appearance-none w-full h-11 pr-8 pl-9 bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm font-medium shadow-sm cursor-pointer transition-all hover:border-[#DC2626]/40 hover:shadow focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10">
  <option value="all">كل الأنواع</option>
  {FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
  </select>
+ <FaChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] text-[10px]" />
+ </div>
+ </div>
  </div>
 
  <div className="bg-white border border-[#E7E8EA] shadow-sm rounded-2xl overflow-hidden">
@@ -179,7 +199,7 @@ export default function InventoryManager() {
  </td>
  <td className="px-4 py-3 text-[#111214]">{m.material?.current_stock ?? '—'}</td>
  <td className="px-4 py-3 text-[#111214] text-xs">{new Date(m.created_at).toLocaleDateString('en-GB')}</td>
- <td className="px-4 py-3 text-[#62666D] text-xs max-w-[200px] truncate">{m.notes || '—'}</td>
+ <td className="px-4 py-3 text-[#62666D] text-xs max-w-[200px] truncate">{m.notes || 'لا توجد ملاحظات مسجّلة'}</td>
  </tr>
  )
  })}
@@ -216,29 +236,44 @@ export default function InventoryManager() {
   )}
   <div className="space-y-4">
   <div>
-  <label className="block text-[#62666D] text-xs font-bold mb-1">المادة *</label>
-  <select value={actionForm.material_id} onChange={e => { setActionForm({ ...actionForm, material_id: e.target.value }); setActionError('') }}
-  className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
+  <label htmlFor="action-material" className="block text-[#62666D] text-xs font-bold mb-1.5">المادة <span className="text-[#DC2626]">*</span></label>
+  <div className="relative">
+  <FaBoxOpen className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9DA3] text-sm" />
+  <select id="action-material" value={actionForm.material_id} onChange={e => { setActionForm({ ...actionForm, material_id: e.target.value }); setActionError('') }}
+  className="appearance-none w-full h-11 pr-9 pl-9 bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm font-medium shadow-sm cursor-pointer transition-all hover:border-[#DC2626]/40 focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10">
   <option value="">اختر المادة</option>
   {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
   </select>
+  <FaChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] text-[10px]" />
+  </div>
   </div>
  <div>
- <label className="block text-[#62666D] text-xs font-bold mb-1">الكمية *</label>
-  <input type="number" value={actionForm.quantity} onChange={e => { setActionForm({ ...actionForm, quantity: Number(e.target.value) }); setActionError('') }} min={0.01} step={0.01}
-  className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]" />
+ <label htmlFor="action-quantity" className="block text-[#62666D] text-xs font-bold mb-1.5">الكمية <span className="text-[#DC2626]">*</span></label>
+  <div className="flex items-stretch gap-2">
+  <button type="button" onClick={() => changeQuantity(-1)} aria-label="تقليل الكمية"
+  className="w-11 h-11 shrink-0 flex items-center justify-center bg-white border border-[#E7E8EA] rounded-xl text-[#62666D] shadow-sm transition-all hover:border-[#DC2626]/40 hover:text-[#DC2626]">
+  <FaMinus className="text-xs" />
+  </button>
+  <input id="action-quantity" type="number" inputMode="decimal" value={actionForm.quantity}
+  onChange={e => { setActionForm({ ...actionForm, quantity: Number(e.target.value) }); setActionError('') }} min={1} step={1}
+  className="flex-1 min-w-0 h-11 text-center bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm font-bold shadow-sm transition-all hover:border-[#DC2626]/40 focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10" />
+  <button type="button" onClick={() => changeQuantity(1)} aria-label="زيادة الكمية"
+  className="w-11 h-11 shrink-0 flex items-center justify-center bg-white border border-[#E7E8EA] rounded-xl text-[#62666D] shadow-sm transition-all hover:border-[#059669]/50 hover:text-[#059669]">
+  <FaPlus className="text-xs" />
+  </button>
+  </div>
  </div>
  <div>
- <label className="block text-[#62666D] text-xs font-bold mb-1">ملاحظات</label>
-  <textarea value={actionForm.notes} onChange={e => { setActionForm({ ...actionForm, notes: e.target.value }); setActionError('') }} rows={2}
-  className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626] resize-none" />
+ <label htmlFor="action-notes" className="block text-[#62666D] text-xs font-bold mb-1.5">ملاحظات</label>
+  <textarea id="action-notes" value={actionForm.notes} onChange={e => { setActionForm({ ...actionForm, notes: e.target.value }); setActionError('') }} rows={2}
+  className="w-full px-3 py-2.5 bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm shadow-sm transition-all hover:border-[#DC2626]/40 focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10 resize-none" />
   </div>
   <div className="flex gap-3 pt-2">
   <button onClick={handleAction} disabled={saving || !actionForm.material_id || actionForm.quantity <= 0}
-  className={`flex-1 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors ${showAction === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
+  className={`flex-1 h-11 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold shadow-sm transition-colors ${showAction === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
   {saving ? <FaSpinner className="animate-spin inline" /> : 'تطبيق'}
   </button>
-  <button onClick={() => { setShowAction(null); setActionError('') }} className="px-6 py-2.5 bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#111214] rounded-xl text-sm font-bold transition-colors">إلغاء</button>
+  <button onClick={() => { setShowAction(null); setActionError('') }} className="px-6 h-11 bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] hover:text-[#111214] rounded-xl text-sm font-bold transition-colors">إلغاء</button>
   </div>
  </div>
  </div>
