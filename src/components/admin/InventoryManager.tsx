@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import SelectList from '@/components/ui/SelectList'
 import {
  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle,
  FaExclamationTriangle, FaTimes, FaArrowUp, FaArrowDown,
- FaPlus, FaMinus, FaChevronDown, FaFilter,
+ FaPlus, FaMinus, FaFilter,
 } from 'react-icons/fa'
 
 interface Material { id: string; name: string; sku: string; unit: string; current_stock: number; min_stock: number; is_active: boolean }
@@ -135,28 +136,29 @@ export default function InventoryManager() {
 
  <div className="flex flex-col sm:flex-row gap-3 mb-4">
  <div className="w-full sm:flex-1 sm:min-w-72">
- <label htmlFor="material-filter" className="block text-[#62666D] text-[11px] font-bold mb-1.5">المادة</label>
- <div className="relative">
- <FaBoxOpen className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9DA3] text-sm" />
- <select id="material-filter" value={materialFilter} onChange={e => { setMaterialFilter(e.target.value); setPage(1) }}
- className="appearance-none w-full h-11 pr-9 pl-9 bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm font-medium shadow-sm cursor-pointer transition-all hover:border-[#DC2626]/40 hover:shadow focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10">
- <option value="">كل المواد</option>
- {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
- </select>
- <FaChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] text-[10px]" />
- </div>
+ <label className="block text-[#62666D] text-[11px] font-bold mb-1.5">المادة</label>
+ <SelectList
+ value={materialFilter}
+ onChange={v => { setMaterialFilter(v); setPage(1) }}
+ options={[{ value: '', label: 'كل المواد' }, ...materials.map(m => ({ value: m.id, label: `${m.name} (المخزون: ${m.current_stock})` }))]}
+ placeholder="كل المواد"
+ icon={<FaBoxOpen />}
+ searchable
+ searchPlaceholder="ابحث عن مادة..."
+ emptyText="لا توجد مواد مطابقة"
+ ariaLabel="تصفية حسب المادة"
+ />
  </div>
  <div className="w-full sm:w-44">
- <label htmlFor="type-filter" className="block text-[#62666D] text-[11px] font-bold mb-1.5">النوع</label>
- <div className="relative">
- <FaFilter className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9DA3] text-xs" />
- <select id="type-filter" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
- className="appearance-none w-full h-11 pr-8 pl-9 bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm font-medium shadow-sm cursor-pointer transition-all hover:border-[#DC2626]/40 hover:shadow focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10">
- <option value="all">كل الأنواع</option>
- {FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
- </select>
- <FaChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] text-[10px]" />
- </div>
+ <label className="block text-[#62666D] text-[11px] font-bold mb-1.5">النوع</label>
+ <SelectList
+ value={typeFilter}
+ onChange={v => { setTypeFilter(v); setPage(1) }}
+ options={[{ value: 'all', label: 'كل الأنواع' }, ...FILTER_OPTIONS]}
+ placeholder="كل الأنواع"
+ icon={<FaFilter />}
+ ariaLabel="تصفية حسب النوع"
+ />
  </div>
  </div>
 
@@ -236,16 +238,18 @@ export default function InventoryManager() {
   )}
   <div className="space-y-4">
   <div>
-  <label htmlFor="action-material" className="block text-[#62666D] text-xs font-bold mb-1.5">المادة <span className="text-[#DC2626]">*</span></label>
-  <div className="relative">
-  <FaBoxOpen className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#9A9DA3] text-sm" />
-  <select id="action-material" value={actionForm.material_id} onChange={e => { setActionForm({ ...actionForm, material_id: e.target.value }); setActionError('') }}
-  className="appearance-none w-full h-11 pr-9 pl-9 bg-white border border-[#E7E8EA] rounded-xl text-[#111214] text-sm font-medium shadow-sm cursor-pointer transition-all hover:border-[#DC2626]/40 focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-[#DC2626]/10">
-  <option value="">اختر المادة</option>
-  {materials.map(m => <option key={m.id} value={m.id}>{m.name} (المخزون: {m.current_stock})</option>)}
-  </select>
-  <FaChevronDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] text-[10px]" />
-  </div>
+  <label className="block text-[#62666D] text-xs font-bold mb-1.5">المادة <span className="text-[#DC2626]">*</span></label>
+  <SelectList
+  value={actionForm.material_id}
+  onChange={v => { setActionForm({ ...actionForm, material_id: v }); setActionError('') }}
+  options={materials.map(m => ({ value: m.id, label: `${m.name} (المخزون: ${m.current_stock})` }))}
+  placeholder="اختر المادة"
+  icon={<FaBoxOpen />}
+  searchable
+  searchPlaceholder="ابحث عن مادة..."
+  emptyText="لا توجد مواد مطابقة"
+  ariaLabel="اختر المادة"
+  />
   </div>
  <div>
  <label htmlFor="action-quantity" className="block text-[#62666D] text-xs font-bold mb-1.5">الكمية <span className="text-[#DC2626]">*</span></label>
