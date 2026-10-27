@@ -1,10 +1,12 @@
 'use server'
 
 import { z } from 'zod'
+import { updateTag } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
+import { CACHE_TAGS } from '@/lib/data-cache'
 
 const PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 50
@@ -287,6 +289,8 @@ export async function receivePurchase(purchaseId: string) {
     if (!result || !result.success) {
       return { success: false as const, error: result?.error || 'تعذر استلام الشراء' }
     }
+
+    updateTag(CACHE_TAGS.materials)
 
     return { success: true as const, data: result }
   } catch (err) {

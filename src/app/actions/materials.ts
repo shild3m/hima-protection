@@ -1,10 +1,16 @@
 'use server'
 
 import { z } from 'zod'
+import { updateTag } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
+import {
+  CACHE_TAGS,
+  getMaterialOptionsCached,
+  getMaterialsPageCached,
+} from '@/lib/data-cache'
 
 const PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 50
@@ -14,17 +20,6 @@ function sanitizeError(error: unknown): string {
     return error.issues[0]?.message || 'بيانات غير صحيحة'
   }
   return 'حدث خطأ غير متوقع'
-}
-
-function sanitizeSearch(input: string): string {
-  return input.trim()
-    .replace(/,/g, '')
-    .replace(/\(/g, '')
-    .replace(/\)/g, '')
-    .replace(/\./g, '')
-    .replace(/\*/g, '')
-    .replace(/%/g, '\\%')
-    .replace(/_/g, '\\_')
 }
 
 function validatePage(value: unknown): number {
@@ -81,38 +76,43 @@ export async function getMaterials(
   const to = from + size - 1
 
   try {
-    const supabase = await createClient()
-    let query = supabase
-      .from('materials')
-      .select('*, supplier:suppliers(id, name)', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
+    const res = await getMaterialsPageCached(search?.trim() || '', from, to)
 
-    if (search && search.trim()) {
-      const sanitized = sanitizeSearch(search)
-      query = query.or(`name.ilike.%${sanitized}%,sku.ilike.%${sanitized}%`)
-    }
-
-    const { data, error, count } = await query
-
-    if (error) {
-      console.error('Get materials error:', error)
-      return { success: false as const, error: 'تعذر جلب المواد' }
+    if (!res.ok) {
+      return { success: false as const, error: res.error }
     }
 
     return {
       success: true as const,
-      data: data || [],
+      data: res.data,
       pagination: {
         page: currentPage,
         pageSize: size,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / size),
+        total: res.count,
+        totalPages: Math.ceil(res.count / size),
       },
     }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
+}
+
+/**
+ * Lightweight active-material list for dropdowns. Returns every active material
+ * (up to 1000) instead of one page, and is cached org-wide.
+ */
+export async function getMaterialOptions() {
+  const user = await requireAuth()
+  if (!user.permissions.includes('materials:read')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  const res = await getMaterialOptionsCached()
+  if (!res.ok) {
+    return { success: false as const, error: res.error }
+  }
+
+  return { success: true as const, data: res.data }
 }
 
 export async function getMaterial(id: string) {
@@ -197,6 +197,8 @@ export async function createMaterial(input: MaterialInput) {
       newValues: { name: validated.name, sku: validated.sku, unit: validated.unit },
     })
 
+    updateTag(CACHE_TAGS.materials)
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -276,6 +278,8 @@ export async function updateMaterial(id: string, input: z.infer<typeof MaterialU
       newValues: updateData,
     })
 
+    updateTag(CACHE_TAGS.materials)
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -322,6 +326,8 @@ export async function toggleMaterialActive(id: string) {
       resourceId: id,
       newValues: { is_active: !existing.is_active },
     })
+
+    updateTag(CACHE_TAGS.materials)
 
     return { success: true as const, data }
   } catch {
@@ -398,6 +404,8 @@ export async function deleteMaterial(id: string) {
       resourceId: id,
       oldValues: { name: existing.name },
     })
+
+    updateTag(CACHE_TAGS.materials)
 
     return { success: true as const }
   } catch {

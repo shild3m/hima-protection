@@ -71,17 +71,17 @@ export default function PurchasesManager() {
 
  const loadFormData = useCallback(async () => {
  try {
- const { getSuppliers } = await import('@/app/actions/suppliers')
- const sRes = await getSuppliers(undefined, 1, 200)
- if (sRes.success) setSuppliers(sRes.data.filter((s: Supplier) => s.is_active))
+ const { getSupplierOptions } = await import('@/app/actions/suppliers')
+ const sRes = await getSupplierOptions()
+ if (sRes.success) setSuppliers(sRes.data)
 
- const { getMaterials } = await import('@/app/actions/materials')
- const mRes = await getMaterials(undefined, 1, 200)
- if (mRes.success) setMaterials(mRes.data.filter((m: Material) => m.is_active))
+ const { getMaterialOptions } = await import('@/app/actions/materials')
+ const mRes = await getMaterialOptions()
+ if (mRes.success) setMaterials(mRes.data)
  } catch { /* ignore */ }
  }, [])
 
- useEffect(() => { loadPurchases('', 'all', 1); loadFormData() }, [loadPurchases, loadFormData])
+ useEffect(() => { loadFormData() }, [loadFormData])
 
  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)

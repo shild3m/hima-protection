@@ -61,13 +61,13 @@ export default function InventoryManager() {
 
  const loadMaterials = useCallback(async () => {
  try {
- const { getMaterials } = await import('@/app/actions/materials')
- const res = await getMaterials(undefined, 1, 200)
- if (res.success) setMaterials(res.data.filter((m: Material) => m.is_active))
+ const { getMaterialOptions } = await import('@/app/actions/materials')
+ const res = await getMaterialOptions()
+ if (res.success) setMaterials(res.data)
  } catch { /* ignore */ }
  }, [])
 
- useEffect(() => { loadMovements('', 'all', 1); loadMaterials() }, [loadMovements, loadMaterials])
+ useEffect(() => { loadMaterials() }, [loadMaterials])
  useEffect(() => { loadMovements(materialFilter, typeFilter, page) }, [materialFilter, typeFilter, page, loadMovements])
 
  const openAction = (direction: ActionType) => {

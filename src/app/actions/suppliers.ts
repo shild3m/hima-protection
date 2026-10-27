@@ -1,9 +1,15 @@
 'use server'
 
 import { z } from 'zod'
+import { updateTag } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import {
+  CACHE_TAGS,
+  getSupplierOptionsCached,
+  getSuppliersPageCached,
+} from '@/lib/data-cache'
 
 const PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 50
@@ -13,17 +19,6 @@ function sanitizeError(error: unknown): string {
     return error.issues[0]?.message || 'بيانات غير صحيحة'
   }
   return 'حدث خطأ غير متوقع'
-}
-
-function sanitizeSearch(input: string): string {
-  return input.trim()
-    .replace(/,/g, '')
-    .replace(/\(/g, '')
-    .replace(/\)/g, '')
-    .replace(/\./g, '')
-    .replace(/\*/g, '')
-    .replace(/%/g, '\\%')
-    .replace(/_/g, '\\_')
 }
 
 function validatePage(value: unknown): number {
@@ -70,38 +65,40 @@ export async function getSuppliers(
   const to = from + size - 1
 
   try {
-    const supabase = await createClient()
-    let query = supabase
-      .from('suppliers')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
+    const res = await getSuppliersPageCached(search?.trim() || '', from, to)
 
-    if (search && search.trim()) {
-      const sanitized = sanitizeSearch(search)
-      query = query.or(`name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,email.ilike.%${sanitized}%`)
-    }
-
-    const { data, error, count } = await query
-
-    if (error) {
-      console.error('Get suppliers error:', error)
-      return { success: false as const, error: 'تعذر جلب الموردين' }
+    if (!res.ok) {
+      return { success: false as const, error: res.error }
     }
 
     return {
       success: true as const,
-      data: data || [],
+      data: res.data,
       pagination: {
         page: currentPage,
         pageSize: size,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / size),
+        total: res.count,
+        totalPages: Math.ceil(res.count / size),
       },
     }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
+}
+
+/** Active suppliers for dropdowns (cached org-wide). */
+export async function getSupplierOptions() {
+  const user = await requireAuth()
+  if (!user.permissions.includes('suppliers:read')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  const res = await getSupplierOptionsCached()
+  if (!res.ok) {
+    return { success: false as const, error: res.error }
+  }
+
+  return { success: true as const, data: res.data }
 }
 
 export async function getSupplier(id: string) {
@@ -163,6 +160,9 @@ export async function createSupplier(input: z.infer<typeof SupplierSchema>) {
       newValues: { name: validated.name },
     })
 
+    updateTag(CACHE_TAGS.suppliers)
+    updateTag(CACHE_TAGS.materials)
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -219,6 +219,9 @@ export async function updateSupplier(id: string, input: z.infer<typeof SupplierU
       newValues: updateData,
     })
 
+    updateTag(CACHE_TAGS.suppliers)
+    updateTag(CACHE_TAGS.materials)
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -262,6 +265,8 @@ export async function toggleSupplierActive(id: string) {
       resourceId: id,
       newValues: { is_active: !existing.is_active },
     })
+
+    updateTag(CACHE_TAGS.suppliers)
 
     return { success: true as const, data }
   } catch {
@@ -316,6 +321,9 @@ export async function deleteSupplier(id: string) {
       resourceId: id,
       newValues: { name: existing.name },
     })
+
+    updateTag(CACHE_TAGS.suppliers)
+    updateTag(CACHE_TAGS.materials)
 
     return { success: true as const }
   } catch {

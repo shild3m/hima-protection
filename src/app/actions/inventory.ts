@@ -2,6 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { updateTag } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/data-cache'
 import { z } from 'zod'
 
 const PAGE_SIZE = 20
@@ -141,6 +143,8 @@ export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
       return { success: false as const, error: msg }
     }
 
+    updateTag(CACHE_TAGS.materials)
+
     return { success: true as const, data: result }
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -235,6 +239,8 @@ export async function recordWaste(input: z.infer<typeof WasteSchema>) {
       return { success: false as const, error: msg }
     }
 
+    updateTag(CACHE_TAGS.materials)
+
     return { success: true as const, data: result }
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -290,6 +296,8 @@ export async function recordReturn(input: z.infer<typeof ReturnSchema>) {
       }
       return { success: false as const, error: msg }
     }
+
+    updateTag(CACHE_TAGS.materials)
 
     return { success: true as const, data: result }
   } catch (err) {
@@ -351,6 +359,8 @@ export async function recordUsage(input: z.infer<typeof UsageSchema>) {
       }
       return { success: false as const, error: msg }
     }
+
+    updateTag(CACHE_TAGS.materials)
 
     return { success: true as const, data: result }
   } catch (err) {

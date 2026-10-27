@@ -71,13 +71,13 @@ export default function MaterialsManager() {
 
  const loadSuppliers = useCallback(async () => {
  try {
- const { getSuppliers } = await import('@/app/actions/suppliers')
- const res = await getSuppliers(undefined, 1, 200)
- if (res.success) setSuppliers(res.data.filter((s: Supplier) => s.is_active))
+ const { getSupplierOptions } = await import('@/app/actions/suppliers')
+ const res = await getSupplierOptions()
+ if (res.success) setSuppliers(res.data)
  } catch { /* ignore */ }
  }, [])
 
- useEffect(() => { loadMaterials('', 1); loadSuppliers() }, [loadMaterials, loadSuppliers])
+ useEffect(() => { loadSuppliers() }, [loadSuppliers])
 
  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)

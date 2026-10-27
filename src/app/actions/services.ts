@@ -1,8 +1,10 @@
 'use server'
 
 import { z } from 'zod'
+import { updateTag } from 'next/cache'
 import { requireAuth, getSupabaseAdmin } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
+import { CACHE_TAGS, getServicesListCached } from '@/lib/data-cache'
 
 const ServiceSchema = z.object({
   name: z.string().min(1, 'اسم الخدمة مطلوب').max(200),
@@ -34,26 +36,13 @@ export async function getServices(search?: string) {
   }
 
   try {
-    const admin = getSupabaseAdmin()
-    let query = admin
-      .from('services')
-      .select('*')
-      .order('display_order', { ascending: true })
-      .order('name', { ascending: true })
+    const res = await getServicesListCached(search?.trim() || '')
 
-    if (search && search.trim()) {
-      const sanitized = search.trim().replace(/[,]/g, '').replace(/%/g, '\\%').replace(/_/g, '\\_')
-      query = query.or(`name.ilike.%${sanitized}%,short_description.ilike.%${sanitized}%`)
+    if (!res.ok) {
+      return { success: false as const, error: res.error }
     }
 
-    const { data, error } = await query
-
-    if (error) {
-      console.error('Get services error:', error)
-      return { success: false as const, error: 'تعذر جلب الخدمات' }
-    }
-
-    return { success: true as const, data: data || [] }
+    return { success: true as const, data: res.data }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
@@ -116,6 +105,9 @@ export async function createService(input: ServiceInput) {
 
     await logAudit({ userId: user.staff_id, action: 'create', resourceType: 'service', resourceId: data.id, newValues: data })
 
+    updateTag(CACHE_TAGS.services)
+    updateTag(CACHE_TAGS.publicServices)
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -173,6 +165,9 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
 
     await logAudit({ userId: user.staff_id, action: 'update', resourceType: 'service', resourceId: id, newValues: updateData })
 
+    updateTag(CACHE_TAGS.services)
+    updateTag(CACHE_TAGS.publicServices)
+
     return { success: true as const, data }
   } catch (err) {
     return { success: false as const, error: sanitizeError(err) }
@@ -209,6 +204,9 @@ export async function toggleServiceStatus(id: string) {
     }
 
     await logAudit({ userId: user.staff_id, action: 'toggle_status', resourceType: 'service', resourceId: id, newValues: { is_active: !existing.is_active } })
+
+    updateTag(CACHE_TAGS.services)
+    updateTag(CACHE_TAGS.publicServices)
 
     return { success: true as const, data }
   } catch {
@@ -255,6 +253,9 @@ export async function deleteService(id: string) {
     }
 
     await logAudit({ userId: user.staff_id, action: 'delete', resourceType: 'service', resourceId: id })
+
+    updateTag(CACHE_TAGS.services)
+    updateTag(CACHE_TAGS.publicServices)
 
     return { success: true as const }
   } catch {

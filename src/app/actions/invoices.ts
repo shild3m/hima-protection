@@ -6,6 +6,8 @@ import { requireAuth } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
 import { createNotificationsForRole } from '@/app/actions/notifications'
+import { updateTag } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/data-cache'
 
 const PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 50
@@ -498,6 +500,8 @@ export async function exportInvoice(input: {
     if (!data || !data.success) {
       return { success: false as const, error: data?.error || 'تعذر تصدير الفاتورة' }
     }
+
+    updateTag(CACHE_TAGS.materials)
 
     return { success: true as const, data }
   } catch (err) {

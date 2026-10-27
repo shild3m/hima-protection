@@ -49,8 +49,6 @@ export default function SuppliersManager() {
  } finally { setLoading(false) }
  }, [])
 
- useEffect(() => { loadSuppliers('', 1) }, [loadSuppliers])
-
  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)
  debounceRef.current = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 300)

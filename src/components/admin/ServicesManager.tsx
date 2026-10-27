@@ -70,12 +70,12 @@ const [deletingService, setDeletingService] = useState<Service | null>(null)
     setMaterialsService(service)
     setMaterialsLoading(true)
     try {
-      const [{ getMaterials }, { getServiceMaterials }] = await Promise.all([
+      const [{ getMaterialOptions }, { getServiceMaterials }] = await Promise.all([
         import('@/app/actions/materials'),
         import('@/app/actions/service-materials'),
       ])
       const [matsRes, smRes] = await Promise.all([
-        getMaterials(undefined, 1, 100),
+        getMaterialOptions(),
         getServiceMaterials(service.id),
       ])
       if (matsRes.success) {
