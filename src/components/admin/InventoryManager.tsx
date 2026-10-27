@@ -19,7 +19,6 @@ interface Pagination { page: number; pageSize: number; total: number; totalPages
 type Notification = { type: 'success' | 'error'; message: string } | null
 
 const FILTER_OPTIONS = [
- { value: 'all', label: 'كل الأنواع' },
  { value: 'in', label: 'إضافة' },
  { value: 'out', label: 'خصم' },
 ]
