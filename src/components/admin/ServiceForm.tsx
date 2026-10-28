@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
  FaSave,
  FaTimes,
  FaWrench,
  FaInfoCircle,
  FaExclamationTriangle,
- FaCheckCircle,
+ FaImage,
+ FaTrash,
 } from 'react-icons/fa'
 import { ICON_OPTIONS } from '@/lib/service-icons'
 
@@ -30,6 +31,43 @@ interface ServiceFormProps {
  onSaved: () => void
 }
 
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+const MAX_SOURCE_BYTES = 15 * 1024 * 1024
+const MAX_IMAGE_SIDE = 1600
+
+async function compressImage(file: File): Promise<File> {
+  // Animated GIFs are uploaded untouched so the animation survives.
+  if (file.type === 'image/gif') return file
+
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(bitmap.width, bitmap.height))
+  const width = Math.max(1, Math.round(bitmap.width * scale))
+  const height = Math.max(1, Math.round(bitmap.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('canvas unavailable')
+
+  // Flatten transparency onto white so PNG screenshots keep a clean background.
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, width, height)
+  context.drawImage(bitmap, 0, 0, width, height)
+  bitmap.close?.()
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.85),
+  )
+  if (!blob) throw new Error('compression failed')
+
+  const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
+    type: 'image/jpeg',
+  })
+
+  return compressed.size < file.size ? compressed : file
+}
+
 export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps) {
   const [name, setName] = useState(initialData?.name || '')
  const [iconKey, setIconKey] = useState(initialData?.icon_key || '')
@@ -40,12 +78,73 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  const [displayOrder, setDisplayOrder] = useState(initialData?.display_order?.toString() || '0')
  const [isActive, setIsActive] = useState(initialData?.is_active ?? true)
  const [imageUrl, setImageUrl] = useState(initialData?.image_url || '')
+ const [pendingImage, setPendingImage] = useState<File | null>(null)
+ const [imagePreview, setImagePreview] = useState(initialData?.image_url || '')
+ const [imageError, setImageError] = useState('')
+ const [processingImage, setProcessingImage] = useState(false)
+ const fileInputRef = useRef<HTMLInputElement>(null)
 
  const [loading, setLoading] = useState(false)
  const [errors, setErrors] = useState<Record<string, string>>({})
  const [serverError, setServerError] = useState('')
 
  const isEditing = !!initialData
+
+ useEffect(() => {
+ return () => {
+ if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
+ }
+ }, [imagePreview])
+
+ const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+ const file = event.target.files?.[0]
+ event.target.value = ''
+ if (!file) return
+
+ setImageError('')
+
+ if (file.type === 'image/heic' || file.type === 'image/heif') {
+ setImageError('صيغة HEIC غير مدعومة — حوّل الصورة إلى JPG أولاً')
+ return
+ }
+ if (!file.type.startsWith('image/')) {
+ setImageError('اختر ملف صورة صحيح')
+ return
+ }
+ if (file.size > MAX_SOURCE_BYTES) {
+ setImageError('حجم الصورة كبير جداً (الحد 15 ميجابايت)')
+ return
+ }
+ if (file.type === 'image/gif' && file.size > MAX_UPLOAD_BYTES) {
+ setImageError('حجم صورة GIF يجب أن يكون أقل من 5 ميجابايت')
+ return
+ }
+
+ setProcessingImage(true)
+ try {
+ const prepared = await compressImage(file)
+ if (prepared.size > MAX_UPLOAD_BYTES) {
+ setImageError('حجم الصورة بعد الضغط ما زال كبيراً، جرب صورة أصغر')
+ return
+ }
+ if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
+ setPendingImage(prepared)
+ setImagePreview(URL.createObjectURL(prepared))
+ } catch {
+ setImageError('تعذر قراءة الصورة، جرب صورة أخرى')
+ } finally {
+ setProcessingImage(false)
+ }
+ }
+
+ const clearImage = () => {
+ if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
+ setPendingImage(null)
+ setImagePreview('')
+ setImageUrl('')
+ setImageError('')
+ if (fileInputRef.current) fileInputRef.current.value = ''
+ }
 
  const validate = (): boolean => {
  const newErrors: Record<string, string> = {}
@@ -68,10 +167,6 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  }
  }
 
- if (imageUrl && !/^https?:\/\/.+/.test(imageUrl)) {
- newErrors.imageUrl = 'رابط الصورة غير صحيح'
- }
-
  setErrors(newErrors)
  return Object.keys(newErrors).length === 0
  }
@@ -85,7 +180,23 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  setLoading(true)
 
  try {
- const { createService, updateService } = await import('@/app/actions/services')
+ const { createService, updateService, uploadServiceImage } = await import('@/app/actions/services')
+
+ let finalImageUrl = imageUrl.trim()
+
+ if (pendingImage) {
+ const formData = new FormData()
+ formData.append('file', pendingImage)
+ const uploaded = await uploadServiceImage(formData)
+ if (!uploaded.success) {
+ setServerError(uploaded.error)
+ return
+ }
+ finalImageUrl = uploaded.url
+ // Keep the uploaded URL so a failed save can be retried without uploading twice.
+ setImageUrl(uploaded.url)
+ setPendingImage(null)
+ }
 
  const serviceData = {
  name: name.trim(),
@@ -96,7 +207,7 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
  duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
  is_active: isActive,
  display_order: parseInt(displayOrder) || 0,
- image_url: imageUrl.trim() || null,
+ image_url: finalImageUrl || null,
  }
 
  const result = isEditing
@@ -276,18 +387,77 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
   </div>
   صورة الخدمة
   </h4>
-  <div>
-  {/* Image URL */}
-  <div>
-  <label className="label-light">رابط الصورة</label>
-  <input
-  type="url"
-  value={imageUrl}
-  onChange={(e) => setImageUrl(e.target.value)}
-  className="input-light"
-  placeholder="https://..."
+  <div className="flex flex-col sm:flex-row gap-4 items-start">
+  {imagePreview ? (
+  <div className="relative w-full sm:w-64 shrink-0">
+  <div className="aspect-[4/3] rounded-xl overflow-hidden border border-[#E7E8EA] bg-[#F7F7F5]">
+  {/* eslint-disable-next-line @next/next/no-img-element */}
+  <img
+  src={imagePreview}
+  alt="معاينة صورة الخدمة"
+  className="w-full h-full object-cover"
   />
-  {errors.imageUrl && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.imageUrl}</p>}
+  </div>
+  <button
+  type="button"
+  onClick={clearImage}
+  className="absolute top-2 left-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/60 text-white text-xs font-semibold hover:bg-black/80 transition"
+  >
+  <FaTrash className="text-[10px]" />
+  إزالة
+  </button>
+  </div>
+  ) : (
+  <button
+  type="button"
+  onClick={() => fileInputRef.current?.click()}
+  disabled={processingImage}
+  className="w-full sm:w-64 aspect-[4/3] shrink-0 rounded-xl border-2 border-dashed border-[#E7E8EA] bg-[#F7F7F5] hover:border-[#C4121A]/50 hover:bg-[#FEF2F2] transition flex flex-col items-center justify-center gap-2 text-[#62666D] disabled:opacity-50"
+  >
+  {processingImage ? (
+  <div className="w-6 h-6 border-2 border-[#C4121A]/30 border-t-[#C4121A] rounded-full animate-spin" />
+  ) : (
+  <FaImage className="text-2xl text-[#C4121A]" />
+  )}
+  <span className="text-sm font-semibold">
+  {processingImage ? 'جاري تجهيز الصورة...' : 'اختر صورة'}
+  </span>
+  <span className="text-[11px] text-[#9CA1A6]">JPG / PNG / WebP / GIF</span>
+  </button>
+  )}
+
+  <div className="flex-1 min-w-0">
+  <input
+  ref={fileInputRef}
+  type="file"
+  accept="image/jpeg,image/png,image/webp,image/gif"
+  onChange={handleImageSelect}
+  className="hidden"
+  />
+  <p className="text-[#62666D] text-xs leading-6">
+  ارفع صورة من جهازك وستظهر مباشرة في بطاقة الخدمة على الموقع.
+  </p>
+  <ul className="text-[#9CA1A6] text-[11px] leading-6 list-disc pr-4">
+  <li>تُقبل الصور حتى 15 ميجابايت وتُصغَّر تلقائياً قبل الرفع.</li>
+  <li>صيغ مدعومة: JPG / PNG / WebP / GIF.</li>
+  <li>المقاس الأفضل 1200×900 (4:3).</li>
+  </ul>
+  {imagePreview && (
+  <button
+  type="button"
+  onClick={() => fileInputRef.current?.click()}
+  className="mt-2 inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-[#E7E8EA] bg-white hover:bg-[#F7F7F5] transition"
+  >
+  <FaImage className="text-[#C4121A]" />
+  تغيير الصورة
+  </button>
+  )}
+  {imageError && (
+  <p className="text-[#DC2626] text-xs mt-2 flex items-center gap-1">
+  <FaExclamationTriangle className="text-[8px]" />
+  {imageError}
+  </p>
+  )}
   </div>
   </div>
   </div>

@@ -315,12 +315,17 @@ const hasInitial = !!initialServices
   : 'border-[#E7E8EA] hover:border-[#E7E8EA]'
   }`}>
  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
- <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border ${
+ <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden flex items-center justify-center shrink-0 border ${
  service.is_active
  ? 'bg-[#FEF2F2] border-[#FECACA]'
  : 'bg-[#F7F7F5] border-[#E7E8EA]'
  }`}>
+ {service.image_url ? (
+ // eslint-disable-next-line @next/next/no-img-element
+ <img src={service.image_url} alt={service.name} className="w-full h-full object-cover" />
+ ) : (
  <FaWrench className={`text-[11px] sm:text-sm ${service.is_active ? 'text-[#DC2626]' : 'text-[#62666D]'}`} />
+ )}
  </div>
  <div className="min-w-0">
  <div className="flex items-center gap-2 mb-1">

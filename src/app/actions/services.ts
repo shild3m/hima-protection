@@ -22,11 +22,102 @@ const ServiceSchema = z.object({
 
 type ServiceInput = z.infer<typeof ServiceSchema>
 
+const SERVICE_IMAGE_BUCKET = 'service-images'
+const SERVICE_IMAGE_PATH_MARKER = `/storage/v1/object/public/${SERVICE_IMAGE_BUCKET}/`
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+}
+
+function hasValidImageSignature(bytes: Uint8Array, mime: string): boolean {
+  switch (mime) {
+    case 'image/jpeg':
+      return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+    case 'image/png':
+      return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+    case 'image/gif':
+      return bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46
+    case 'image/webp':
+      return (
+        bytes[0] === 0x52 &&
+        bytes[1] === 0x49 &&
+        bytes[2] === 0x46 &&
+        bytes[3] === 0x46 &&
+        bytes[8] === 0x57 &&
+        bytes[9] === 0x45 &&
+        bytes[10] === 0x42 &&
+        bytes[11] === 0x50
+      )
+    default:
+      return false
+  }
+}
+
+async function removeServiceImageFile(url: string | null | undefined) {
+  if (!url) return
+  const index = url.indexOf(SERVICE_IMAGE_PATH_MARKER)
+  if (index === -1) return
+
+  try {
+    const path = decodeURIComponent(url.slice(index + SERVICE_IMAGE_PATH_MARKER.length).split('?')[0])
+    if (!path) return
+    await getSupabaseAdmin().storage.from(SERVICE_IMAGE_BUCKET).remove([path])
+  } catch {
+    // Non-fatal: the database row is already saved, an orphan file is harmless.
+  }
+}
+
 function sanitizeError(error: unknown): string {
   if (error instanceof z.ZodError) {
     return error.issues[0]?.message || 'بيانات غير صحيحة'
   }
   return 'حدث خطأ غير متوقع'
+}
+
+export async function uploadServiceImage(formData: FormData) {
+  const user = await requireAuth()
+  if (!user.permissions.includes('services:create') && !user.permissions.includes('services:update')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  try {
+    const file = formData.get('file')
+    if (!(file instanceof File) || file.size === 0) {
+      return { success: false as const, error: 'اختر صورة أولاً' }
+    }
+
+    const extension = IMAGE_EXTENSIONS[file.type]
+    if (!extension) {
+      return { success: false as const, error: 'صيغة الصورة غير مدعومة. استخدم JPG أو PNG أو WebP أو GIF' }
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      return { success: false as const, error: 'حجم الصورة يجب أن يكون أقل من 5 ميجابايت' }
+    }
+
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    if (!hasValidImageSignature(bytes, file.type)) {
+      return { success: false as const, error: 'الملف المرفوع ليس صورة صحيحة' }
+    }
+
+    const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`
+    const { error } = await getSupabaseAdmin()
+      .storage.from(SERVICE_IMAGE_BUCKET)
+      .upload(path, bytes, { contentType: file.type, cacheControl: '31536000', upsert: false })
+
+    if (error) {
+      console.error('Upload service image error:', error)
+      return { success: false as const, error: 'تعذر رفع الصورة' }
+    }
+
+    const { data } = getSupabaseAdmin().storage.from(SERVICE_IMAGE_BUCKET).getPublicUrl(path)
+    return { success: true as const, url: data.publicUrl }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
 }
 
 export async function getServices(search?: string) {
@@ -125,7 +216,7 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
 
     const { data: existing } = await getSupabaseAdmin()
       .from('services')
-      .select('id')
+      .select('id, image_url')
       .eq('id', id)
       .maybeSingle()
 
@@ -164,6 +255,10 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
     }
 
     await logAudit({ userId: user.staff_id, action: 'update', resourceType: 'service', resourceId: id, newValues: updateData })
+
+    if (validated.image_url !== undefined && existing.image_url && existing.image_url !== data.image_url) {
+      await removeServiceImageFile(existing.image_url)
+    }
 
     updateTag(CACHE_TAGS.services)
     updateTag(CACHE_TAGS.publicServices)
@@ -223,7 +318,7 @@ export async function deleteService(id: string) {
   try {
     const { data: existing } = await getSupabaseAdmin()
       .from('services')
-      .select('id')
+      .select('id, image_url')
       .eq('id', id)
       .maybeSingle()
 
@@ -253,6 +348,8 @@ export async function deleteService(id: string) {
     }
 
     await logAudit({ userId: user.staff_id, action: 'delete', resourceType: 'service', resourceId: id })
+
+    await removeServiceImageFile(existing.image_url)
 
     updateTag(CACHE_TAGS.services)
     updateTag(CACHE_TAGS.publicServices)
