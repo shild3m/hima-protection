@@ -15,6 +15,7 @@ import type {
   VehicleFilters,
   SortConfig,
 } from "@/lib/types";
+import { isValidSaudiPhone, normalizeSaudiPhone } from "@/lib/phone";
 
 // ============================================================
 // CONSTANTS
@@ -30,10 +31,6 @@ const UUID_REGEX =
 
 function isValidUUID(value: string): boolean {
   return UUID_REGEX.test(value);
-}
-
-function normalizePhone(phone: string): string {
-  return phone.replace(/[^0-9]/g, "");
 }
 
 function sanitizeSearch(input: string): string {
@@ -52,11 +49,8 @@ function validateCustomerInput(input: {
   if (input.full_name.trim().length > 200) {
     return "الاسم طويل جداً (200 حرف كحد أقصى)";
   }
-  if (!input.phone || normalizePhone(input.phone).length < 5) {
-    return "رقم الهاتف غير صحيح";
-  }
-  if (normalizePhone(input.phone).length > 20) {
-    return "رقم الهاتف طويل جداً";
+  if (!input.phone || !isValidSaudiPhone(input.phone)) {
+    return "رقم الجوال يجب أن يبدأ بـ 0 ويتكون من 10 أرقام";
   }
   if (input.email && input.email.trim()) {
     if (input.email.trim().length > 254) {
@@ -437,7 +431,7 @@ export async function createCustomer(input: {
     }
 
     const supabase = await createClient();
-    const normalizedPhone = normalizePhone(input.phone);
+    const normalizedPhone = normalizeSaudiPhone(input.phone);
 
     const { data, error } = await supabase
       .from("customers")
@@ -544,7 +538,7 @@ export async function updateCustomer(
     if (updateData.full_name !== undefined)
       updateData.full_name = (updateData.full_name as string).trim();
     if (updateData.phone !== undefined)
-      updateData.phone = normalizePhone(updateData.phone as string);
+      updateData.phone = normalizeSaudiPhone(updateData.phone as string);
     if (updateData.email !== undefined)
       updateData.email = (updateData.email as string)?.trim() || null;
     if (updateData.notes !== undefined)

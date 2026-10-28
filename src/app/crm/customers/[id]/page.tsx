@@ -33,6 +33,7 @@ import type {
   Vehicle,
   Booking,
 } from "@/lib/types";
+import { formatSaudiPhoneInput, normalizeSaudiPhone } from "@/lib/phone";
 
 const STATUS_LABELS: Record<string, string> = {
   new: "جديد",
@@ -238,7 +239,7 @@ export default function CustomerDetailPage() {
                 setEditing(true);
                 setEditData({
                   full_name: customer.full_name,
-                  phone: customer.phone,
+                  phone: normalizeSaudiPhone(customer.phone),
                   email: customer.email || "",
                   source: customer.source || "",
                 });
@@ -456,10 +457,12 @@ export default function CustomerDetailPage() {
                   type="tel"
                   value={editData.phone}
                   onChange={(e) =>
-                    setEditData({ ...editData, phone: e.target.value })
+                    setEditData({ ...editData, phone: formatSaudiPhoneInput(e.target.value) })
                   }
                   className="input-light w-full"
                   dir="ltr"
+                  maxLength={10}
+                  inputMode="numeric"
                 />
               </div>
               <div>

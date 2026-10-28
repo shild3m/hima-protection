@@ -22,6 +22,7 @@ import {
 } from "react-icons/fa";
 import { getCustomers, createCustomer } from "@/app/actions/crm";
 import type { CustomerWithStats, CustomerFilters, SortConfig } from "@/lib/types";
+import { formatSaudiPhoneInput } from "@/lib/phone";
 
 const SOURCE_LABELS: Record<string, string> = {
   walk_in: "حضور مباشر",
@@ -319,12 +320,15 @@ export default function CustomersPage() {
                   type="tel"
                   value={newCustomer.phone}
                   onChange={(e) =>
-                    setNewCustomer({ ...newCustomer, phone: e.target.value })
+                    setNewCustomer({ ...newCustomer, phone: formatSaudiPhoneInput(e.target.value) })
                   }
                   className="input-light w-full"
                   placeholder="05XXXXXXXX"
                   dir="ltr"
+                  maxLength={10}
+                  inputMode="numeric"
                 />
+                <p className="text-[#9A9DA3] text-[11px] mt-1">يبدأ بـ 0 · 10 أرقام</p>
               </div>
               <div>
                 <label className="label-light">

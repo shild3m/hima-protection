@@ -7,6 +7,7 @@ import {
  FaUsers,
  FaExclamationTriangle,
 } from 'react-icons/fa'
+import { isValidSaudiPhone, formatSaudiPhoneInput, normalizeSaudiPhone } from '@/lib/phone'
 
 interface Customer {
  id: string
@@ -33,9 +34,10 @@ const sourceOptions = [
  { value: 'phone', label: 'هاتف' },
 ]
 
+// Keep Saudi mobile numbers in local form: 05XXXXXXXX (10 digits, starts with 0).
 export function CustomerForm({ initialData, onCancel, onSaved }: CustomerFormProps) {
  const [fullName, setFullName] = useState(initialData?.full_name || '')
- const [phone, setPhone] = useState(initialData?.phone || '')
+ const [phone, setPhone] = useState(normalizeSaudiPhone(initialData?.phone || ''))
  const [email, setEmail] = useState(initialData?.email || '')
  const [source, setSource] = useState(initialData?.source || '')
  const [notes, setNotes] = useState(initialData?.notes || '')
@@ -46,6 +48,14 @@ export function CustomerForm({ initialData, onCancel, onSaved }: CustomerFormPro
  const [serverError, setServerError] = useState('')
 
  const isEditing = !!initialData
+
+ const handlePhoneChange = (raw: string) => {
+ if (!raw.replace(/\D/g, '')) {
+ setPhone('')
+ return
+ }
+ setPhone(formatSaudiPhoneInput(raw))
+ }
 
  const validate = (): boolean => {
  const newErrors: Record<string, string> = {}
@@ -58,10 +68,8 @@ export function CustomerForm({ initialData, onCancel, onSaved }: CustomerFormPro
 
  if (!phone.trim()) {
  newErrors.phone = 'رقم الجوال مطلوب'
- } else if (phone.trim().length < 5) {
- newErrors.phone = 'رقم الجوال قصير جداً'
- } else if (phone.trim().length > 20) {
- newErrors.phone = 'رقم الجوال طويل جداً'
+ } else if (!isValidSaudiPhone(phone)) {
+ newErrors.phone = 'رقم الجوال يجب أن يبدأ بـ 0 ويتكون من 10 أرقام'
  }
 
  if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -149,11 +157,15 @@ export function CustomerForm({ initialData, onCancel, onSaved }: CustomerFormPro
  <input
  type="tel"
  value={phone}
- onChange={(e) => setPhone(e.target.value)}
+ onChange={(e) => handlePhoneChange(e.target.value)}
  className="input-light"
  placeholder="05XXXXXXXX"
+ maxLength={10}
+ inputMode="numeric"
+ dir="ltr"
  />
  {errors.phone && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.phone}</p>}
+ {!errors.phone && <p className="text-[#9A9DA3] text-[11px] mt-1">يبدأ بـ 0 · 10 أرقام</p>}
  </div>
 
  <div>

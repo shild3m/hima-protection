@@ -40,7 +40,7 @@ function validatePageSize(value: unknown): number {
 
 const CustomerSchema = z.object({
   full_name: z.string().min(1, 'اسم العميل مطلوب').max(200),
-  phone: z.string().min(5, 'رقم الجوال مطلوب').max(20),
+  phone: z.string().regex(/^0\d{9}$/, 'رقم الجوال يجب أن يبدأ بـ 0 ويتكون من 10 أرقام'),
   email: z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')).nullable(),
   source: z.enum(['walk_in', 'referral', 'online', 'social', 'phone']).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
