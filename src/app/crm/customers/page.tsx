@@ -322,11 +322,11 @@ export default function CustomersPage() {
                   onChange={(e) =>
                     setNewCustomer({ ...newCustomer, phone: formatSaudiPhoneInput(e.target.value) })
                   }
-                  className="input-light w-full"
+                  className="input-light w-full text-right"
                   placeholder="05XXXXXXXX"
-                  dir="ltr"
                   maxLength={10}
                   inputMode="numeric"
+                  dir="rtl"
                 />
                 <p className="text-[#9A9DA3] text-[11px] mt-1">يبدأ بـ 0 · 10 أرقام</p>
               </div>

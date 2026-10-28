@@ -8,6 +8,7 @@ import {
  FaExclamationTriangle,
 } from 'react-icons/fa'
 import { isValidSaudiPhone, formatSaudiPhoneInput, normalizeSaudiPhone } from '@/lib/phone'
+import SelectList from '@/components/ui/SelectList'
 
 interface Customer {
  id: string
@@ -158,11 +159,11 @@ export function CustomerForm({ initialData, onCancel, onSaved }: CustomerFormPro
  type="tel"
  value={phone}
  onChange={(e) => handlePhoneChange(e.target.value)}
- className="input-light"
+ className="input-light text-right"
  placeholder="05XXXXXXXX"
  maxLength={10}
  inputMode="numeric"
- dir="ltr"
+ dir="rtl"
  />
  {errors.phone && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.phone}</p>}
  {!errors.phone && <p className="text-[#9A9DA3] text-[11px] mt-1">يبدأ بـ 0 · 10 أرقام</p>}
@@ -182,17 +183,13 @@ export function CustomerForm({ initialData, onCancel, onSaved }: CustomerFormPro
 
  <div>
  <label className="label-light">المصدر</label>
- <select
+ <SelectList
  value={source}
- onChange={(e) => setSource(e.target.value)}
- className="select-light"
- >
- {sourceOptions.map((opt) => (
- <option key={opt.value} value={opt.value} className="bg-white text-[#111214]">
- {opt.label}
- </option>
- ))}
- </select>
+ onChange={setSource}
+ options={sourceOptions.filter((opt) => opt.value).map((opt) => ({ value: opt.value, label: opt.label }))}
+ placeholder="اختر المصدر"
+ ariaLabel="المصدر"
+ />
  </div>
  </div>
 

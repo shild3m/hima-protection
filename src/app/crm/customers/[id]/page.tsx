@@ -459,10 +459,10 @@ export default function CustomerDetailPage() {
                   onChange={(e) =>
                     setEditData({ ...editData, phone: formatSaudiPhoneInput(e.target.value) })
                   }
-                  className="input-light w-full"
-                  dir="ltr"
+                  className="input-light w-full text-right"
                   maxLength={10}
                   inputMode="numeric"
+                  dir="rtl"
                 />
               </div>
               <div>
