@@ -60,7 +60,7 @@ status: string
  warranty_start_date?: string | null
  warranty_end_date?: string | null
   linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number } | null
-  booking_items?: { id: string; service_id: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string; base_price: number } }[]
+  booking_items?: { id: string; service_id: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string; base_price: number }; service_name_snapshot?: string | null }[]
 }
 
 interface BookingDetail extends Booking {
@@ -102,6 +102,37 @@ const toHijri = (iso: string) => {
   const parts = hijriIntl.formatToParts(new Date(y, m - 1, d))
   const num = (t: string) => Number(parts.find(p => p.type === t)?.value || 0)
   return { y: num('year'), m: num('month'), d: num('day') }
+}
+
+/** All service names for a booking: the primary service plus its booking_items. */
+const bookingServiceNames = (booking?: Booking | BookingDetail): string[] => {
+  if (!booking) return []
+  const primary = booking.service_name_snapshot || booking.service?.name
+  const extras = (booking.booking_items || []).map((item) => {
+    const svc = Array.isArray(item.service) ? item.service[0] : item.service
+    return item.service_name_snapshot || svc?.name || 'خدمة إضافية'
+  })
+  return [primary, ...extras].filter((name): name is string => Boolean(name))
+}
+
+/** Primary price + every booking_items total (quantity is already in `total`). */
+const bookingGrandTotal = (booking?: Booking | BookingDetail): number => {
+  if (!booking) return 0
+  const primary = Number(booking.service?.base_price) || 0
+  const extras = (booking.booking_items || []).reduce(
+    (sum, item) => sum + (Number(item.total) || 0),
+    0
+  )
+  return primary + extras
+}
+
+/** Short label for the payment prompt under the amount. */
+const bookingServiceLabel = (booking?: Booking | BookingDetail): string => {
+  if (!booking) return 'خدمة'
+  const primary = booking.service_name_snapshot || booking.service?.name || 'خدمة'
+  const extraCount = (booking.booking_items || []).length
+  if (extraCount === 0) return primary
+  return `${primary} + ${extraCount} ${extraCount === 1 ? 'خدمة إضافية' : 'خدمات إضافية'}`
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -437,8 +468,8 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         })
       }
     } else {
-      const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
-      const basePrice = booking?.service?.base_price || 0
+      const serviceName = bookingServiceLabel(booking)
+      const basePrice = bookingGrandTotal(booking)
       setCompleteAfterPayment(true)
       setPaymentType('full')
       setDepositAmount('')
@@ -461,8 +492,8 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         step: 1,
       })
     } else {
-      const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
-      const basePrice = booking?.service?.base_price || 0
+      const serviceName = bookingServiceLabel(booking)
+      const basePrice = bookingGrandTotal(booking)
       setPaymentType('full')
       setDepositAmount('')
       setCompleteAfterPayment(false)
@@ -1054,6 +1085,8 @@ return (
   const warrantyYears = booking.warranty_start_date && booking.warranty_end_date
   ? yearsFromDates(booking.warranty_start_date, booking.warranty_end_date)
   : 0
+  const serviceNames = bookingServiceNames(booking)
+  const grandTotal = bookingGrandTotal(booking)
   return (
  <div
  key={booking.id}
@@ -1089,10 +1122,33 @@ return (
  {booking.vehicle.make} {booking.vehicle.model}
  </span>
  )}
-  {booking.service && (
-  <span className="flex items-center gap-1.5 font-bold">
-  <FaWrench className="text-[#62666D] text-[10px]" />
-  {booking.service.name}
+  {serviceNames.length > 0 && (
+  <span className="flex items-center gap-1.5 font-bold min-w-0">
+  <FaWrench className="text-[#62666D] text-[10px] shrink-0" />
+  <span className="min-w-0 break-words">{serviceNames.join('، ')}</span>
+  {(booking.booking_items?.length || 0) > 0 && (
+  <button
+  type="button"
+  onClick={(e) => {
+  e.stopPropagation()
+  setExpandedBookingItems(prev => {
+  const next = new Set(prev)
+  if (next.has(booking.id)) next.delete(booking.id)
+  else next.add(booking.id)
+  return next
+  })
+  }}
+  className="flex items-center gap-1 text-[#62666D] text-[10px] font-bold hover:text-[#111214] transition-colors"
+  >
+  <FaChevronDown className={`text-[9px] transition-transform duration-200 ${expandedBookingItems.has(booking.id) ? 'rotate-180' : ''}`} />
+  <span dir="ltr">+{booking.booking_items?.length}</span> إضافية
+  </button>
+  )}
+  </span>
+  )}
+  {grandTotal > 0 && (
+  <span className="flex items-center rounded-lg bg-[#FFF5F5] border border-[#FECACA] px-2 py-0.5 font-black text-[12px] text-[#DC2626]" dir="rtl">
+  <span dir="ltr">{grandTotal.toLocaleString('en-US')} ر.س</span>
   </span>
   )}
 {(booking.status === 'new' && !booking.created_by_name && booking.preferred_date) ? (
@@ -1186,7 +1242,7 @@ return (
       const itemService = Array.isArray(item.service) ? item.service?.[0] : item.service
       return (
       <div key={item.id} className="flex items-center justify-between text-xs bg-[#FBFBFA] border border-[#F1F2F3] rounded-lg px-3 py-1.5">
-        <span className="text-[#4B4F55] font-bold">{itemService?.name || 'خدمة إضافية'}</span>
+        <span className="text-[#4B4F55] font-bold">{item.service_name_snapshot || itemService?.name || 'خدمة إضافية'}</span>
         <span className="text-[#111214] font-black" dir="ltr">{Number(item.total).toLocaleString('en-US')} ر.س</span>
       </div>
       )
@@ -1197,41 +1253,8 @@ return (
   {booking.status === 'completed' && (
   <div className="mt-3 pt-3 border-t border-[#F1F2F3]">
   <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap">
-  <span className="text-[#111214] font-bold text-sm flex items-center gap-1.5">
-  <FaCheckCircle className="text-[#059669] text-xs" />
-  {booking.service_name_snapshot || booking.service?.name || '---'}
-  {booking.booking_items && booking.booking_items.length > 0 && (
-  <button
-    type="button"
-    onClick={(e) => {
-      e.stopPropagation()
-      setExpandedBookingItems(prev => {
-        const next = new Set(prev)
-        if (next.has(booking.id)) next.delete(booking.id)
-        else next.add(booking.id)
-        return next
-      })
-    }}
-    className="flex items-center gap-1 text-[#62666D] text-[10px] font-bold hover:text-[#111214] transition-colors"
-  >
-    <FaChevronDown className={`text-[9px] transition-transform duration-200 ${expandedBookingItems.has(booking.id) ? 'rotate-180' : ''}`} />
-    <span dir="ltr">+{booking.booking_items.length}</span> إضافية
-  </button>
-  )}
-  </span>
-  {typeof booking.service?.base_price === 'number' && (() => {
-    const itemsTotal = (booking.booking_items || []).reduce((sum, i) => sum + (Number(i.total) || 0), 0)
-    const grandTotal = (booking.service.base_price || 0) + itemsTotal
-    return (
-    <>
-    <span className="h-4 w-px bg-[#E7E8EA]"></span>
-    <span className="text-[#DC2626] font-black text-sm" dir="ltr">{grandTotal.toLocaleString('en-US')} ر.س</span>
-    </>
-    )
-  })()}
 {booking.warranty_start_date && booking.warranty_end_date ? (
   <>
-  <span className="h-4 w-px bg-[#E7E8EA]"></span>
   <span className="text-[#B45309] font-black text-xs flex items-center gap-1.5">
   <FaShieldAlt className="text-[13px]" />
   ضمان: {warrantyYears === 1 ? 'سنة واحدة' : warrantyYears === 2 ? 'سنتان' : `${warrantyYears} سنوات`}
@@ -1248,13 +1271,10 @@ return (
   </span>
   </>
   ) : (
-  <>
-  <span className="h-4 w-px bg-[#E7E8EA]"></span>
   <span className="text-[#62666D] font-black text-xs flex items-center gap-1.5">
   <FaShieldAlt className="text-[#9CA1A6] text-[12px]" />
   ضمان: لا يوجد
   </span>
-  </>
   )}
   {booking.linked_invoice && (
   <>
