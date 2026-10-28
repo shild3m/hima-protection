@@ -54,6 +54,8 @@ export default function ServicesManager({ initialServices }: { initialServices?:
  const [editingService, setEditingService] = useState<Service | null>(null)
  const [viewingService, setViewingService] = useState<Service | null>(null)
 const [deletingService, setDeletingService] = useState<Service | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const [materialsService, setMaterialsService] = useState<Service | null>(null)
@@ -196,6 +198,8 @@ const hasInitial = !!initialServices
  }
 
  const handleDelete = async (id: string) => {
+ setDeleteError(null)
+ setDeleteLoading(true)
  try {
  const { deleteService } = await import('@/app/actions/services')
  const result = await deleteService(id)
@@ -204,11 +208,19 @@ const hasInitial = !!initialServices
  setDeletingService(null)
  fetchServices()
  } else {
- setNotification({ type: 'error', message: result.error })
+ setDeleteError(result.error || 'تعذّر حذف الخدمة')
  }
  } catch {
- setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+ setDeleteError('حدث خطأ غير متوقع')
+ } finally {
+ setDeleteLoading(false)
  }
+ }
+
+ const closeDeleteModal = () => {
+ if (deleteLoading) return
+ setDeletingService(null)
+ setDeleteError(null)
  }
 
  const filteredServices = services
@@ -410,7 +422,7 @@ const hasInitial = !!initialServices
   )}
   {canDelete && (
   <button
-  onClick={() => setDeletingService(service)}
+  onClick={() => { setDeletingService(service); setDeleteError(null) }}
   className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-red-300 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
   >
   <FaTrash className="text-[9px] sm:text-[10px]" />
@@ -649,7 +661,7 @@ const hasInitial = !!initialServices
 
  {/* Delete Confirmation Modal */}
  {deletingService && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setDeletingService(null)}>
+ <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={closeDeleteModal}>
  <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
  <div className="flex items-center gap-3 mb-4">
  <div className="w-10 h-10 rounded-xl bg-[#FEF2F2] flex items-center justify-center">
@@ -664,18 +676,26 @@ const hasInitial = !!initialServices
  <p className="text-[#111214] font-bold text-sm">{deletingService.name}</p>
  <p className="text-[#62666D] text-xs mt-1">{getIconLabel(deletingService.icon_key)}</p>
  </div>
+ {deleteError && (
+ <div className="flex items-start gap-2 mb-4 p-3 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-xs font-bold animate-fadeIn">
+ <FaExclamationTriangle className="text-sm mt-0.5 shrink-0" />
+ <span className="leading-relaxed">{deleteError}</span>
+ </div>
+ )}
  <div className="flex gap-2">
  <button
- onClick={() => setDeletingService(null)}
- className="flex-1 py-2.5 bg-[#F7F7F5] border border-[#E7E8EA] text-[#111214] font-bold rounded-xl hover:bg-[#F1F2F3] transition"
+ onClick={closeDeleteModal}
+ disabled={deleteLoading}
+ className="flex-1 py-2.5 bg-[#F7F7F5] border border-[#E7E8EA] text-[#111214] font-bold rounded-xl hover:bg-[#F1F2F3] transition disabled:opacity-40 disabled:cursor-not-allowed"
  >
  إلغاء
  </button>
  <button
  onClick={() => handleDelete(deletingService.id)}
- className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+ disabled={deleteLoading}
+ className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
  >
- حذف
+ {deleteLoading ? <><FaSpinner className="animate-spin text-xs" /> جاري الحذف...</> : 'حذف'}
  </button>
  </div>
  </div>
