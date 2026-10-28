@@ -21,6 +21,8 @@ FaBoxOpen,
 FaInfoCircle,
   FaBars,
   FaDatabase,
+  FaArchive,
+  FaUndo,
 } from 'react-icons/fa'
 import { getServiceIcon, getIconLabel } from '@/lib/service-icons'
 import SelectList from '@/components/ui/SelectList'
@@ -40,6 +42,7 @@ interface Service {
  meta_description: string | null
  created_at: string
  updated_at: string
+ archived_at?: string | null
 }
 
 type Notification = { type: 'success' | 'error'; message: string } | null
@@ -49,6 +52,7 @@ export default function ServicesManager({ initialServices }: { initialServices?:
  const [services, setServices] = useState<Service[]>(initialServices ?? [])
  const [loading, setLoading] = useState(!initialServices)
  const [search, setSearch] = useState('')
+ const [showArchived, setShowArchived] = useState(false)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingService, setEditingService] = useState<Service | null>(null)
@@ -56,6 +60,7 @@ export default function ServicesManager({ initialServices }: { initialServices?:
 const [deletingService, setDeletingService] = useState<Service | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const [materialsService, setMaterialsService] = useState<Service | null>(null)
@@ -149,7 +154,7 @@ setNotification({ type: 'error', message: result.error || 'حدث خطأ' })
  const fetchServices = useCallback(async () => {
  try {
  const { getServices } = await import('@/app/actions/services')
- const result = await getServices(search)
+ const result = await getServices(search, showArchived)
  if (result.success) {
  setServices(result.data)
  } else {
@@ -160,7 +165,7 @@ setNotification({ type: 'error', message: result.error || 'حدث خطأ' })
  } finally {
  setLoading(false)
  }
- }, [search])
+ }, [search, showArchived])
 
 const hasInitial = !!initialServices
  const didInitialFetch = useRef(false)
@@ -204,11 +209,13 @@ const hasInitial = !!initialServices
  const { deleteService } = await import('@/app/actions/services')
  const result = await deleteService(id)
  if (result.success) {
- setNotification({ type: 'success', message: 'تم حذف الخدمة بنجاح' })
+ setNotification({ type: 'success', message: 'تمت أرشفة الخدمة' })
  setDeletingService(null)
+ if (editingService?.id === id) setEditingService(null)
+ if (viewingService?.id === id) setViewingService(null)
  fetchServices()
  } else {
- setDeleteError(result.error || 'تعذّر حذف الخدمة')
+ setDeleteError(result.error || 'تعذّر أرشفة الخدمة')
  }
  } catch {
  setDeleteError('حدث خطأ غير متوقع')
@@ -221,6 +228,24 @@ const hasInitial = !!initialServices
  if (deleteLoading) return
  setDeletingService(null)
  setDeleteError(null)
+ }
+
+ const handleRestore = async (id: string) => {
+ setRestoringId(id)
+ try {
+ const { restoreService } = await import('@/app/actions/services')
+ const result = await restoreService(id)
+ if (result.success) {
+ setNotification({ type: 'success', message: 'تم استرجاع الخدمة' })
+ fetchServices()
+ } else {
+ setNotification({ type: 'error', message: result.error })
+ }
+ } catch {
+ setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+ } finally {
+ setRestoringId(null)
+ }
  }
 
  const filteredServices = services
@@ -283,13 +308,13 @@ const hasInitial = !!initialServices
   </div>
   )}
 
- {/* Search */}
- <div className="mb-4">
- <div className="relative max-w-md">
+ {/* Search + archived filter */}
+ <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2">
+ <div className="relative max-w-md w-full">
  <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-[#62666D] text-sm" />
  <input
  type="text"
- placeholder="بحث بالاسم أو الوصف..."
+ placeholder={showArchived ? 'بحث في الخدمات المؤرشفة...' : 'بحث بالاسم أو الوصف...'}
  value={search}
  onChange={(e) => setSearch(e.target.value)}
  className="w-full bg-white border border-[#E7E8EA] shadow-sm rounded-xl pr-10 pl-4 py-3 text-[#111214] text-[16px] focus:outline-none focus:border-[#FECACA] placeholder:text-[16px] placeholder:text-[#62666D]"
@@ -300,6 +325,18 @@ const hasInitial = !!initialServices
  </button>
  )}
  </div>
+ <button
+ type="button"
+ onClick={() => { setShowArchived(v => !v); setEditingService(null); setViewingService(null); setShowForm(false) }}
+ className={`self-start sm:self-auto shrink-0 px-4 py-3 rounded-xl border text-sm font-bold transition-colors flex items-center gap-2 ${
+ showArchived
+ ? 'bg-[#111214] border-[#111214] text-white hover:bg-[#24272C]'
+ : 'bg-white border-[#E7E8EA] text-[#62666D] hover:text-[#111214] hover:border-[#D1D5DB]'
+ }`}
+ >
+ <FaArchive className="text-xs" />
+ {showArchived ? 'عرض الخدمات النشطة' : 'عرض المؤرشفة'}
+ </button>
  </div>
 
  {/* Service List */}
@@ -315,8 +352,10 @@ const hasInitial = !!initialServices
  <div className="w-16 h-16 rounded-2xl bg-[#F7F7F5] border border-[#E7E8EA] flex items-center justify-center mb-4">
  <FaBoxOpen className="text-2xl text-[#62666D]" />
  </div>
- <p className="font-bold">لا توجد خدمات مضافة بعد</p>
- <p className="text-xs text-[#62666D] mt-1">أضف خدمة جديدة من الزر أعلاه</p>
+ <p className="font-bold">{showArchived ? 'لا توجد خدمات مؤرشفة' : 'لا توجد خدمات مضافة بعد'}</p>
+ <p className="text-xs text-[#62666D] mt-1">
+ {showArchived ? 'الخدمات التي تؤرشفها ستظهر هنا ويمكنك استرجاعها' : 'أضف خدمة جديدة من الزر أعلاه'}
+ </p>
  </div>
  ) : (
 <div className="grid gap-3">
@@ -344,11 +383,13 @@ const hasInitial = !!initialServices
  <div className="flex items-center gap-2 mb-1">
  <h4 className="text-[#111214] font-bold text-xs sm:text-sm truncate">{service.name}</h4>
  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${
- service.is_active
+ service.archived_at
+ ? 'bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]'
+ : service.is_active
  ? 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]'
  : 'bg-[#F1F2F3] text-[#62666D] border-[#E7E8EA]'
  }`}>
- {service.is_active ? 'نشط' : 'معطّل'}
+ {service.archived_at ? 'مؤرشفة' : service.is_active ? 'نشط' : 'معطّل'}
  </span>
  </div>
  <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-[#62666D]">
@@ -382,6 +423,21 @@ const hasInitial = !!initialServices
  <FaEye className="text-[9px] sm:text-[10px]" />
  <span className="hidden sm:inline">عرض</span>
  </button>
+ {showArchived && canUpdate && (
+ <button
+ onClick={() => handleRestore(service.id)}
+ disabled={restoringId === service.id}
+ className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#ECFDF5] hover:bg-[#ECFDF5] border border-[#A7F3D0] text-green-300 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1 disabled:opacity-50"
+ >
+ {restoringId === service.id ? (
+ <FaSpinner className="text-[9px] sm:text-[10px] animate-spin" />
+ ) : (
+ <FaUndo className="text-[9px] sm:text-[10px]" />
+ )}
+ <span className="hidden sm:inline">استرجاع</span>
+ </button>
+ )}
+ {!showArchived && (<>
  {canUpdate && (
  <button
  onClick={() => { setEditingService(service); setShowForm(false) }}
@@ -425,9 +481,11 @@ const hasInitial = !!initialServices
   onClick={() => { setDeletingService(service); setDeleteError(null) }}
   className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-red-300 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
   >
-  <FaTrash className="text-[9px] sm:text-[10px]" />
-  <span className="hidden sm:inline">حذف</span>
+  <FaArchive className="text-[9px] sm:text-[10px]" />
+  <span className="hidden sm:inline">أرشفة</span>
   </button>
+  )}
+  </>
   )}
   </div>
   </div>
@@ -645,6 +703,7 @@ const hasInitial = !!initialServices
   </div>
 
   {/* Footer Actions */}
+  {!viewingService.archived_at && (
   <div className="flex gap-2.5 px-6 py-4 border-t border-[#E7E8EA] bg-[#F9FAFB]">
   <button onClick={() => { setEditingService(viewingService); setViewingService(null) }} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#111214] text-white text-sm font-bold rounded-xl hover:bg-[#2A2B2F] transition">
   <FaPen className="text-xs" />
@@ -655,6 +714,7 @@ const hasInitial = !!initialServices
   حذف الخدمة
   </button>
   </div>
+  )}
   </div>
   </div>
   )}
@@ -668,13 +728,17 @@ const hasInitial = !!initialServices
  <FaExclamationTriangle className="text-[#DC2626]" />
  </div>
  <div>
- <h3 className="text-lg font-bold text-[#111214]">حذف الخدمة</h3>
- <p className="text-sm text-[#62666D]">هل أنت متأكد من حذف هذه الخدمة؟</p>
+ <h3 className="text-lg font-bold text-[#111214]">أرشفة الخدمة</h3>
+ <p className="text-sm text-[#62666D]">هل تريد أرشفة هذه الخدمة؟</p>
  </div>
  </div>
  <div className="bg-white border border-[#E7E8EA] shadow-sm rounded-xl p-4 mb-4">
  <p className="text-[#111214] font-bold text-sm">{deletingService.name}</p>
  <p className="text-[#62666D] text-xs mt-1">{getIconLabel(deletingService.icon_key)}</p>
+ </div>
+ <div className="mb-4 p-3 rounded-xl bg-[#F7F7F5] border border-[#E7E8EA] text-[#62666D] text-xs leading-relaxed flex items-start gap-2">
+ <FaInfoCircle className="text-sm mt-0.5 shrink-0 text-[#9A9DA3]" />
+ <span>ستختفي الخدمة من قائمة الخدمات والموقع العام، لكن جميع الحجوزات والفواتير والتقارير المرتبطة بها تبقى كما هي. يمكنك استرجاعها في أي وقت من زر «عرض المؤرشفة».</span>
  </div>
  {deleteError && (
  <div className="flex items-start gap-2 mb-4 p-3 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-xs font-bold animate-fadeIn">
@@ -695,7 +759,7 @@ const hasInitial = !!initialServices
  disabled={deleteLoading}
  className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
  >
- {deleteLoading ? <><FaSpinner className="animate-spin text-xs" /> جاري الحذف...</> : 'حذف'}
+ {deleteLoading ? <><FaSpinner className="animate-spin text-xs" /> جاري الأرشفة...</> : 'أرشفة'}
  </button>
  </div>
  </div>

@@ -172,7 +172,7 @@ export const getSupplierOptionsCached = unstable_cache(
 // ─────────────────────────────────────────────────────────────
 
 export const getServicesListCached = unstable_cache(
-  async (search: string): Promise<CachedList<ServiceRow>> => {
+  async (search: string, archived = false): Promise<CachedList<ServiceRow>> => {
     let query = getSupabaseAdmin()
       .from('services')
       .select('*')
@@ -191,7 +191,9 @@ export const getServicesListCached = unstable_cache(
       return { ok: false, error: 'تعذر جلب الخدمات' }
     }
 
-    const rows = (data || []) as ServiceRow[]
+    const rows = ((data || []) as (ServiceRow & { archived_at?: string | null })[]).filter(row =>
+      archived ? Boolean(row.archived_at) : !row.archived_at,
+    )
     return { ok: true, data: rows, count: rows.length }
   },
   ['services-list'],

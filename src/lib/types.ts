@@ -73,6 +73,7 @@ export interface Service {
   display_order: number | null;
   created_at: string;
   updated_at: string;
+  archived_at?: string | null;
 }
 
 export interface BookingStatusHistory {

@@ -120,14 +120,14 @@ export async function uploadServiceImage(formData: FormData) {
   }
 }
 
-export async function getServices(search?: string) {
+export async function getServices(search?: string, archived = false) {
   const user = await requireAuth()
   if (!user.permissions.includes('services:read')) {
     return { success: false as const, error: 'غير مصرح' }
   }
 
   try {
-    const res = await getServicesListCached(search?.trim() || '')
+    const res = await getServicesListCached(search?.trim() || '', archived)
 
     if (!res.ok) {
       return { success: false as const, error: res.error }
@@ -318,7 +318,7 @@ export async function deleteService(id: string) {
   try {
     const { data: existing } = await getSupabaseAdmin()
       .from('services')
-      .select('id, image_url')
+      .select('id')
       .eq('id', id)
       .maybeSingle()
 
@@ -326,30 +326,58 @@ export async function deleteService(id: string) {
       return { success: false as const, error: 'الخدمة غير موجودة' }
     }
 
-    const { data: hasBooking } = await getSupabaseAdmin()
-      .from('bookings')
-      .select('id')
-      .eq('service_id', id)
-      .limit(1)
-      .maybeSingle()
-
-    if (hasBooking) {
-      return { success: false as const, error: 'لا يمكن حذف الخدمة لأنها مرتبطة بحجوزات. استخدم التعطيل بدلاً من الحذف.' }
-    }
-
+    // Soft delete: hide the service everywhere while keeping every related
+    // booking, invoice, commission, and report row untouched.
     const { error } = await getSupabaseAdmin()
       .from('services')
-      .delete()
+      .update({ archived_at: new Date().toISOString(), is_active: false })
       .eq('id', id)
 
     if (error) {
-      console.error('Delete service error:', error)
-      return { success: false as const, error: 'تعذر حذف الخدمة' }
+      console.error('Archive service error:', error)
+      return {
+        success: false as const,
+        error: error.message?.includes('archived_at')
+          ? 'ميزة الأرشفة غير مفعّلة بعد في قاعدة البيانات. طبّق التحديث 046_service_archiving.sql ثم أعد المحاولة.'
+          : 'تعذر أرشفة الخدمة',
+      }
     }
 
     await logAudit({ userId: user.staff_id, action: 'delete', resourceType: 'service', resourceId: id })
 
-    await removeServiceImageFile(existing.image_url)
+    updateTag(CACHE_TAGS.services)
+    updateTag(CACHE_TAGS.publicServices)
+
+    return { success: true as const }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+export async function restoreService(id: string) {
+  const user = await requireAuth()
+  if (!user.permissions.includes('services:update')) {
+    return { success: false as const, error: 'غير مصرح' }
+  }
+
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('services')
+      .update({ archived_at: null })
+      .eq('id', id)
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      console.error('Restore service error:', error)
+      return { success: false as const, error: 'تعذر استرجاع الخدمة' }
+    }
+
+    if (!data) {
+      return { success: false as const, error: 'الخدمة غير موجودة' }
+    }
+
+    await logAudit({ userId: user.staff_id, action: 'restore', resourceType: 'service', resourceId: id })
 
     updateTag(CACHE_TAGS.services)
     updateTag(CACHE_TAGS.publicServices)
