@@ -23,6 +23,7 @@ FaInfoCircle,
   FaDatabase,
 } from 'react-icons/fa'
 import { getServiceIcon, getIconLabel } from '@/lib/service-icons'
+import SelectList from '@/components/ui/SelectList'
 
 interface Service {
  id: string
@@ -489,16 +490,17 @@ const hasInitial = !!initialServices
   {matRows.map((row, idx) => (
   <div key={idx} className="grid grid-cols-12 gap-2 items-center">
   <div className="col-span-5">
-  <select
+  <SelectList
   value={row.material_id}
-  onChange={e => { const rows = [...matRows]; rows[idx].material_id = e.target.value; setMatRows(rows) }}
-  className="w-full bg-white border border-[#E7E8EA] rounded-lg px-2 py-2 text-xs text-[#111214] focus:outline-none focus:border-[#DC2626] appearance-none cursor-pointer"
-  >
-  <option value="" className="bg-white text-[#111214]">اختر المادة...</option>
-  {materialsList.map(m => (
-  <option key={m.id} value={m.id} className="bg-white text-[#111214]">{m.name} ({m.unit})</option>
-  ))}
-  </select>
+  onChange={v => { const rows = [...matRows]; rows[idx].material_id = v; setMatRows(rows) }}
+  options={materialsList.map(m => ({ value: m.id, label: `${m.name} (${m.unit})` }))}
+  placeholder="اختر المادة..."
+  searchable
+  searchPlaceholder="ابحث عن مادة..."
+  emptyText="لا توجد مواد مطابقة"
+  ariaLabel="اختيار المادة"
+  portal
+  />
   </div>
   <div className="col-span-2">
   <input type="number" min="0" step="0.1" value={row.qty_small} onChange={e => { const rows = [...matRows]; rows[idx].qty_small = Number(e.target.value) || 0; setMatRows(rows) }} className="w-full bg-white border border-[#E7E8EA] rounded-lg px-2 py-2 text-center text-xs text-[#111214] focus:outline-none focus:border-[#DC2626]" />

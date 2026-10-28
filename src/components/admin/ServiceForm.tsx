@@ -396,6 +396,10 @@ export function ServiceForm({ initialData, onCancel, onSaved }: ServiceFormProps
   src={imagePreview}
   alt="معاينة صورة الخدمة"
   className="w-full h-full object-cover"
+  onError={() => {
+  setImageUrl('')
+  setImagePreview('')
+  }}
   />
   </div>
   <button
