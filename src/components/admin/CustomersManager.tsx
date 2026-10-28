@@ -479,6 +479,12 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  {viewingCustomer.is_active ? 'نشط' : 'معطّل'}
  </span>
  </div>
+ {!viewingCustomer.is_active && (
+ <div className="flex items-start gap-2 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] px-3 py-2 text-[11px] font-bold text-[#B45309]">
+ <FaExclamationTriangle className="text-[10px] mt-0.5 shrink-0" />
+ <span>العميل معطّل — لن يتم إنشاء حجوزات أو فواتير جديدة له حتى يتم تفعيله.</span>
+ </div>
+ )}
  {viewingCustomer.notes && (
  <div className="text-sm">
  <span className="text-[#62666D]">ملاحظات:</span>
@@ -492,40 +498,74 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  </div>
 
  <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-sm font-bold text-[#111214] flex items-center gap-2 mb-3">
- <FaCar className="text-[#DC2626] text-xs" />
- المركبات
+ <div className="flex items-center justify-between gap-2 mb-3">
+ <h4 className="text-sm font-bold text-[#111214] flex items-center gap-2">
+ <span className="w-7 h-7 rounded-lg bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center">
+ <FaCar className="text-[#DC2626] text-[11px]" />
+ </span>
+ المركبات المسجلة
  </h4>
+ {!loadingVehicles && customerVehicles.length > 0 && (
+ <span className="inline-flex items-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] px-2 py-0.5 text-[10px] font-bold text-[#62666D]">
+ {customerVehicles.length === 1 ? 'مركبة واحدة' : customerVehicles.length === 2 ? 'مركبتان' : `${customerVehicles.length} ${customerVehicles.length <= 10 ? 'مركبات' : 'مركبة'}`}
+ </span>
+ )}
+ </div>
  {loadingVehicles ? (
- <div className="flex items-center justify-center py-6">
- <div className="w-8 h-8 border-2 border-[#FECACA] border-t-red-500 rounded-full animate-spin"></div>
+ <div className="space-y-2">
+ {[0, 1].map((i) => (
+ <div key={i} className="h-[70px] rounded-xl bg-[#F7F7F5] border border-[#E7E8EA] animate-pulse" />
+ ))}
  </div>
  ) : customerVehicles.length === 0 ? (
- <p className="text-[#62666D] text-xs text-center py-4">لا توجد مركبات مسجلة لهذا العميل</p>
+ <div className="flex flex-col items-center justify-center py-6 bg-[#FBFBFA] border border-dashed border-[#E7E8EA] rounded-xl">
+ <div className="w-10 h-10 rounded-full bg-white border border-[#E7E8EA] flex items-center justify-center mb-2">
+ <FaCar className="text-[#D4D6DA] text-sm" />
+ </div>
+ <p className="text-xs font-bold text-[#62666D]">لا توجد مركبات مسجلة</p>
+ <p className="text-[10px] text-[#9A9DA3] mt-0.5">ستظهر هنا مركبات العميل بعد تسجيلها</p>
+ </div>
  ) : (
- <div className="space-y-2">
+ <div className="space-y-2.5">
  {customerVehicles.map((v) => (
- <div key={v.id} className="bg-white border border-[#E7E8EA] shadow-sm rounded-xl p-3 flex items-center justify-between">
- <div className="flex items-center gap-3">
- <div className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center">
- <FaCar className="text-[#62666D] text-[10px]" />
+ <div key={v.id} className="bg-[#FBFBFA] hover:bg-white border border-[#E7E8EA] hover:border-[#D4D6DA] hover:shadow-sm rounded-xl p-3.5 transition-all duration-200">
+ <div className="flex items-start justify-between gap-3">
+ <div className="flex items-start gap-3 min-w-0">
+ <div className="w-10 h-10 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaCar className="text-[#DC2626] text-sm" />
  </div>
- <div>
- <p className="text-[#111214] text-xs font-bold">{v.make} {v.model}</p>
- <div className="flex items-center gap-2 text-[10px] text-[#62666D]">
- {v.year && <span>{v.year}</span>}
- {v.color && <><span className="w-1 h-1 rounded-full bg-[#E7E8EA]"></span><span>{v.color}</span></>}
- {v.plate_number && <><span className="w-1 h-1 rounded-full bg-[#E7E8EA]"></span><span dir="ltr">{v.plate_number}</span></>}
+ <div className="min-w-0">
+ <p className="text-[#111214] text-sm font-black truncate">
+ {[v.make, v.model].filter(Boolean).join(' ') || 'مركبة بدون اسم'}
+ </p>
+ <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+ {v.year && (
+ <span className="inline-flex items-center rounded-md bg-white border border-[#E7E8EA] px-1.5 py-0.5 text-[10px] font-bold text-[#4B4F55]">
+ موديل {v.year}
+ </span>
+ )}
+ {v.color && (
+ <span className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E7E8EA] px-1.5 py-0.5 text-[10px] font-bold text-[#4B4F55]">
+ <span className="w-1.5 h-1.5 rounded-full bg-[#D4D6DA] border border-black/10" />
+ {v.color}
+ </span>
+ )}
+ {v.plate_number && (
+ <span className="inline-flex items-center rounded-md bg-[#111214] px-2 py-0.5 text-[10px] font-black text-white tracking-wider font-mono" dir="ltr">
+ {v.plate_number}
+ </span>
+ )}
  </div>
  </div>
  </div>
- <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+ <span className={`inline-flex items-center shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold border ${
  v.is_active
  ? 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]'
  : 'bg-[#F1F2F3] text-[#62666D] border-[#E7E8EA]'
  }`}>
- {v.is_active ? 'نشط' : 'معطّل'}
+ {v.is_active ? 'نشطة' : 'معطّلة'}
  </span>
+ </div>
  </div>
  ))}
  </div>

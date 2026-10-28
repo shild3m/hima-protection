@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
@@ -273,6 +274,24 @@ export async function createInvoice(input: InvoiceInput) {
   try {
     const validated = InvoiceSchema.parse(input)
     const supabase = await createClient()
+
+    // Inactive customers cannot get new invoices (admin must reactivate first).
+    const adminCheck = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: customer } = await adminCheck
+      .from('customers')
+      .select('is_active')
+      .eq('id', validated.customer_id)
+      .maybeSingle()
+
+    if (!customer) {
+      return { success: false as const, error: 'العميل غير موجود' }
+    }
+    if (customer.is_active === false) {
+      return { success: false as const, error: 'العميل معطّل — فعّله أولاً' }
+    }
 
     const items = validated.items.map(item => ({
       service_id: item.service_id || null,

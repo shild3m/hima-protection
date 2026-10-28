@@ -58,6 +58,18 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       return { success: true as const, data: existing, reused: true }
     }
 
+    // New invoices are blocked for inactive customers. Existing invoices above
+    // are still reused so old balances can be collected.
+    const { data: customer } = await admin
+      .from('customers')
+      .select('is_active')
+      .eq('id', booking.customer_id)
+      .maybeSingle()
+
+    if (customer && customer.is_active === false) {
+      return { success: false as const, error: 'العميل معطّل — فعّله أولاً' }
+    }
+
     const items: {
       service_id: string | null
       description: string

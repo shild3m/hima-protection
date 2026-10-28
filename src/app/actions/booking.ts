@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 export interface BookingInput {
   customerName: string;
@@ -92,18 +93,38 @@ function validateInput(input: BookingInput): string | null {
 export async function createBooking(
   input: BookingInput
 ): Promise<BookingResult> {
-  // 1. Server-side validation
+  // 2. Server-side validation
   const validationError = validateInput(input);
   if (validationError) {
     return { success: false, error: validationError };
   }
 
-  // 2. Call Supabase RPC function
+  const normalizedPhone = normalizePhone(input.customerPhone);
+
+  // Inactive customers cannot create new bookings (admin must reactivate first).
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  const { data: existingCustomer } = await adminClient
+    .from("customers")
+    .select("is_active")
+    .eq("phone", normalizedPhone)
+    .maybeSingle();
+
+  if (existingCustomer && existingCustomer.is_active === false) {
+    return {
+      success: false,
+      error: "هذا الرقم غير متاح للحجز حالياً. يرجى التواصل مع الإدارة.",
+    };
+  }
+
+  // 3. Call Supabase RPC function
   const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("create_booking", {
     p_customer_name: input.customerName.trim(),
-    p_customer_phone: normalizePhone(input.customerPhone),
+    p_customer_phone: normalizedPhone,
     p_customer_email: input.customerEmail?.trim() || null,
     p_vehicle_make: input.vehicleMake.trim(),
     p_vehicle_model: input.vehicleModel.trim(),

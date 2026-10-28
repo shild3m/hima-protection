@@ -625,6 +625,26 @@ export async function adminCreateBooking(input: AdminBookingInput) {
 
   try {
     const supabase = await createClient()
+
+    // Inactive customers cannot get new bookings (admin must reactivate first).
+    const adminCheck = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: existingCustomer } = await adminCheck
+      .from('customers')
+      .select('is_active')
+      .eq('phone', normalizedPhone)
+      .maybeSingle()
+
+    if (existingCustomer && existingCustomer.is_active === false) {
+      return {
+        success: false as const,
+        message: 'العميل معطّل — فعّله أولاً',
+        fieldErrors: { customerPhone: 'العميل معطّل — فعّله أولاً' },
+      }
+    }
+
     const { data, error } = await supabase.rpc('create_booking', {
       p_customer_name: input.customerName.trim(),
       p_customer_phone: normalizedPhone,
