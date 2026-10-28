@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FaClock, FaArrowLeft, FaCalendarCheck, FaCheckCircle } from "react-icons/fa";
 import { formatPrice, formatDuration } from "@/lib/service-utils";
@@ -10,6 +10,14 @@ import { getServiceIcon } from "@/lib/service-icons";
 export function ServiceCard({ service }: { service: Service }) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // If the image already failed before hydration, onError never fires — check on mount.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img?.complete && img.naturalWidth === 0) setImgError(true);
+  }, [service.image_url]);
+
   const price = formatPrice(service.base_price);
   const duration = formatDuration(service.duration_minutes);
   const Icon = getServiceIcon(service.icon_key);
@@ -24,6 +32,7 @@ export function ServiceCard({ service }: { service: Service }) {
           <div className="relative aspect-[3/2]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              ref={imgRef}
               src={service.image_url!}
               alt={service.name}
               loading="lazy"
