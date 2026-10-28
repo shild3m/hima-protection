@@ -1246,6 +1246,12 @@ return (
 
   {expandedBookingItems.has(booking.id) && booking.booking_items && booking.booking_items.length > 0 && (
   <div className="mt-3 pt-3 border-t border-[#F1F2F3] space-y-1 ps-6">
+    {booking.service && (
+    <div className="flex items-center justify-between text-xs bg-[#FBFBFA] border border-[#F1F2F3] rounded-lg px-3 py-1.5">
+      <span className="text-[#4B4F55] font-bold">{booking.service_name_snapshot || booking.service.name}</span>
+      <span className="text-[#111214] font-black" dir="ltr">{Number(booking.service.base_price || 0).toLocaleString('en-US')} ر.س</span>
+    </div>
+    )}
     {booking.booking_items.map(item => {
       const itemService = Array.isArray(item.service) ? item.service?.[0] : item.service
       return (
