@@ -20,14 +20,19 @@ export function ServiceCard({ service }: { service: Service }) {
   return (
     <div className="group card-hover p-7 flex flex-col">
       {showImage ? (
-        <div className="aspect-[4/3] rounded-xl overflow-hidden mb-5 bg-[#1A1B1E]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={service.image_url!}
-            alt={service.name}
-            onError={() => setImgError(true)}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
+        <div className="relative z-10 -mx-7 -mt-7 mb-5 overflow-hidden rounded-t-[15px] bg-[#1A1B1E]">
+          <div className="relative aspect-[3/2]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={service.image_url!}
+              alt={service.name}
+              loading="lazy"
+              decoding="async"
+              onError={() => setImgError(true)}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          </div>
         </div>
       ) : (
         <div className="w-12 h-12 bg-[#C4121A]/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#C4121A]/20 transition-colors">
