@@ -1087,6 +1087,22 @@ return (
   : 0
   const serviceNames = bookingServiceNames(booking)
   const grandTotal = bookingGrandTotal(booking)
+  const invoice = booking.linked_invoice
+  const invoiceTotal = Number(invoice?.total) || 0
+  const paidAmount = Number(invoice?.paid_amount) || 0
+  const displayTotal = invoice ? invoiceTotal || grandTotal : grandTotal
+  const isFullyPaid = !!invoice && (invoice.status === 'paid' || (invoiceTotal > 0 && paidAmount >= invoiceTotal))
+  const isPartiallyPaid = !!invoice && !isFullyPaid && (invoice.status === 'partially_paid' || paidAmount > 0)
+  const totalTone = isFullyPaid
+    ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]'
+    : isPartiallyPaid
+      ? 'bg-[#FFFBEB] border-[#FDE68A] text-[#D97706]'
+      : 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]'
+  const totalBadge = displayTotal > 0 ? (
+  <span className={`flex items-center rounded-lg border px-2 py-0.5 font-black text-[12px] ${totalTone}`} dir="rtl">
+  <span dir="ltr">{displayTotal.toLocaleString('en-US')} ر.س</span>
+  </span>
+  ) : null
   return (
  <div
  key={booking.id}
@@ -1108,6 +1124,7 @@ return (
   {booking.linked_invoice.invoice_number}
   </span>
   )}
+  {booking.linked_invoice && totalBadge}
   </div>
  <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-[14px] text-[#62666D] font-semibold flex-wrap">
  {booking.customer?.phone && (
@@ -1146,11 +1163,7 @@ return (
   )}
   </span>
   )}
-  {grandTotal > 0 && (
-  <span className="flex items-center rounded-lg bg-[#FFF5F5] border border-[#FECACA] px-2 py-0.5 font-black text-[12px] text-[#DC2626]" dir="rtl">
-  <span dir="ltr">{grandTotal.toLocaleString('en-US')} ر.س</span>
-  </span>
-  )}
+  {!booking.linked_invoice && totalBadge}
 {(booking.status === 'new' && !booking.created_by_name && booking.preferred_date) ? (
    <span className="flex items-center gap-1 rounded-lg bg-[#FFF5F5] border border-[#FECACA] px-2 py-0.5 font-black text-[11px] text-[#DC2626]">
    <FaCalendarAlt className="text-[10px]" />
