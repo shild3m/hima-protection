@@ -1124,7 +1124,7 @@ return (
   {booking.linked_invoice.invoice_number}
   </span>
   )}
-  {booking.linked_invoice && totalBadge}
+  {totalBadge}
   </div>
  <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-[14px] text-[#62666D] font-semibold flex-wrap">
  {booking.customer?.phone && (
@@ -1163,7 +1163,6 @@ return (
   )}
   </span>
   )}
-  {!booking.linked_invoice && totalBadge}
 {(booking.status === 'new' && !booking.created_by_name && booking.preferred_date) ? (
    <span className="flex items-center gap-1 rounded-lg bg-[#FFF5F5] border border-[#FECACA] px-2 py-0.5 font-black text-[11px] text-[#DC2626]">
    <FaCalendarAlt className="text-[10px]" />
