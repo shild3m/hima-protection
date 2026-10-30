@@ -7,6 +7,7 @@ const ARABIC_TO_LATIN: Record<string, string> = {
   'إ': 'A',
   'آ': 'A',
   'ب': 'B',
+  'ج': 'J',
   'ح': 'J',
   'د': 'D',
   'ر': 'R',
@@ -50,7 +51,7 @@ function parsePlate(raw: string) {
     ? arabicLetters.join('')
     : latinLetters.map((letter) => LATIN_TO_ARABIC[letter] || letter).join('')
   const bottomLetters = hasArabicLetters
-    ? arabicLetters.map((letter) => ARABIC_TO_LATIN[letter] || letter).join('')
+    ? arabicLetters.map((letter) => ARABIC_TO_LATIN[letter] || '').join('')
     : latinLetters.join('')
 
   return {
