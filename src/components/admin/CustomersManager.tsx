@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { CustomerForm } from '@/components/admin/CustomerForm'
+import SaudiPlate from '@/components/ui/SaudiPlate'
 import {
  FaUsers,
  FaSearch,
@@ -534,10 +535,13 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  <div className="w-10 h-10 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
  <FaCar className="text-[#DC2626] text-sm" />
  </div>
- <div className="min-w-0">
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
  <p className="text-[#111214] text-sm font-black truncate">
  {[v.make, v.model].filter(Boolean).join(' ') || 'مركبة بدون اسم'}
  </p>
+ {v.plate_number && <SaudiPlate plate={v.plate_number} />}
+ </div>
  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
  {v.year && (
  <span className="inline-flex items-center rounded-md bg-white border border-[#E7E8EA] px-1.5 py-0.5 text-[10px] font-bold text-[#4B4F55]">
@@ -548,11 +552,6 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  <span className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E7E8EA] px-1.5 py-0.5 text-[10px] font-bold text-[#4B4F55]">
  <span className="w-1.5 h-1.5 rounded-full bg-[#D4D6DA] border border-black/10" />
  {v.color}
- </span>
- )}
- {v.plate_number && (
- <span className="inline-flex items-center rounded-md bg-[#111214] px-2 py-0.5 text-[10px] font-black text-white tracking-wider font-mono" dir="ltr">
- {v.plate_number}
  </span>
  )}
  </div>
