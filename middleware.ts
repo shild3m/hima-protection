@@ -7,11 +7,12 @@ export async function middleware(request: NextRequest) {
         return NextResponse.json({ error: 'Not Found' }, { status: 404 })
     }
 
-    // ─── Force HTTPS ────────────────────────────────────────────────
+        
     if (request.nextUrl.protocol === 'http:' && !request.nextUrl.hostname.includes('localhost')) {
         const httpsUrl = request.nextUrl.clone()
         httpsUrl.protocol = 'https:'
         return NextResponse.redirect(httpsUrl)
+        
     }
 
     // ─── Security Headers ───────────────────────────────────────────
@@ -28,7 +29,6 @@ export async function middleware(request: NextRequest) {
         return await updateSession(request)
     })()
 
-    // ─── CORS (restrict to configured origin for API routes) ─────────
     if (isApiRoute) {
         const isWebhookOrCallback =
             request.nextUrl.pathname === '/api/otp/sms-webhook'
@@ -67,7 +67,6 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    // ─── Content Security Policy ────────────────────────────────────
     const cspDirectives = [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline'",
@@ -98,4 +97,5 @@ export const config = {
     matcher: [
         '/((?!_next/static|_next/image|favicon.ico|apple-icon.png|icon.png|opengraph-image.png|robots.txt|sitemap.xml|manifest.webmanifest).*)',
     ],
+
 }
