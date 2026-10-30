@@ -26,9 +26,27 @@ const ARABIC_TO_LATIN: Record<string, string> = {
   'ي': 'V',
 }
 
-const LATIN_TO_ARABIC: Record<string, string> = Object.fromEntries(
-  Object.entries(ARABIC_TO_LATIN).map(([arabic, latin]) => [latin, arabic])
-)
+// Latin → Arabic for plates entered in English. Only the official set is
+// mapped; anything else is omitted from the Arabic row.
+const LATIN_TO_ARABIC: Record<string, string> = {
+  A: 'أ',
+  B: 'ب',
+  J: 'ح',
+  D: 'د',
+  R: 'ر',
+  S: 'س',
+  X: 'ص',
+  T: 'ط',
+  E: 'ع',
+  G: 'ق',
+  K: 'ك',
+  L: 'ل',
+  M: 'م',
+  N: 'ن',
+  H: 'ه',
+  U: 'و',
+  V: 'ى',
+}
 
 function toWesternDigits(input: string): string {
   return input.replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)))
@@ -49,7 +67,7 @@ function parsePlate(raw: string) {
   const hasArabicLetters = arabicLetters.length > 0
   const topLetters = hasArabicLetters
     ? arabicLetters.join('')
-    : latinLetters.map((letter) => LATIN_TO_ARABIC[letter] || letter).join('')
+    : latinLetters.map((letter) => LATIN_TO_ARABIC[letter] || '').join('')
   const bottomLetters = hasArabicLetters
     ? arabicLetters.map((letter) => ARABIC_TO_LATIN[letter] || '').join('')
     : latinLetters.join('')
@@ -62,57 +80,43 @@ function parsePlate(raw: string) {
   }
 }
 
-function SaudiEmblem({ className = '' }: { className?: string }) {
+// Each character is its own element so the visual order never depends on
+// the document's bidi settings (Arabic-Indic digits stay ١ ٢ ٣ ٤, not ٤ ٣ ٢ ١).
+function CharRow({
+  value,
+  reverse = false,
+  gap = '0.32em',
+}: {
+  value: string
+  reverse?: boolean
+  gap?: string
+}) {
+  if (!value) return <span>—</span>
+
   return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
-      {/* Palm trunk */}
-      <path
-        d="M23.3 31c-.2-4.7-.2-9.5.1-14.2h1.3c.3 4.7.3 9.5.1 14.2z"
-        fill="currentColor"
-      />
-      {/* Palm fronds */}
-      <path
-        d="M24 16.5C19.8 12 14.4 9.8 8.6 10.8c5 1 9.4 3.4 13 7.2z"
-        fill="currentColor"
-      />
-      <path
-        d="M24 16.5C28.2 12 33.6 9.8 39.4 10.8c-5 1-9.4 3.4-13 7.2z"
-        fill="currentColor"
-      />
-      <path
-        d="M24 17.4c-5-1.8-10.6-1.5-14.8 1.6 4.6-.6 9 .4 12.6 2.5z"
-        fill="currentColor"
-      />
-      <path
-        d="M24 17.4c5-1.8 10.6-1.5 14.8 1.6-4.6-.6-9 .4-12.6 2.5z"
-        fill="currentColor"
-      />
-      <path
-        d="M23.8 16.5C22.6 10.8 23.4 5.8 26 2.3c.4 5-.3 9.7-1.4 14.2z"
-        fill="currentColor"
-      />
-      {/* Crossed swords */}
-      <path
-        d="M8.8 37.6c9.4-1.8 18.2-7.7 26.2-16.4l1.7 1.6C28.6 31.7 19.4 38 9.6 40.3z"
-        fill="currentColor"
-      />
-      <path
-        d="M39.2 37.6c-9.4-1.8-18.2-7.7-26.2-16.4l-1.7 1.6C19.4 31.7 28.6 38 38.4 40.3z"
-        fill="currentColor"
-      />
-      <path
-        d="M6.8 36.6l6.1 6.1"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M41.2 36.6l-6.1 6.1"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-    </svg>
+    <span
+      className="inline-flex items-center justify-center"
+      style={{ flexDirection: reverse ? 'row-reverse' : 'row', gap }}
+    >
+      {[...value].map((char, index) => (
+        <span key={`${char}-${index}`} className="inline-block">
+          {char}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function PlateEmblem({ className = '' }: { className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/plate-emblem.svg"
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className={`select-none object-contain ${className}`}
+    />
   )
 }
 
@@ -129,30 +133,69 @@ export default function SaudiPlate({ plate, className = '' }: SaudiPlateProps) {
 
   return (
     <div
-      className={`inline-flex h-[58px] w-[160px] shrink-0 select-none items-center justify-between rounded-[7px] border-[1.5px] border-[#111214] bg-white px-2 shadow-[0_1px_2px_rgba(0,0,0,0.08),inset_0_0_0_1px_rgba(0,0,0,0.04)] sm:h-[64px] sm:w-[178px] ${className}`}
       dir="ltr"
       aria-label={`لوحة السيارة ${plate}`}
+      className={`relative inline-block w-[250px] max-w-full shrink-0 select-none overflow-hidden rounded-[4px] border border-[#0A0A0A] bg-[#E6E6E3] [container-type:inline-size] ${className}`}
+      style={{ aspectRatio: '1629 / 345' }}
     >
-      <div className="flex w-[48px] flex-col items-center justify-center leading-none sm:w-[54px]">
-        <span className="text-[16px] font-black tracking-[0.06em] text-[#111214] sm:text-[17px]" dir="ltr">
-          {arabicDigits || '—'}
-        </span>
-        <span className="mt-1 text-[9px] font-bold tracking-[0.12em] text-[#111214] sm:text-[10px]">
-          {latinDigits || '—'}
-        </span>
+      {/* Central emblem */}
+      <div
+        className="absolute -translate-x-1/2 -translate-y-1/2"
+        style={{ left: '48.4cqi', top: '50.3%', width: '16.3cqi', height: '83.2%' }}
+      >
+        <PlateEmblem className="h-full w-full" />
       </div>
 
-      <div className="flex items-center justify-center px-0.5 text-[#111214]">
-        <SaudiEmblem className="h-8 w-8 sm:h-9 sm:w-9" />
-      </div>
+      {/* Numbers — left side, Arabic above and English below */}
+      <span
+        className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-center font-black text-[#0A0A0A]"
+        style={{ left: '20cqi', top: '6cqi', fontSize: '7cqi', lineHeight: 1.45 }}
+      >
+        <CharRow value={arabicDigits} gap="0.3em" />
+      </span>
+      <span
+        className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-center font-normal text-[#0A0A0A]"
+        style={{ left: '20cqi', top: '16cqi', fontSize: '7cqi', lineHeight: 1.45 }}
+      >
+        <CharRow value={latinDigits} gap="0.3em" />
+      </span>
 
-      <div className="flex w-[48px] flex-col items-center justify-center leading-none sm:w-[54px]">
-        <span className="text-[16px] font-black tracking-[0.06em] text-[#111214] sm:text-[17px]" dir="rtl">
-          {arabicLetters || '—'}
+      {/* Letters — right side, Arabic above and English below */}
+      <span
+        className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-center font-black text-[#0A0A0A]"
+        style={{ left: '75cqi', top: '6cqi', fontSize: '7cqi', lineHeight: 1.45 }}
+      >
+        <CharRow value={arabicLetters} reverse gap="0.42em" />
+      </span>
+      <span
+        className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-center font-bold text-[#0A0A0A]"
+        style={{ left: '75cqi', top: '16cqi', fontSize: '7cqi', lineHeight: 1.45 }}
+      >
+        <CharRow value={latinLetters} gap="0.42em" />
+      </span>
+
+      {/* Right KSA strip */}
+      <div
+        className="absolute bottom-0 right-0 top-0 flex flex-col items-center border-l border-[#0A0A0A] text-[#0A0A0A]"
+        style={{ width: '7.37cqi', paddingTop: '0.9cqi' }}
+      >
+        <div style={{ width: '3.9cqi', height: '4.2cqi' }}>
+          <PlateEmblem className="h-full w-full" />
+        </div>
+        <span
+          className="whitespace-nowrap text-center font-bold"
+          style={{ marginTop: '0.5cqi', fontSize: '2.1cqi', lineHeight: 1, letterSpacing: '-0.02em' }}
+        >
+          السعودية
         </span>
-        <span className="mt-1 text-[9px] font-bold tracking-[0.12em] text-[#111214] sm:text-[10px]">
-          {latinLetters || '—'}
-        </span>
+        <div
+          className="flex flex-col items-center font-bold"
+          style={{ marginTop: '1.2cqi', fontSize: '3.6cqi', lineHeight: 1.05 }}
+        >
+          <span>K</span>
+          <span>S</span>
+          <span>A</span>
+        </div>
       </div>
     </div>
   )
