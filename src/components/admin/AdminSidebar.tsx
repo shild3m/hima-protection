@@ -71,20 +71,20 @@ interface AdminSidebarProps {
   permissions: string[]
 }
 
-export default function AdminSidebar({ userName, roleName, permissions }: AdminSidebarProps) {
-  const pathname = usePathname()
-  const { signOut } = useAuth()
-  const [mobileOpen, setMobileOpen] = useState(false)
+interface SidebarContentProps {
+  filteredNav: NavItem[]
+  pathname: string
+  userName: string
+  roleName: string
+  onNavigate: () => void
+  onSignOut: () => void
+}
 
-  const filteredNav = NAV_ITEMS.filter(item =>
-    permissions.includes(`${item.resource}:${item.action}`) ||
-    item.resource === 'dashboard'
-  )
-
-  const SidebarContent = () => (
+function SidebarContent({ filteredNav, pathname, userName, roleName, onNavigate, onSignOut }: SidebarContentProps) {
+  return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-white/[0.06]">
-        <Link href="/admin" className="flex items-center gap-3">
+        <Link href="/admin" onClick={onNavigate} className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#C4121A] flex items-center justify-center">
             <FaCar className="text-white text-lg" />
           </div>
@@ -102,7 +102,8 @@ export default function AdminSidebar({ userName, roleName, permissions }: AdminS
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
+              scroll={false}
+              onClick={onNavigate}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
                 isActive
                   ? 'bg-white/[0.08] text-white border border-white/[0.08]'
@@ -126,7 +127,7 @@ export default function AdminSidebar({ userName, roleName, permissions }: AdminS
           <p className="text-[#6B6B80] text-[10px]">{roleName}</p>
         </div>
         <button
-          onClick={signOut}
+          onClick={onSignOut}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-[#6B6B80] hover:text-[#111214] hover:bg-[#F1F2F3] transition-all"
         >
           <div className="w-8 h-8 rounded-lg bg-[#F7F7F5] flex items-center justify-center text-xs">
@@ -137,6 +138,19 @@ export default function AdminSidebar({ userName, roleName, permissions }: AdminS
       </div>
     </div>
   )
+}
+
+export default function AdminSidebar({ userName, roleName, permissions }: AdminSidebarProps) {
+  const pathname = usePathname()
+  const { signOut } = useAuth()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const filteredNav = NAV_ITEMS.filter(item =>
+    permissions.includes(`${item.resource}:${item.action}`) ||
+    item.resource === 'dashboard'
+  )
+
+  const closeMobile = () => setMobileOpen(false)
 
   return (
     <>
@@ -148,20 +162,34 @@ export default function AdminSidebar({ userName, roleName, permissions }: AdminS
       </button>
 
       <aside className="hidden lg:flex fixed top-0 right-0 w-64 h-screen bg-[#111214] border-l border-white/[0.06] flex-col z-40">
-        <SidebarContent />
+        <SidebarContent
+          filteredNav={filteredNav}
+          pathname={pathname}
+          userName={userName}
+          roleName={roleName}
+          onNavigate={closeMobile}
+          onSignOut={signOut}
+        />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
+          <div className="absolute inset-0 bg-black/60" onClick={closeMobile} />
           <aside className="absolute top-0 right-0 w-64 h-screen bg-[#111214] border-l border-white/[0.06] flex flex-col">
             <button
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMobile}
               className="absolute top-4 left-4 w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-white"
             >
               <FaTimes className="text-xs" />
             </button>
-            <SidebarContent />
+            <SidebarContent
+              filteredNav={filteredNav}
+              pathname={pathname}
+              userName={userName}
+              roleName={roleName}
+              onNavigate={closeMobile}
+              onSignOut={signOut}
+            />
           </aside>
         </div>
       )}
