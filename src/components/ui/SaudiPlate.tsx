@@ -177,16 +177,16 @@ export default function SaudiPlate({ plate, className = '' }: SaudiPlateProps) {
       {/* Right KSA strip */}
       <div
         className="absolute bottom-0 right-0 top-0 flex flex-col items-center border-l border-[#0A0A0A] text-[#0A0A0A]"
-        style={{ width: '7.37cqi', paddingTop: '0.5cqi' }}
+        style={{ width: '7.37cqi', paddingTop: '0.55cqi', borderLeftWidth: '0.68cqi' }}
       >
-        <div style={{ width: '3.7cqi', height: '4cqi' }}>
+        <div style={{ width: '3.61cqi', height: '3.9cqi' }}>
           <PlateEmblem className="h-full w-full" />
         </div>
         <span
           className="whitespace-nowrap text-center font-bold"
           style={{
             display: 'inline-block',
-            marginTop: '1.7cqi',
+            marginTop: '1.1cqi',
             fontSize: '2.1cqi',
             lineHeight: 1,
             letterSpacing: '-0.02em',
@@ -198,7 +198,7 @@ export default function SaudiPlate({ plate, className = '' }: SaudiPlateProps) {
         </span>
         <div
           className="flex flex-col items-center font-bold"
-          style={{ marginTop: '1.2cqi', fontSize: '3.3cqi', lineHeight: 1.05 }}
+          style={{ marginTop: '1.2cqi', fontSize: '3.6cqi', lineHeight: 1.05 }}
         >
           <span>K</span>
           <span>S</span>
