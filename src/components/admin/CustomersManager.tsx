@@ -531,18 +531,15 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  {customerVehicles.map((v) => (
  <div key={v.id} className="bg-[#FBFBFA] hover:bg-white border border-[#E7E8EA] hover:border-[#D4D6DA] hover:shadow-sm rounded-xl p-3.5 transition-all duration-200">
  <div className="flex items-start justify-between gap-3">
- <div className="flex items-start gap-3 min-w-0">
+ <div className="flex items-start gap-3 min-w-0 flex-1">
  <div className="w-10 h-10 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
  <FaCar className="text-[#DC2626] text-sm" />
  </div>
  <div className="min-w-0 flex-1">
- <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
+ <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
  <p className="text-[#111214] text-sm font-black truncate">
  {[v.make, v.model].filter(Boolean).join(' ') || 'مركبة بدون اسم'}
  </p>
- {v.plate_number && <SaudiPlate plate={v.plate_number} />}
- </div>
- <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
  {v.year && (
  <span className="inline-flex items-center rounded-md bg-white border border-[#E7E8EA] px-1.5 py-0.5 text-[10px] font-bold text-[#4B4F55]">
  موديل {v.year}
@@ -565,6 +562,11 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  {v.is_active ? 'نشطة' : 'معطّلة'}
  </span>
  </div>
+ {v.plate_number && (
+ <div className="mt-3 flex justify-center">
+ <SaudiPlate plate={v.plate_number} />
+ </div>
+ )}
  </div>
  ))}
  </div>
