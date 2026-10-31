@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider'
 import {
  FaSearch, FaEye, FaTimes, FaExclamationTriangle,
  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaPlus,
- FaTruck, FaCheck, FaBan,
+ FaTruck, FaCheck, FaBan, FaCalendarAlt, FaMoneyBillWave, FaClipboardList,
 } from 'react-icons/fa'
 
 interface Supplier { id: string; name: string; is_active: boolean }
@@ -348,39 +348,171 @@ export default function PurchasesManager({ initialPurchases, initialPagination }
  )}
 
  {viewingPurchase && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
- <div className="absolute inset-0 bg-black/60" onClick={() => setViewingPurchase(null)} />
- <div className="relative bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-lg">
- <div className="flex items-center justify-between mb-4">
- <h2 className="text-lg font-black text-[#111214] flex items-center gap-2"><FaTruck className="text-[#DC2626]" /> تفاصيل الشراء</h2>
- <button onClick={() => setViewingPurchase(null)} className="p-2 rounded-lg hover:bg-[#F1F2F3] text-[#62666D]"><FaTimes /></button>
+ <div
+ role="presentation"
+ className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+ onClick={() => setViewingPurchase(null)}
+ >
+ <div
+ role="dialog"
+ aria-modal="true"
+ aria-label="تفاصيل الشراء"
+ className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[88vh] overflow-y-auto"
+ onClick={e => e.stopPropagation()}
+ >
+ {/* Header */}
+ <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-[#E7E8EA] bg-white/95 backdrop-blur">
+ <div className="flex items-center gap-3 min-w-0">
+ <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaTruck className="text-[#DC2626] text-sm" />
+ </span>
+ <div className="min-w-0">
+ <h3 className="text-base font-bold text-[#111214] leading-tight">تفاصيل الشراء</h3>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">بيانات أمر الشراء والمواد</p>
  </div>
+ </div>
+ <button
+ onClick={() => setViewingPurchase(null)}
+ aria-label="إغلاق"
+ className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0"
+ >
+ <FaTimes className="text-sm" />
+ </button>
+ </div>
+
  {viewLoading ? (
- <div className="p-6 text-center"><FaSpinner className="animate-spin text-[#DC2626] text-2xl mx-auto" /></div>
+ <div className="flex flex-col items-center justify-center py-20 gap-3">
+ <FaSpinner className="animate-spin text-[#DC2626] text-2xl" />
+ <p className="text-[11px] font-bold text-[#9A9DA3]">جاري تحميل تفاصيل الشراء...</p>
+ </div>
  ) : (
- <div className="space-y-3 text-sm">
- <div className="flex justify-between"><span className="text-[#62666D]">المورد</span><span className="text-[#111214] font-bold">{viewingPurchase.supplier?.name || '—'}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">التاريخ</span><span className="text-[#111214]">{new Date(viewingPurchase.purchase_date).toLocaleDateString('en-GB')}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">الإجمالي</span><span className="text-[#111214] font-bold">{viewingPurchase.total_amount.toFixed(2)}</span></div>
- <div className="flex justify-between">
- <span className="text-[#62666D]">الحالة</span>
- <span className={`px-2 py-1 rounded-lg text-xs font-bold ${(STATUS_MAP[viewingPurchase.status] || { color: 'text-[#62666D] bg-[#F1F2F3]' }).color}`}>
+ <div className="px-5 sm:px-6 py-5 space-y-6">
+ {/* Profile */}
+ <div className="flex items-center gap-4">
+ <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaTruck className="text-[#DC2626] text-xl" />
+ </div>
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
+ <h4 className="text-lg font-black text-[#111214] truncate">{viewingPurchase.supplier?.name || 'أمر شراء'}</h4>
+ <span className={`inline-flex items-center gap-1.5 rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-bold ${(STATUS_MAP[viewingPurchase.status] || { color: 'text-[#62666D] bg-[#F1F2F3]' }).color}`}>
+ <span className="w-1.5 h-1.5 rounded-full bg-current" />
  {(STATUS_MAP[viewingPurchase.status] || { label: viewingPurchase.status }).label}
  </span>
  </div>
+ <p className="text-[11px] text-[#62666D] font-medium mt-1">
+ تاريخ الشراء {new Date(viewingPurchase.purchase_date).toLocaleDateString('en-GB')}
+ </p>
+ </div>
+ </div>
+
+ {/* Amount summary */}
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+ <div className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3.5">
+ <p className="text-[10px] font-bold text-[#B91C1C]">إجمالي أمر الشراء</p>
+ <p className="text-xl font-black text-[#DC2626] mt-1">{viewingPurchase.total_amount.toFixed(2)} <span className="text-[10px] font-bold">ر.س</span></p>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-4 py-3.5">
+ <div className="flex items-center gap-2">
+ <FaClipboardList className="text-[#7C3AED] text-[10px]" />
+ <p className="text-[10px] font-bold text-[#9A9DA3]">عدد العناصر</p>
+ </div>
+ <p className="text-base font-black text-[#111214] mt-1.5">{viewingPurchase.items?.length || 0}</p>
+ </div>
+ </div>
+
+ {/* Details */}
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">بيانات الشراء</h5>
+ </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaTruck className="text-[#059669] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">المورد</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{viewingPurchase.supplier?.name || '—'}</p>
+ </div>
+ </div>
+
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaCalendarAlt className="text-[#7C3AED] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">تاريخ الشراء</p>
+ <p className="text-xs font-bold text-[#111214] mt-0.5">{new Date(viewingPurchase.purchase_date).toLocaleDateString('en-GB')}</p>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ {/* Items */}
+ <div>
+ <div className="flex items-center justify-between gap-2 mb-2">
+ <div className="flex items-center gap-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">المواد</h5>
+ </div>
  {viewingPurchase.items && viewingPurchase.items.length > 0 && (
- <div className="mt-3">
- <span className="text-[#62666D] text-xs font-bold">العناصر:</span>
- <div className="mt-2 space-y-1">
+ <span className="inline-flex items-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] px-2.5 py-1 text-[10px] font-bold text-[#62666D]">
+ {viewingPurchase.items.length} {viewingPurchase.items.length === 1 ? 'مادة' : 'مواد'}
+ </span>
+ )}
+ </div>
+ {viewingPurchase.items && viewingPurchase.items.length > 0 ? (
+ <div className="rounded-xl border border-[#E7E8EA] divide-y divide-[#E7E8EA] overflow-hidden">
  {viewingPurchase.items.map(item => (
- <div key={item.id} className="flex justify-between bg-[#F7F7F5] rounded-lg px-3 py-2">
- <span className="text-[#111214]">{item.material?.name || item.material_id}</span>
- <span className="text-[#111214]">{item.quantity} × {item.unit_cost.toFixed(2)} = {item.total_cost.toFixed(2)}</span>
+ <div key={item.id} className="flex items-start justify-between gap-3 px-3.5 py-3 bg-[#FBFBFA]">
+ <div className="flex items-center gap-2.5 min-w-0">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaBoxOpen className="text-[#DC2626] text-[10px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-xs font-bold text-[#111214] break-words">{item.material?.name || item.material_id}</p>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-1">
+ {item.quantity} × {item.unit_cost.toFixed(2)} ر.س
+ </p>
+ </div>
+ </div>
+ <span className="text-xs font-black text-[#111214] shrink-0">{item.total_cost.toFixed(2)} <span className="text-[9px] font-bold text-[#9A9DA3]">ر.س</span></span>
  </div>
  ))}
  </div>
+ ) : (
+ <div className="flex flex-col items-center justify-center py-8 bg-[#FBFBFA] border border-dashed border-[#E7E8EA] rounded-xl">
+ <FaBoxOpen className="text-[#D4D6DA] text-lg mb-2" />
+ <p className="text-xs font-bold text-[#62666D]">لا توجد مواد مسجلة</p>
  </div>
  )}
+ </div>
+
+ {/* Notes */}
+ {viewingPurchase.notes && (
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">ملاحظات</h5>
+ </div>
+ <p className="text-xs leading-relaxed text-[#4B4F55] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-3 whitespace-pre-wrap break-words">
+ {viewingPurchase.notes}
+ </p>
+ </div>
+ )}
+
+ {/* Footer */}
+ <div className="border-t border-[#E7E8EA] pt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[10px] font-medium text-[#9A9DA3]">
+ <span className="flex items-center gap-1.5">
+ <FaCalendarAlt className="text-[9px]" />
+ تاريخ الإنشاء: <span className="font-bold text-[#62666D]">{new Date(viewingPurchase.created_at).toLocaleDateString('en-GB')}</span>
+ </span>
+ <span>
+ الإجمالي: <span className="font-bold text-[#62666D]">{viewingPurchase.total_amount.toFixed(2)} ر.س</span>
+ </span>
+ </div>
  </div>
  )}
  </div>

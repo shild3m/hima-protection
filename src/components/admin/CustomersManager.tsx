@@ -65,11 +65,11 @@ interface Pagination {
 type Notification = { type: 'success' | 'error'; message: string } | null
 
 const sourceConfig: Record<string, { label: string; icon: React.ReactNode; class: string }> = {
- walk_in: { label: 'حضور مباشر', icon: <FaWalking className="text-[9px]" />, class: 'bg-[#EFF6FF] text-blue-300 border-[#BFDBFE]' },
- referral: { label: 'إحالة', icon: <FaShareAlt className="text-[9px]" />, class: 'bg-[#FAF5FF] text-purple-300 border-[#DDD6FE]' },
- online: { label: 'أونلاين', icon: <FaGlobe className="text-[9px]" />, class: 'bg-[#ECFDF5] text-emerald-300 border-[#A7F3D0]' },
- social: { label: 'تواصل اجتماعي', icon: <FaHeadset className="text-[9px]" />, class: 'bg-[#FFFBEB] text-amber-300 border-[#FDE68A]' },
- phone: { label: 'هاتف', icon: <FaPhone className="text-[9px]" />, class: 'bg-[#ECFEFF] text-cyan-300 border-[#A5F3FC]' },
+ walk_in: { label: 'حضور مباشر', icon: <FaWalking className="text-[9px]" />, class: 'bg-[#EFF6FF] text-blue-700 border-[#BFDBFE]' },
+ referral: { label: 'إحالة', icon: <FaShareAlt className="text-[9px]" />, class: 'bg-[#FAF5FF] text-purple-700 border-[#DDD6FE]' },
+ online: { label: 'أونلاين', icon: <FaGlobe className="text-[9px]" />, class: 'bg-[#ECFDF5] text-emerald-700 border-[#A7F3D0]' },
+ social: { label: 'تواصل اجتماعي', icon: <FaHeadset className="text-[9px]" />, class: 'bg-[#FFFBEB] text-amber-700 border-[#FDE68A]' },
+ phone: { label: 'هاتف', icon: <FaPhone className="text-[9px]" />, class: 'bg-[#ECFEFF] text-cyan-700 border-[#A5F3FC]' },
 }
 
 export default function CustomersManager({ initialCustomers, initialPagination }: {
@@ -442,84 +442,154 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  )}
 
  {viewingCustomer && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => { setViewingCustomer(null); setCustomerVehicles([]) }}>
- <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
+ <div
+ role="presentation"
+ className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+ onClick={() => { setViewingCustomer(null); setCustomerVehicles([]) }}
+ >
+ <div
+ role="dialog"
+ aria-modal="true"
+ aria-label="تفاصيل العميل"
+ className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[88vh] overflow-y-auto"
+ onClick={e => e.stopPropagation()}
+ >
+ {/* Header */}
+ <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-[#E7E8EA] bg-white/95 backdrop-blur">
+ <div className="flex items-center gap-3 min-w-0">
+ <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
  <FaUsers className="text-[#DC2626] text-sm" />
- تفاصيل العميل
- </h3>
- <button onClick={() => { setViewingCustomer(null); setCustomerVehicles([]) }} className="text-[#62666D] hover:text-[#111214] transition">
- <FaTimes />
+ </span>
+ <div className="min-w-0">
+ <h3 className="text-base font-bold text-[#111214] leading-tight">تفاصيل العميل</h3>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">بيانات العميل والمركبات المسجلة</p>
+ </div>
+ </div>
+ <button
+ onClick={() => { setViewingCustomer(null); setCustomerVehicles([]) }}
+ aria-label="إغلاق"
+ className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0"
+ >
+ <FaTimes className="text-sm" />
  </button>
  </div>
- <div className="space-y-3 mb-6">
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الاسم:</span>
- <span className="text-[#111214] font-bold">{viewingCustomer.full_name}</span>
+
+ {/* Content */}
+ <div className="px-5 sm:px-6 py-5 space-y-6">
+ {/* Profile */}
+ <div className="flex items-center gap-4">
+ <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <span className="text-lg font-black text-[#DC2626]">
+ {viewingCustomer.full_name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('')}
+ </span>
  </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">رقم الجوال:</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingCustomer.phone}</span>
- </div>
- {viewingCustomer.email && (
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">البريد الإلكتروني:</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingCustomer.email}</span>
- </div>
- )}
- {viewingCustomer.source && (
- <div className="flex justify-between text-sm items-center">
- <span className="text-[#62666D]">المصدر:</span>
- {sourceBadge(viewingCustomer.source)}
- </div>
- )}
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الحالة:</span>
- <span className={`font-bold ${viewingCustomer.is_active ? 'text-[#059669]' : 'text-[#62666D]'}`}>
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
+ <h4 className="text-lg font-black text-[#111214] truncate">{viewingCustomer.full_name}</h4>
+ <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+ viewingCustomer.is_active
+ ? 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]'
+ : 'bg-[#F1F2F3] text-[#62666D] border-[#E7E8EA]'
+ }`}>
+ <span className={`w-1.5 h-1.5 rounded-full ${viewingCustomer.is_active ? 'bg-[#059669]' : 'bg-[#9A9DA3]'}`} />
  {viewingCustomer.is_active ? 'نشط' : 'معطّل'}
  </span>
  </div>
+ <p className="text-[11px] text-[#62666D] font-medium mt-1">
+ عميل منذ {new Date(viewingCustomer.created_at).toLocaleDateString('en-GB')}
+ </p>
+ </div>
+ </div>
+
  {!viewingCustomer.is_active && (
- <div className="flex items-start gap-2 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] px-3 py-2 text-[11px] font-bold text-[#B45309]">
+ <div className="flex items-start gap-2 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] px-3.5 py-3 text-[11px] font-bold text-[#B45309]">
  <FaExclamationTriangle className="text-[10px] mt-0.5 shrink-0" />
  <span>العميل معطّل — لن يتم إنشاء حجوزات أو فواتير جديدة له حتى يتم تفعيله.</span>
  </div>
  )}
- {viewingCustomer.notes && (
- <div className="text-sm">
- <span className="text-[#62666D]">ملاحظات:</span>
- <p className="text-[#111214] mt-1">{viewingCustomer.notes}</p>
- </div>
- )}
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">تاريخ الإنشاء:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingCustomer.created_at).toLocaleDateString('en-GB')}</span>
+
+ {/* Contact info */}
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaPhone className="text-[#059669] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">رقم الجوال</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{viewingCustomer.phone}</p>
  </div>
  </div>
 
- <div className="border-t border-[#E7E8EA] pt-4">
+ {viewingCustomer.email && (
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaEnvelope className="text-[#2563EB] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">البريد الإلكتروني</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{viewingCustomer.email}</p>
+ </div>
+ </div>
+ )}
+
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaCalendarAlt className="text-[#7C3AED] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">تاريخ التسجيل</p>
+ <p className="text-xs font-bold text-[#111214] mt-0.5">{new Date(viewingCustomer.created_at).toLocaleDateString('en-GB')}</p>
+ </div>
+ </div>
+
+ {viewingCustomer.source && sourceConfig[viewingCustomer.source] && (
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaGlobe className="text-[#7C3AED] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">المصدر</p>
+ <div className="mt-1">{sourceBadge(viewingCustomer.source)}</div>
+ </div>
+ </div>
+ )}
+ </div>
+
+ {viewingCustomer.notes && (
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">ملاحظات</h5>
+ </div>
+ <p className="text-xs leading-relaxed text-[#4B4F55] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-3 whitespace-pre-wrap break-words">
+ {viewingCustomer.notes}
+ </p>
+ </div>
+ )}
+
+ {/* Vehicles */}
+ <div className="border-t border-[#E7E8EA] pt-5">
  <div className="flex items-center justify-between gap-2 mb-3">
- <h4 className="text-sm font-bold text-[#111214] flex items-center gap-2">
- <span className="w-7 h-7 rounded-lg bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center">
- <FaCar className="text-[#DC2626] text-[11px]" />
+ <h4 className="text-sm font-bold text-[#111214] flex items-center gap-2.5">
+ <span className="w-8 h-8 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center">
+ <FaCar className="text-[#DC2626] text-xs" />
  </span>
  المركبات المسجلة
  </h4>
  {!loadingVehicles && customerVehicles.length > 0 && (
- <span className="inline-flex items-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] px-2 py-0.5 text-[10px] font-bold text-[#62666D]">
+ <span className="inline-flex items-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] px-2.5 py-1 text-[10px] font-bold text-[#62666D]">
  {customerVehicles.length === 1 ? 'مركبة واحدة' : customerVehicles.length === 2 ? 'مركبتان' : `${customerVehicles.length} ${customerVehicles.length <= 10 ? 'مركبات' : 'مركبة'}`}
  </span>
  )}
  </div>
  {loadingVehicles ? (
- <div className="space-y-2">
+ <div className="space-y-2.5">
  {[0, 1].map((i) => (
- <div key={i} className="h-[70px] rounded-xl bg-[#F7F7F5] border border-[#E7E8EA] animate-pulse" />
+ <div key={i} className="h-[120px] rounded-xl bg-[#F7F7F5] border border-[#E7E8EA] animate-pulse" />
  ))}
  </div>
  ) : customerVehicles.length === 0 ? (
- <div className="flex flex-col items-center justify-center py-6 bg-[#FBFBFA] border border-dashed border-[#E7E8EA] rounded-xl">
+ <div className="flex flex-col items-center justify-center py-8 bg-[#FBFBFA] border border-dashed border-[#E7E8EA] rounded-xl">
  <div className="w-10 h-10 rounded-full bg-white border border-[#E7E8EA] flex items-center justify-center mb-2">
  <FaCar className="text-[#D4D6DA] text-sm" />
  </div>
@@ -571,6 +641,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  ))}
  </div>
  )}
+ </div>
  </div>
  </div>
  </div>

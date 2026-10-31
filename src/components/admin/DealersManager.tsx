@@ -19,6 +19,8 @@ import {
   FaPhone,
   FaEnvelope,
   FaBuilding,
+  FaCalendarAlt,
+  FaShareAlt,
 } from 'react-icons/fa'
 
 interface Dealer {
@@ -286,7 +288,7 @@ export default function DealersManager({ initialDealers }: {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleViewDealer(dealer)} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D] hover:text-[#111214]"><FaEye className="text-xs" /></button>
+                        <button onClick={() => handleViewDealer(dealer)} title="عرض" aria-label="عرض الوكيل" className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D] hover:text-[#111214]"><FaEye className="text-xs" /></button>
                         {canUpdate && <button onClick={() => handleOpenForm(dealer)} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D] hover:text-[#111214]"><FaPen className="text-xs" /></button>}
                         {canDelete && (
                           <button onClick={() => handleToggleDealer(dealer)} disabled={actionLoading === dealer.id} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] disabled:opacity-50">
@@ -304,52 +306,163 @@ export default function DealersManager({ initialDealers }: {
       </div>
 
       {selectedDealer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E7E8EA]">
-              <h3 className="text-[#111214] font-black">{selectedDealer.business_name}</h3>
-              <button onClick={() => setSelectedDealer(null)} className="p-1.5 rounded-lg hover:bg-[#F1F2F3] text-[#62666D]">
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setSelectedDealer(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="تفاصيل الوكيل"
+            className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[88vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-[#E7E8EA] bg-white/95 backdrop-blur">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
+                  <FaBuilding className="text-[#DC2626] text-sm" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-[#111214] leading-tight">تفاصيل الوكيل</h3>
+                  <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">بيانات الوكيل وسجل الإحالات</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedDealer(null)}
+                aria-label="إغلاق"
+                className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0"
+              >
                 <FaTimes className="text-sm" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <p className="text-[#62666D] text-xs mb-1">الهاتف</p>
-                  <p className="text-[#111214] text-sm font-bold">{selectedDealer.phone}</p>
+
+            <div className="px-5 sm:px-6 py-5 space-y-6">
+              {/* Profile */}
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] border border-[#FECACA] flex items-center justify-center shrink-0">
+                  <span className="text-lg font-black text-[#DC2626]">
+                    {selectedDealer.business_name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('')}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-[#62666D] text-xs mb-1">البريد الإلكتروني</p>
-                  <p className="text-[#111214] text-sm font-bold">{selectedDealer.email || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[#62666D] text-xs mb-1">الحالة</p>
-                  {statusBadge(selectedDealer.status)}
-                </div>
-                <div>
-                  <p className="text-[#62666D] text-xs mb-1">الإحالات</p>
-                  <p className="text-[#111214] text-sm font-bold">{selectedDealer.referral_count || 0}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
+                    <h4 className="text-lg font-black text-[#111214] truncate">{selectedDealer.business_name}</h4>
+                    {statusBadge(selectedDealer.status)}
+                  </div>
+                  <p className="text-[11px] text-[#62666D] font-medium mt-1">
+                    وكيل منذ {new Date(selectedDealer.created_at).toLocaleDateString('en-GB')}
+                  </p>
                 </div>
               </div>
 
-              <h4 className="text-[#111214] font-black text-sm mb-3">الإحالات الأخيرة</h4>
-              {loadingReferrals ? (
-                <FaSpinner className="animate-spin text-[#DC2626] mx-auto" />
-              ) : dealerReferrals.length === 0 ? (
-                <p className="text-[#62666D] text-sm text-center py-4">لا توجد إحالات</p>
-              ) : (
-                <div className="space-y-2">
-                  {dealerReferrals.map(r => (
-                    <div key={r.id} className="bg-white border border-[#E7E8EA] shadow-sm rounded-xl p-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-[#111214] text-sm font-bold">{r.customer_name}</p>
-                        <p className="text-[#62666D] text-xs">{r.customer_phone}</p>
-                      </div>
-                      {referralStatusBadge(r.status)}
-                    </div>
-                  ))}
+              {/* Details */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+                  <h5 className="text-xs font-bold text-[#111214]">بيانات الوكيل</h5>
                 </div>
-              )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+                    <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+                      <FaPhone className="text-[#059669] text-[11px]" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-[#9A9DA3]">رقم الهاتف</p>
+                      <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{selectedDealer.phone || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+                    <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+                      <FaEnvelope className="text-[#2563EB] text-[11px]" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-[#9A9DA3]">البريد الإلكتروني</p>
+                      <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{selectedDealer.email || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+                    <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+                      <FaShareAlt className="text-[#7C3AED] text-[11px]" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-[#9A9DA3]">عدد الإحالات</p>
+                      <p className="text-xs font-bold text-[#111214] mt-0.5">{selectedDealer.referral_count || 0}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+                    <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+                      <FaCalendarAlt className="text-[#D97706] text-[11px]" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-[#9A9DA3]">تاريخ الانضمام</p>
+                      <p className="text-xs font-bold text-[#111214] mt-0.5">{new Date(selectedDealer.created_at).toLocaleDateString('en-GB')}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Referrals */}
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+                    <h5 className="text-xs font-bold text-[#111214]">الإحالات الأخيرة</h5>
+                  </div>
+                  {!loadingReferrals && dealerReferrals.length > 0 && (
+                    <span className="inline-flex items-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] px-2.5 py-1 text-[10px] font-bold text-[#62666D]">
+                      {dealerReferrals.length} {dealerReferrals.length === 1 ? 'إحالة' : 'إحالات'}
+                    </span>
+                  )}
+                </div>
+
+                {loadingReferrals ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3 bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl">
+                    <FaSpinner className="animate-spin text-[#DC2626] text-lg" />
+                    <p className="text-[11px] font-bold text-[#9A9DA3]">جاري تحميل الإحالات...</p>
+                  </div>
+                ) : dealerReferrals.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 bg-[#FBFBFA] border border-dashed border-[#E7E8EA] rounded-xl">
+                    <div className="w-10 h-10 rounded-full bg-white border border-[#E7E8EA] flex items-center justify-center mb-2">
+                      <FaShareAlt className="text-[#D4D6DA] text-sm" />
+                    </div>
+                    <p className="text-xs font-bold text-[#62666D]">لا توجد إحالات</p>
+                    <p className="text-[10px] text-[#9A9DA3] mt-0.5">ستظهر هنا إحالات الوكيل بعد تسجيلها</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {dealerReferrals.map(r => (
+                      <div key={r.id} className="flex items-center justify-between gap-3 bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+                            <FaUser className="text-[#DC2626] text-[10px]" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#111214] truncate">{r.customer_name}</p>
+                            <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5" dir="ltr">{r.customer_phone}</p>
+                          </div>
+                        </div>
+                        {referralStatusBadge(r.status)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-[#E7E8EA] pt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[10px] font-medium text-[#9A9DA3]">
+                <span className="flex items-center gap-1.5">
+                  <FaCalendarAlt className="text-[9px]" />
+                  تاريخ الإضافة: <span className="font-bold text-[#62666D]">{new Date(selectedDealer.created_at).toLocaleDateString('en-GB')}</span>
+                </span>
+                <span>
+                  الحالة: <span className="font-bold text-[#62666D]">{selectedDealer.status === 'active' ? 'نشط' : selectedDealer.status === 'suspended' ? 'معلق' : 'غير نشط'}</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>

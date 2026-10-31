@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import SaudiPlate from '@/components/ui/SaudiPlate'
 import {
  FaFileInvoiceDollar,
  FaSearch,
@@ -646,6 +647,8 @@ const handleOpenRefund = (invoiceId: string) => {
  )}
  <button
    onClick={() => handleViewInvoice(invoice)}
+   title="عرض"
+   aria-label="عرض الفاتورة"
    className="p-2 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] hover:text-[#111214] rounded-lg transition-all"
  >
    <FaEye className="text-[10px]" />
@@ -761,170 +764,282 @@ const handleOpenRefund = (invoiceId: string) => {
   </div>
   )}
 
-  {viewingInvoice && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setViewingInvoice(null)}>
- <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
+ {viewingInvoice && (
+ <div
+ role="presentation"
+ className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+ onClick={() => setViewingInvoice(null)}
+ >
+ <div
+ role="dialog"
+ aria-modal="true"
+ aria-label="تفاصيل الفاتورة"
+ className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[88vh] overflow-y-auto"
+ onClick={e => e.stopPropagation()}
+ >
+ {/* Header */}
+ <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-[#E7E8EA] bg-white/95 backdrop-blur">
+ <div className="flex items-center gap-3 min-w-0">
+ <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
  <FaFileInvoiceDollar className="text-[#DC2626] text-sm" />
- تفاصيل الفاتورة
- </h3>
- <button onClick={() => setViewingInvoice(null)} className="text-[#62666D] hover:text-[#111214] transition">
- <FaTimes />
+ </span>
+ <div className="min-w-0">
+ <h3 className="text-base font-bold text-[#111214] leading-tight">تفاصيل الفاتورة</h3>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5 truncate" dir="ltr">{viewingInvoice.invoice_number}</p>
+ </div>
+ </div>
+ <button
+ onClick={() => setViewingInvoice(null)}
+ aria-label="إغلاق"
+ className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0"
+ >
+ <FaTimes className="text-sm" />
  </button>
  </div>
 
  {loadingDetail ? (
- <div className="flex items-center justify-center py-8">
+ <div className="flex flex-col items-center justify-center py-20 gap-3">
  <div className="w-8 h-8 border-2 border-[#FECACA] border-t-red-500 rounded-full animate-spin"></div>
+ <p className="text-[11px] font-bold text-[#9A9DA3]">جاري تحميل تفاصيل الفاتورة...</p>
  </div>
  ) : (
- <div className="space-y-4">
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">رقم الفاتورة:</span>
- <span className="text-[#111214] font-bold">{viewingInvoice.invoice_number}</span>
+ <div className="px-5 sm:px-6 py-5 space-y-6">
+ {/* Profile */}
+ <div className="flex items-center gap-4">
+ <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaFileInvoiceDollar className="text-[#DC2626] text-xl" />
  </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الحالة:</span>
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
+ <h4 className="text-lg font-black text-[#111214] truncate" dir="ltr">{viewingInvoice.invoice_number}</h4>
  {statusBadge(viewingInvoice.status)}
  </div>
-
- <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-xs font-bold text-[#62666D] mb-3">بيانات العميل</h4>
- <div className="space-y-2">
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الاسم:</span>
- <span className="text-[#111214] font-bold">{viewingInvoice.customer?.full_name || '---'}</span>
- </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الجوال:</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingInvoice.customer?.phone || '---'}</span>
- </div>
+ <p className="text-[11px] text-[#62666D] font-medium mt-1">
+ {viewingInvoice.issued_at
+ ? `صادرة بتاريخ ${new Date(viewingInvoice.issued_at).toLocaleDateString('en-GB')}`
+ : `أُنشئت بتاريخ ${new Date(viewingInvoice.created_at).toLocaleDateString('en-GB')}`}
+ </p>
  </div>
  </div>
 
+ {/* Amount summary */}
+ <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">إجمالي الفاتورة</p>
+ <p className="text-base font-black text-[#111214] mt-1">{formatCurrency(viewingInvoice.total)} <span className="text-[10px] font-bold text-[#62666D]">ر.س</span></p>
+ </div>
+ <div className="rounded-xl border border-[#A7F3D0] bg-[#ECFDF5] px-3.5 py-3">
+ <p className="text-[10px] font-bold text-[#059669]">المدفوع</p>
+ <p className="text-base font-black text-[#059669] mt-1">{formatCurrency(viewingInvoice.paid_amount)} <span className="text-[10px] font-bold">ر.س</span></p>
+ </div>
+ <div className={`rounded-xl border px-3.5 py-3 ${
+ viewingInvoice.total - viewingInvoice.paid_amount > 0
+ ? 'border-[#FDE68A] bg-[#FFFBEB]'
+ : 'border-[#E7E8EA] bg-[#FBFBFA]'
+ }`}>
+ <p className={`text-[10px] font-bold ${viewingInvoice.total - viewingInvoice.paid_amount > 0 ? 'text-[#B45309]' : 'text-[#9A9DA3]'}`}>المتبقي</p>
+ <p className={`text-base font-black mt-1 ${viewingInvoice.total - viewingInvoice.paid_amount > 0 ? 'text-[#B45309]' : 'text-[#62666D]'}`}>{formatCurrency(Math.max(viewingInvoice.total - viewingInvoice.paid_amount, 0))} <span className="text-[10px] font-bold">ر.س</span></p>
+ </div>
+ </div>
+
+ {/* Customer */}
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">بيانات العميل</h5>
+ </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaUser className="text-[#7C3AED] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">العميل</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{viewingInvoice.customer?.full_name || '---'}</p>
+ </div>
+ </div>
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaMobileAlt className="text-[#059669] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">رقم الجوال</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{viewingInvoice.customer?.phone || '---'}</p>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ {/* Vehicle */}
  {viewingInvoice.vehicle && (
- <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-xs font-bold text-[#62666D] mb-3">المركبة</h4>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الماركة:</span>
- <span className="text-[#111214] font-bold">{viewingInvoice.vehicle.make} {viewingInvoice.vehicle.model}</span>
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">المركبة</h5>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] p-4">
+ <div className="flex items-center gap-3">
+ <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaCar className="text-[#DC2626] text-sm" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-sm font-black text-[#111214] truncate">
+ {[viewingInvoice.vehicle.make, viewingInvoice.vehicle.model].filter(Boolean).join(' ') || 'مركبة بدون اسم'}
+ </p>
+ {viewingInvoice.vehicle.year && (
+ <p className="text-[10px] font-bold text-[#9A9DA3] mt-0.5">موديل {viewingInvoice.vehicle.year}</p>
+ )}
+ </div>
  </div>
  {viewingInvoice.vehicle.plate_number && (
- <div className="flex justify-between text-sm mt-1">
- <span className="text-[#62666D]"> اللوحة:</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingInvoice.vehicle.plate_number}</span>
+ <div className="mt-4 flex justify-center">
+ <SaudiPlate plate={viewingInvoice.vehicle.plate_number} />
  </div>
  )}
+ </div>
  </div>
  )}
 
+ {/* Items */}
  {viewingInvoice.items && viewingInvoice.items.length > 0 && (
- <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-xs font-bold text-[#62666D] mb-3">العناصر</h4>
- <div className="space-y-2">
+ <div>
+ <div className="flex items-center justify-between gap-2 mb-2">
+ <div className="flex items-center gap-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">العناصر</h5>
+ </div>
+ <span className="inline-flex items-center rounded-full bg-[#F7F7F5] border border-[#E7E8EA] px-2.5 py-1 text-[10px] font-bold text-[#62666D]">
+ {viewingInvoice.items.length} {viewingInvoice.items.length === 1 ? 'عنصر' : 'عناصر'}
+ </span>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] divide-y divide-[#E7E8EA] overflow-hidden">
  {viewingInvoice.items.map((item, idx) => (
- <div key={idx} className="bg-[#F7F7F5] rounded-lg p-2.5 text-xs">
- <div className="flex justify-between">
- <span className="text-[#111214] font-bold">{item.description}</span>
- <span className="text-[#111214] font-bold">{formatCurrency(item.total)} ر.س</span>
+ <div key={idx} className="flex items-start justify-between gap-3 px-3.5 py-3 bg-[#FBFBFA]">
+ <div className="min-w-0">
+ <p className="text-xs font-bold text-[#111214] break-words">{item.description}</p>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-1">
+ {item.quantity} × {formatCurrency(item.unit_price)} ر.س
+ </p>
  </div>
- <div className="text-[#62666D] mt-1">
- الكمية: {item.quantity} × {formatCurrency(item.unit_price)} ر.س
- </div>
+ <span className="text-xs font-black text-[#111214] shrink-0">{formatCurrency(item.total)} <span className="text-[9px] font-bold text-[#9A9DA3]">ر.س</span></span>
  </div>
  ))}
  </div>
  </div>
  )}
 
- <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-xs font-bold text-[#62666D] mb-3">المبالغ</h4>
- <div className="space-y-2 text-sm">
+ {/* Totals */}
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">ملخص المبالغ</h5>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-4 py-3.5 space-y-2.5 text-xs">
  <div className="flex justify-between">
- <span className="text-[#62666D]">المجموع الفرعي:</span>
- <span className="text-[#111214]">{formatCurrency(viewingInvoice.subtotal)} ر.س</span>
+ <span className="text-[#62666D]">المجموع الفرعي</span>
+ <span className="font-bold text-[#111214]">{formatCurrency(viewingInvoice.subtotal)} ر.س</span>
  </div>
  {viewingInvoice.discount > 0 && (
  <div className="flex justify-between">
- <span className="text-[#62666D]">الخصم:</span>
- <span className="text-[#DC2626]">-{formatCurrency(viewingInvoice.discount)} ر.س</span>
+ <span className="text-[#62666D]">الخصم</span>
+ <span className="font-bold text-[#DC2626]">-{formatCurrency(viewingInvoice.discount)} ر.س</span>
  </div>
  )}
  {viewingInvoice.tax_rate > 0 && (
  <div className="flex justify-between">
- <span className="text-[#62666D]">الضريبة ({viewingInvoice.tax_rate}%):</span>
- <span className="text-[#111214]">{formatCurrency(viewingInvoice.tax_amount)} ر.س</span>
+ <span className="text-[#62666D]">الضريبة ({viewingInvoice.tax_rate}%)</span>
+ <span className="font-bold text-[#111214]">{formatCurrency(viewingInvoice.tax_amount)} ر.س</span>
  </div>
  )}
- <div className="flex justify-between font-bold text-base border-t border-[#E7E8EA] pt-2">
-  <span className="text-[#111214]">الإجمالي:</span>
-  <span className="text-[#DC2626]">{formatCurrency(viewingInvoice.total)} ر.س</span>
-  </div>
-  <div className="flex justify-between">
-  <span className="text-[#62666D]">المدفوع:</span>
-  <span className="text-[#059669] font-bold">{formatCurrency(viewingInvoice.paid_amount)} ر.س</span>
-  </div>
-  {viewingInvoice.total - viewingInvoice.paid_amount > 0 && (
-  <div className="flex justify-between">
-  <span className="text-[#62666D]">المتبقي:</span>
-  <span className="text-[#D97706] font-bold">{formatCurrency(viewingInvoice.total - viewingInvoice.paid_amount)} ر.س</span>
-  </div>
-  )}
-  {viewingInvoice.paid_amount > 0 && viewingInvoice.payments && viewingInvoice.payments.length > 0 && (
-  <div className="flex justify-between">
-  <span className="text-[#62666D]">نوع الدفع:</span>
-   <span className={`font-bold ${viewingInvoice.paid_amount >= viewingInvoice.total && (viewingInvoice.payments?.length || 0) <= 1 ? 'text-[#059669]' : 'text-[#D97706]'}`}>
-   {viewingInvoice.paid_amount >= viewingInvoice.total && (viewingInvoice.payments?.length || 0) <= 1 ? 'المبلغ كامل' : 'جزئي'}
-   </span>
-  </div>
-  )}
-  {viewingInvoice.payments && viewingInvoice.payments.length > 0 && viewingInvoice.payments[0]?.payment_method && (
-  <div className="flex justify-between">
-  <span className="text-[#62666D]">طريقة الدفع:</span>
-  <span className="text-[#111214] font-bold">{PAYMENT_METHOD_LABELS[viewingInvoice.payments[0].payment_method] || viewingInvoice.payments[0].payment_method}</span>
-  </div>
-  )}
+ <div className="flex items-center justify-between border-t border-[#E7E8EA] pt-2.5">
+ <span className="text-sm font-black text-[#111214]">الإجمالي</span>
+ <span className="text-base font-black text-[#DC2626]">{formatCurrency(viewingInvoice.total)} <span className="text-[10px] font-bold">ر.س</span></span>
+ </div>
+ {viewingInvoice.paid_amount > 0 && viewingInvoice.payments && viewingInvoice.payments.length > 0 && (
+ <div className="flex justify-between pt-0.5">
+ <span className="text-[#62666D]">نوع السداد</span>
+ <span className={`font-bold ${viewingInvoice.paid_amount >= viewingInvoice.total ? 'text-[#059669]' : 'text-[#D97706]'}`}>
+ {viewingInvoice.paid_amount >= viewingInvoice.total ? 'المبلغ كامل' : 'سداد جزئي'}
+ </span>
+ </div>
+ )}
+ {viewingInvoice.payments && viewingInvoice.payments.length > 0 && viewingInvoice.payments[0]?.payment_method && (
+ <div className="flex justify-between">
+ <span className="text-[#62666D]">طريقة الدفع</span>
+ <span className="font-bold text-[#111214]">{PAYMENT_METHOD_LABELS[viewingInvoice.payments[0].payment_method] || viewingInvoice.payments[0].payment_method}</span>
+ </div>
+ )}
  </div>
  </div>
 
+ {/* Payments history */}
  {viewingInvoice.payments && viewingInvoice.payments.length > 0 && (
- <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-xs font-bold text-[#62666D] mb-3">سجل الدفعات</h4>
- <div className="space-y-2">
- {viewingInvoice.payments.map((payment, idx) => (
- <div key={idx} className="bg-[#F7F7F5] rounded-lg p-2.5 text-xs flex justify-between items-center">
  <div>
- <span className="text-[#111214] font-bold">{formatCurrency(payment.amount)} ر.س</span>
- <span className="text-[#62666D] mr-2">({PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method})</span>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#059669]" />
+ <h5 className="text-xs font-bold text-[#111214]">سجل الدفعات</h5>
  </div>
- <span className="text-[#62666D]">{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('en-GB') : '---'}</span>
+ <div className="rounded-xl border border-[#E7E8EA] divide-y divide-[#E7E8EA] overflow-hidden">
+ {viewingInvoice.payments.map((payment, idx) => (
+ <div key={idx} className="flex items-center justify-between gap-3 px-3.5 py-3 bg-white">
+ <div className="flex items-center gap-2.5 min-w-0">
+ <span className="w-7 h-7 rounded-lg bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center shrink-0">
+ <FaMoneyBill className="text-[#059669] text-[10px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-xs font-black text-[#111214]">{formatCurrency(payment.amount)} <span className="text-[9px] font-bold text-[#9A9DA3]">ر.س</span></p>
+ <p className="text-[10px] text-[#62666D] font-medium mt-0.5">{PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method}</p>
+ </div>
+ </div>
+ <span className="text-[10px] font-bold text-[#9A9DA3] shrink-0">{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString('en-GB') : '---'}</span>
  </div>
  ))}
  </div>
  </div>
  )}
 
+ {/* Action */}
  {viewingInvoice.total - viewingInvoice.paid_amount > 0 && viewingInvoice.status !== 'cancelled' && viewingInvoice.status !== 'refunded' && canUpdate && (
- <div className="border-t border-[#E7E8EA] pt-4">
- <a href="/admin/payments" className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#059669] hover:bg-[#047857] text-white rounded-xl text-xs font-bold transition-all" onClick={() => setViewingInvoice(null)}>
- <FaMoneyBill className="text-[10px]" />
- تسجيل دفعة ({formatCurrency(viewingInvoice.total - viewingInvoice.paid_amount)} ر.س متبقي)
+ <a
+ href="/admin/payments"
+ className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-[#059669] hover:bg-[#047857] text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+ onClick={() => setViewingInvoice(null)}
+ >
+ <FaMoneyBill className="text-[11px]" />
+ تسجيل دفعة — متبقي {formatCurrency(viewingInvoice.total - viewingInvoice.paid_amount)} ر.س
  </a>
+ )}
+
+ {/* Notes */}
+ {viewingInvoice.notes && (
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">ملاحظات</h5>
+ </div>
+ <p className="text-xs leading-relaxed text-[#4B4F55] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-3 whitespace-pre-wrap break-words">
+ {viewingInvoice.notes}
+ </p>
  </div>
  )}
 
- {viewingInvoice.notes && (
- <div className="border-t border-[#E7E8EA] pt-4">
- <h4 className="text-xs font-bold text-[#62666D] mb-2">ملاحظات</h4>
- <p className="text-sm text-[#111214] bg-[#F7F7F5] rounded-lg p-3">{viewingInvoice.notes}</p>
+ {/* Footer */}
+ <div className="border-t border-[#E7E8EA] pt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[10px] font-medium text-[#9A9DA3]">
+ <span className="flex items-center gap-1.5">
+ <FaCalendarAlt className="text-[9px]" />
+ تاريخ الإنشاء: <span className="font-bold text-[#62666D]">{new Date(viewingInvoice.created_at).toLocaleDateString('en-GB')}</span>
+ </span>
+ {viewingInvoice.cancelled_at && (
+ <span>
+ تاريخ الإلغاء: <span className="font-bold text-[#DC2626]">{new Date(viewingInvoice.cancelled_at).toLocaleDateString('en-GB')}</span>
+ </span>
+ )}
+ </div>
  </div>
  )}
-  </div>
-   )}
-   </div>
-   </div>
-   )}
+ </div>
+ </div>
+ )}
 
    {showCreateForm && (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setShowCreateForm(false)}>

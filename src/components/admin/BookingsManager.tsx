@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import SaudiPlate from '@/components/ui/SaudiPlate'
 import {
  FaCalendarAlt,
  FaSearch,
@@ -1340,17 +1341,27 @@ return (
 
  {/* ===== Detail Modal ===== */}
  {viewingBooking && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => setViewingBooking(null)}>
- <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[88vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+ <div
+ role="presentation"
+ className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+ onClick={() => setViewingBooking(null)}
+ >
+ <div
+ role="dialog"
+ aria-modal="true"
+ aria-label="تفاصيل الحجز"
+ className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col"
+ onClick={e => e.stopPropagation()}
+ >
 
  <div className="sticky top-0 z-10 bg-white border-b border-[#E7E8EA] px-5 sm:px-6 py-4 flex items-center justify-between">
  <div className="flex items-center gap-3">
- <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#DC2626] to-[#9B1B30] flex items-center justify-center shrink-0">
- <FaCalendarAlt className="text-white" />
+ <div className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaCalendarAlt className="text-[#DC2626] text-sm" />
  </div>
  <div>
- <h3 className="font-bold text-[#111214]">تفاصيل الحجز</h3>
- <p className="text-xs text-[#62666D] mt-0.5">{viewingBooking.customer?.full_name || 'عميل'}</p>
+ <h3 className="text-base font-bold text-[#111214] leading-tight">تفاصيل الحجز</h3>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">{viewingBooking.customer?.full_name || 'عميل'}</p>
  </div>
  </div>
  <div className="flex items-center gap-1">
@@ -1375,8 +1386,31 @@ return (
   </div>
   ) : (
   <>
-  {/* حالة الحجز */}
+  {/* ملف الحجز */}
   <div className="px-5 sm:px-6 pt-5">
+  <div className="flex items-center gap-4">
+  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] border border-[#FECACA] flex items-center justify-center shrink-0">
+  <span className="text-lg font-black text-[#DC2626]">
+  {(viewingBooking.customer?.full_name || 'عميل').trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('')}
+  </span>
+  </div>
+  <div className="min-w-0 flex-1">
+  <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
+  <h4 className="text-lg font-black text-[#111214] truncate">{viewingBooking.customer?.full_name || 'عميل'}</h4>
+  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${STATUS_CONFIG[viewingBooking.status]?.bg || 'bg-[#F1F2F3] border-[#E7E8EA]'} ${STATUS_CONFIG[viewingBooking.status]?.color || 'text-[#62666D]'}`}>
+  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+  {STATUS_CONFIG[viewingBooking.status]?.label || viewingBooking.status}
+  </span>
+  </div>
+  <p className="text-[11px] text-[#62666D] font-medium mt-1 truncate">
+  {viewingBooking.service_name_snapshot || viewingBooking.service?.name || 'خدمة'} — حجز بتاريخ {new Date(viewingBooking.created_at).toLocaleDateString('en-GB')}
+  </p>
+  </div>
+  </div>
+  </div>
+
+  {/* حالة الحجز */}
+  <div className="px-5 sm:px-6 pt-3">
   <div className={`rounded-2xl border-2 ${STATUS_CONFIG[viewingBooking.status]?.bg || 'bg-[#F1F2F3] border-[#E7E8EA]'} ${STATUS_CONFIG[viewingBooking.status]?.color || 'text-[#62666D]'} px-4 py-4 flex items-center justify-between gap-3 shadow-sm`}>
   <div>
   <p className="text-[11px] font-bold tracking-wide opacity-70">حالة الحجز</p>
@@ -1432,10 +1466,20 @@ return (
  <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.year}</span>
  </div>
  )}
- {viewingBooking.vehicle?.plate_number && (
+ {viewingBooking.vehicle?.color && (
  <div className="flex justify-between text-[16px]">
- <span className="text-[#4B4F55] font-bold">رقم اللوحة:</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingBooking.vehicle.plate_number}</span>
+ <span className="text-[#4B4F55] font-bold">اللون:</span>
+ <span className="text-[#111214] font-bold">{viewingBooking.vehicle.color}</span>
+ </div>
+ )}
+ {viewingBooking.vehicle?.plate_number && (
+ <div className="pt-1.5">
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-4 py-3.5">
+ <p className="text-[10px] font-bold text-[#9A9DA3] text-center mb-2.5">رقم اللوحة</p>
+ <div className="flex justify-center">
+ <SaudiPlate plate={viewingBooking.vehicle.plate_number} />
+ </div>
+ </div>
  </div>
  )}
  </div>

@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider'
 import {
  FaSearch, FaEye, FaPen, FaTrash, FaTimes, FaExclamationTriangle,
  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaPlus,
- FaToggleOn, FaToggleOff, FaCubes,
+ FaToggleOn, FaToggleOff, FaCubes, FaBarcode, FaWarehouse, FaTruck, FaMoneyBillWave, FaCalendarAlt,
 } from 'react-icons/fa'
 
 const UNITS: Record<string, string> = {
@@ -336,27 +336,153 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
  )}
 
  {viewingMaterial && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
- <div className="absolute inset-0 bg-black/60" onClick={() => setViewingMaterial(null)} />
- <div className="relative bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-md">
- <div className="flex items-center justify-between mb-4">
- <h2 className="text-lg font-black text-[#111214] flex items-center gap-2"><FaCubes className="text-[#DC2626]" /> تفاصيل المادة</h2>
- <button onClick={() => setViewingMaterial(null)} className="p-2 rounded-lg hover:bg-[#F1F2F3] text-[#62666D]"><FaTimes /></button>
+ <div
+ role="presentation"
+ className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+ onClick={() => setViewingMaterial(null)}
+ >
+ <div
+ role="dialog"
+ aria-modal="true"
+ aria-label="تفاصيل المادة"
+ className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[88vh] overflow-y-auto"
+ onClick={e => e.stopPropagation()}
+ >
+ {/* Header */}
+ <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-[#E7E8EA] bg-white/95 backdrop-blur">
+ <div className="flex items-center gap-3 min-w-0">
+ <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaCubes className="text-[#DC2626] text-sm" />
+ </span>
+ <div className="min-w-0">
+ <h3 className="text-base font-bold text-[#111214] leading-tight">تفاصيل المادة</h3>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">بيانات المادة وحالة المخزون</p>
  </div>
- <div className="space-y-3 text-sm">
- <div className="flex justify-between"><span className="text-[#62666D]">الاسم</span><span className="text-[#111214] font-bold">{viewingMaterial.name}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">الرمز</span><span className="text-[#111214] font-mono">{viewingMaterial.sku}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">الوحدة</span><span className="text-[#111214]">{UNITS[viewingMaterial.unit] || viewingMaterial.unit}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">المخزون الحالي</span><span className="text-[#111214] font-bold">{viewingMaterial.current_stock}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">الحد الأدنى</span><span className="text-[#111214]">{viewingMaterial.min_stock}</span></div>
- {viewingMaterial.max_stock && <div className="flex justify-between"><span className="text-[#62666D]">الحد الأقصى</span><span className="text-[#111214]">{viewingMaterial.max_stock}</span></div>}
- <div className="flex justify-between"><span className="text-[#62666D]">التكلفة</span><span className="text-[#111214]">{viewingMaterial.cost_per_unit.toFixed(2)}</span></div>
- <div className="flex justify-between"><span className="text-[#62666D]">المورد</span><span className="text-[#111214]">{viewingMaterial.supplier?.name || '—'}</span></div>
- <div className="flex justify-between">
- <span className="text-[#62666D]">الحالة</span>
- <span className={`px-2 py-1 rounded-lg text-xs font-bold ${stockStatus(viewingMaterial).color}`}>{stockStatus(viewingMaterial).label}</span>
  </div>
- {viewingMaterial.notes && <div><span className="text-[#62666D]">ملاحظات</span><p className="text-[#111214] mt-1">{viewingMaterial.notes}</p></div>}
+ <button
+ onClick={() => setViewingMaterial(null)}
+ aria-label="إغلاق"
+ className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0"
+ >
+ <FaTimes className="text-sm" />
+ </button>
+ </div>
+
+ <div className="px-5 sm:px-6 py-5 space-y-6">
+ {/* Profile */}
+ <div className="flex items-center gap-4">
+ <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaCubes className="text-[#DC2626] text-xl" />
+ </div>
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
+ <h4 className="text-lg font-black text-[#111214] truncate">{viewingMaterial.name}</h4>
+ <span className={`inline-flex items-center gap-1.5 rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-bold ${stockStatus(viewingMaterial).color}`}>
+ <span className="w-1.5 h-1.5 rounded-full bg-current" />
+ {stockStatus(viewingMaterial).label}
+ </span>
+ </div>
+ <p className="text-[11px] text-[#62666D] font-medium mt-1">
+ رمز المادة: <span className="font-bold text-[#4B4F55]" dir="ltr">{viewingMaterial.sku}</span>
+ </p>
+ </div>
+ </div>
+
+ {/* Stock overview */}
+ <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <div className="flex items-center gap-2">
+ <FaWarehouse className="text-[#7C3AED] text-[10px]" />
+ <p className="text-[10px] font-bold text-[#9A9DA3]">المخزون الحالي</p>
+ </div>
+ <p className="text-base font-black text-[#111214] mt-1.5">{viewingMaterial.current_stock} <span className="text-[9px] font-bold text-[#9A9DA3]">{UNITS[viewingMaterial.unit] || viewingMaterial.unit}</span></p>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">الحد الأدنى</p>
+ <p className="text-base font-black text-[#111214] mt-1.5">{viewingMaterial.min_stock} <span className="text-[9px] font-bold text-[#9A9DA3]">{UNITS[viewingMaterial.unit] || viewingMaterial.unit}</span></p>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">الحد الأقصى</p>
+ <p className="text-base font-black text-[#111214] mt-1.5">{viewingMaterial.max_stock ?? '—'} {viewingMaterial.max_stock ? <span className="text-[9px] font-bold text-[#9A9DA3]">{UNITS[viewingMaterial.unit] || viewingMaterial.unit}</span> : null}</p>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">تكلفة الوحدة</p>
+ <p className="text-base font-black text-[#DC2626] mt-1.5">{viewingMaterial.cost_per_unit.toFixed(2)} <span className="text-[9px] font-bold text-[#9A9DA3]">ر.س</span></p>
+ </div>
+ </div>
+
+ {/* Details */}
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">بيانات المادة</h5>
+ </div>
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaBarcode className="text-[#2563EB] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">الرمز</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{viewingMaterial.sku}</p>
+ </div>
+ </div>
+
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaBoxOpen className="text-[#7C3AED] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">وحدة القياس</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{UNITS[viewingMaterial.unit] || viewingMaterial.unit}</p>
+ </div>
+ </div>
+
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaTruck className="text-[#059669] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">المورد</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{viewingMaterial.supplier?.name || '—'}</p>
+ </div>
+ </div>
+
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaMoneyBillWave className="text-[#D97706] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">تكلفة الوحدة</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{viewingMaterial.cost_per_unit.toFixed(2)} ر.س</p>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ {/* Notes */}
+ {viewingMaterial.notes && (
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">ملاحظات</h5>
+ </div>
+ <p className="text-xs leading-relaxed text-[#4B4F55] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-3 whitespace-pre-wrap break-words">
+ {viewingMaterial.notes}
+ </p>
+ </div>
+ )}
+
+ {/* Footer */}
+ <div className="border-t border-[#E7E8EA] pt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[10px] font-medium text-[#9A9DA3]">
+ <span className="flex items-center gap-1.5">
+ <FaCalendarAlt className="text-[9px]" />
+ تاريخ الإضافة: <span className="font-bold text-[#62666D]">{new Date(viewingMaterial.created_at).toLocaleDateString('en-GB')}</span>
+ </span>
+ <span>
+ حالة المخزون: <span className={`font-bold ${stockStatus(viewingMaterial).color.split(' ')[0]}`}>{stockStatus(viewingMaterial).label}</span>
+ </span>
+ </div>
  </div>
  </div>
  </div>

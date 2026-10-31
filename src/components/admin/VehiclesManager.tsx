@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { VehicleForm } from '@/components/admin/VehicleForm'
+import SaudiPlate from '@/components/ui/SaudiPlate'
 import {
  FaCar,
  FaSearch,
@@ -14,6 +15,8 @@ import {
  FaSpinner,
  FaBoxOpen,
  FaUser,
+ FaPhone,
+ FaCalendarAlt,
  FaHashtag,
  FaPalette,
  FaChevronRight,
@@ -407,77 +410,161 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  )}
 
  {viewingVehicle && (
- <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setViewingVehicle(null)}>
- <div className="bg-white border border-[#E7E8EA] rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-lg font-bold text-[#111214] flex items-center gap-2">
+ <div
+ role="presentation"
+ className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+ onClick={() => setViewingVehicle(null)}
+ >
+ <div
+ role="dialog"
+ aria-modal="true"
+ aria-label="تفاصيل المركبة"
+ className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[88vh] overflow-y-auto"
+ onClick={e => e.stopPropagation()}
+ >
+ {/* Header */}
+ <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-[#E7E8EA] bg-white/95 backdrop-blur">
+ <div className="flex items-center gap-3 min-w-0">
+ <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
  <FaCar className="text-[#DC2626] text-sm" />
- تفاصيل المركبة
- </h3>
- <button onClick={() => setViewingVehicle(null)} className="text-[#62666D] hover:text-[#111214] transition">
- <FaTimes />
+ </span>
+ <div className="min-w-0">
+ <h3 className="text-base font-bold text-[#111214] leading-tight">تفاصيل المركبة</h3>
+ <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">بيانات المركبة ومالكها</p>
+ </div>
+ </div>
+ <button
+ onClick={() => setViewingVehicle(null)}
+ aria-label="إغلاق"
+ className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0"
+ >
+ <FaTimes className="text-sm" />
  </button>
  </div>
- <div className="space-y-3">
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">العميل:</span>
- <span className="text-[#111214] font-bold">{viewingVehicle.customer?.full_name || '---'}</span>
+
+ {/* Content */}
+ <div className="px-5 sm:px-6 py-5 space-y-6">
+ {/* Profile */}
+ <div className="flex items-center gap-4">
+ <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FEF2F2] to-[#FEE2E2] border border-[#FECACA] flex items-center justify-center shrink-0">
+ <FaCar className="text-[#DC2626] text-xl" />
  </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">رقم جوال العميل:</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingVehicle.customer?.phone || '---'}</span>
- </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">شركة الصنع:</span>
- <span className="text-[#111214] font-bold">{viewingVehicle.make}</span>
- </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الموديل:</span>
- <span className="text-[#111214] font-bold">{viewingVehicle.model}</span>
- </div>
- {viewingVehicle.year && (
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">السنة:</span>
- <span className="text-[#111214] font-bold">{viewingVehicle.year}</span>
- </div>
- )}
- {viewingVehicle.color && (
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">اللون:</span>
- <span className="text-[#111214] font-bold">{viewingVehicle.color}</span>
- </div>
- )}
- {viewingVehicle.plate_number && (
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">رقم اللوحة:</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingVehicle.plate_number}</span>
- </div>
- )}
- {viewingVehicle.vin && (
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">رقم الهيكل (VIN):</span>
- <span className="text-[#111214] font-bold" dir="ltr">{viewingVehicle.vin}</span>
- </div>
- )}
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">الحالة:</span>
- <span className={`font-bold ${viewingVehicle.is_active ? 'text-[#059669]' : 'text-[#62666D]'}`}>
- {viewingVehicle.is_active ? 'نشط' : 'معطّل'}
+ <div className="min-w-0 flex-1">
+ <div className="flex items-center gap-x-2.5 gap-y-2 flex-wrap">
+ <h4 className="text-lg font-black text-[#111214] truncate">
+ {[viewingVehicle.make, viewingVehicle.model].filter(Boolean).join(' ') || 'مركبة بدون اسم'}
+ </h4>
+ <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+ viewingVehicle.is_active
+ ? 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]'
+ : 'bg-[#F1F2F3] text-[#62666D] border-[#E7E8EA]'
+ }`}>
+ <span className={`w-1.5 h-1.5 rounded-full ${viewingVehicle.is_active ? 'bg-[#059669]' : 'bg-[#9A9DA3]'}`} />
+ {viewingVehicle.is_active ? 'نشطة' : 'معطّلة'}
  </span>
  </div>
- {viewingVehicle.notes && (
- <div className="text-sm">
- <span className="text-[#62666D]">ملاحظات:</span>
- <p className="text-[#111214] mt-1">{viewingVehicle.notes}</p>
+ <p className="text-[11px] text-[#62666D] font-medium mt-1">
+ مسجلة منذ {new Date(viewingVehicle.created_at).toLocaleDateString('en-GB')}
+ </p>
+ </div>
+ </div>
+
+ {!viewingVehicle.is_active && (
+ <div className="flex items-start gap-2 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] px-3.5 py-3 text-[11px] font-bold text-[#B45309]">
+ <FaExclamationTriangle className="text-[10px] mt-0.5 shrink-0" />
+ <span>هذه المركبة معطّلة حاليًا.</span>
  </div>
  )}
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">تاريخ الإنشاء:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingVehicle.created_at).toLocaleDateString('en-GB')}</span>
+
+ {/* Plate */}
+ {viewingVehicle.plate_number && (
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-4 py-4">
+ <p className="text-[10px] font-bold text-[#9A9DA3] mb-3 text-center">رقم اللوحة</p>
+ <div className="flex justify-center">
+ <SaudiPlate plate={viewingVehicle.plate_number} />
  </div>
- <div className="flex justify-between text-sm">
- <span className="text-[#62666D]">آخر تحديث:</span>
- <span className="text-[#111214] font-bold">{new Date(viewingVehicle.updated_at).toLocaleDateString('en-GB')}</span>
+ </div>
+ )}
+
+ {/* Owner and specs */}
+ <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaUser className="text-[#7C3AED] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">العميل</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{viewingVehicle.customer?.full_name || '---'}</p>
+ </div>
+ </div>
+
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaPhone className="text-[#059669] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">رقم جوال العميل</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{viewingVehicle.customer?.phone || '---'}</p>
+ </div>
+ </div>
+
+ {viewingVehicle.year && (
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaCalendarAlt className="text-[#7C3AED] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">السنة</p>
+ <p className="text-xs font-bold text-[#111214] mt-0.5">{viewingVehicle.year}</p>
+ </div>
+ </div>
+ )}
+
+ {viewingVehicle.color && (
+ <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaPalette className="text-[#2563EB] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">اللون</p>
+ <p className="text-xs font-bold text-[#111214] mt-0.5">{viewingVehicle.color}</p>
+ </div>
+ </div>
+ )}
+
+ {viewingVehicle.vin && (
+ <div className="sm:col-span-2 flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
+ <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+ <FaHashtag className="text-[#B45309] text-[11px]" />
+ </span>
+ <div className="min-w-0">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">رقم الهيكل (VIN)</p>
+ <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{viewingVehicle.vin}</p>
+ </div>
+ </div>
+ )}
+ </div>
+
+ {viewingVehicle.notes && (
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">ملاحظات</h5>
+ </div>
+ <p className="text-xs leading-relaxed text-[#4B4F55] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-3 whitespace-pre-wrap break-words">
+ {viewingVehicle.notes}
+ </p>
+ </div>
+ )}
+
+ {/* Dates */}
+ <div className="border-t border-[#E7E8EA] pt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[10px] font-medium text-[#9A9DA3]">
+ <span>
+ تاريخ الإنشاء: <span className="font-bold text-[#62666D]">{new Date(viewingVehicle.created_at).toLocaleDateString('en-GB')}</span>
+ </span>
+ <span>
+ آخر تحديث: <span className="font-bold text-[#62666D]">{new Date(viewingVehicle.updated_at).toLocaleDateString('en-GB')}</span>
+ </span>
  </div>
  </div>
  </div>
