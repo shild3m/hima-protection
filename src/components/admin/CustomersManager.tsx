@@ -95,6 +95,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  const [loadingVehicles, setLoadingVehicles] = useState(false)
  const [toggleTarget, setToggleTarget] = useState<Customer | null>(null)
  const [toggleLoading, setToggleLoading] = useState(false)
+ const [toggleError, setToggleError] = useState('')
  const [deleteTargets, setDeleteTargets] = useState<Customer[]>([])
  const [selectedIds, setSelectedIds] = useState<string[]>([])
  const [deleteCode, setDeleteCode] = useState('')
@@ -168,6 +169,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  const handleConfirmToggle = async () => {
  if (!toggleTarget) return
  setToggleLoading(true)
+ setToggleError('')
  try {
  const { toggleCustomerStatus } = await import('@/app/actions/customers')
  const result = await toggleCustomerStatus(toggleTarget.id)
@@ -179,10 +181,10 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  setToggleTarget(null)
  fetchCustomers()
  } else {
- setNotification({ type: 'error', message: result.error })
+ setToggleError(result.error || 'تعذر تغيير حالة العميل. حاول مرة أخرى.')
  }
  } catch {
- setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+ setToggleError('تعذر تغيير حالة العميل. حاول مرة أخرى.')
  } finally {
  setToggleLoading(false)
  }
@@ -539,7 +541,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  </button>
  {canUpdate && (
  <button
- onClick={() => setToggleTarget(customer)}
+ onClick={() => { setToggleError(''); setToggleTarget(customer) }}
  className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1 ${
  customer.is_active
  ? 'bg-[#FFFBEB] hover:bg-[#FEF3C7] border border-[#FDE68A] text-amber-700'
@@ -823,6 +825,12 @@ export default function CustomersManager({ initialCustomers, initialPagination }
   ? 'سيتم تعطيل العميل ومنعه من إنشاء حجوزات أو فواتير جديدة. تبقى الحجوزات والفواتير والمدفوعات السابقة كما هي.'
   : 'سيتمكن العميل من إنشاء حجوزات وفواتير جديدة مرة أخرى.'}
   </p>
+  {toggleError && (
+  <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-[#FEF2F2] border border-[#FECACA] px-3.5 py-2.5 text-xs font-bold text-[#B91C1C]">
+  <FaExclamationTriangle className="text-[10px] mt-0.5 shrink-0" />
+  <span>{toggleError}</span>
+  </div>
+  )}
   </div>
   <div className="px-5 pb-5 flex gap-2.5">
   <button
@@ -835,7 +843,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
   {toggleLoading ? <><FaSpinner className="animate-spin" /> جاري التنفيذ...</> : toggleTarget.is_active ? 'تعطيل' : 'تفعيل'}
   </button>
   <button
-  onClick={() => setToggleTarget(null)}
+  onClick={() => { setToggleTarget(null); setToggleError('') }}
   disabled={toggleLoading}
   className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all disabled:opacity-50"
   >
