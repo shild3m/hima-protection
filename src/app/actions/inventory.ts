@@ -99,6 +99,44 @@ export async function getStockMovements(
   }
 }
 
+export async function getLatestStockMovements() {
+  const user = await requireAuth()
+  if (!user.permissions.includes('inventory:read')) {
+    return { success: false as const, error: 'ليس لديك صلاحية لعرض حركات المخزون' }
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('inventory_transactions')
+      .select('id, material_id, quantity, type, created_at')
+      .order('created_at', { ascending: false })
+      .limit(1000)
+
+    if (error) {
+      console.error('Get latest stock movements error:', error)
+      return { success: false as const, error: 'تعذر عرض حركات المخزون، يرجى المحاولة مرة أخرى' }
+    }
+
+    // PostgREST has no DISTINCT ON, so keep the first (newest) row per material
+    // from a bounded recent window. The per-material history stays authoritative.
+    const latest: Record<string, {
+      id: string
+      material_id: string
+      quantity: number
+      type: string
+      created_at: string
+    }> = {}
+    for (const row of data || []) {
+      if (!latest[row.material_id]) latest[row.material_id] = row
+    }
+
+    return { success: true as const, data: latest }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى' }
+  }
+}
+
 export async function adjustStock(input: z.infer<typeof AdjustmentSchema>) {
   const user = await requireAuth()
   if (!user.permissions.includes('inventory:adjust')) {

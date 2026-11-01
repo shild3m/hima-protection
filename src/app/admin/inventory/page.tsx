@@ -1,30 +1,29 @@
 import AdminPageGuard from '@/components/admin/AdminPageGuard'
 import InventoryManager from '@/components/admin/InventoryManager'
 import { requireAuth } from '@/lib/auth'
-import { getInventoryAvailability, getStockMovements } from '@/app/actions/inventory'
+import { getInventoryAvailability, getLatestStockMovements } from '@/app/actions/inventory'
 import { getMaterialOptions } from '@/app/actions/materials'
 
 export default async function AdminInventoryPage() {
   const user = await requireAuth()
 
-  // Movements and the material filter list are prefetched together so the page
-  // paints with data instead of firing two actions after hydration.
+  // One row per material is painted from the server so the page does not flash
+  // an empty table before the availability and latest-movement actions return.
   const canRead = user.permissions.includes('inventory:read')
-  const [movementsResult, materialsResult, availabilityResult] = canRead
+  const [materialsResult, availabilityResult, latestResult] = canRead
     ? await Promise.all([
-      getStockMovements(undefined, undefined, 1),
       getMaterialOptions(),
       getInventoryAvailability(),
+      getLatestStockMovements(),
     ])
     : [null, null, null]
 
   return (
     <AdminPageGuard resource="inventory" action="read">
       <InventoryManager
-        initialMovements={movementsResult?.success ? movementsResult.data : undefined}
-        initialPagination={movementsResult?.success ? movementsResult.pagination : undefined}
         initialMaterials={materialsResult?.success ? materialsResult.data : undefined}
         initialAvailability={availabilityResult?.success ? availabilityResult.data : undefined}
+        initialLatestMovements={latestResult?.success ? latestResult.data : undefined}
       />
     </AdminPageGuard>
   )
