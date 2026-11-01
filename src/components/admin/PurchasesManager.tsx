@@ -10,7 +10,7 @@ import {
 
 interface Supplier { id: string; name: string; is_active: boolean }
 interface Material { id: string; name: string; sku: string; unit: string; current_stock: number; is_active: boolean }
-interface PurchaseItem { id: string; material_id: string | null; material_name?: string | null; quantity: number; unit_cost: number; total_cost: number; material: Material | null }
+interface PurchaseItem { id: string; material_id: string; quantity: number; unit_cost: number; total_cost: number; material: Material }
 interface Purchase {
  id: string; supplier_id: string; status: string; total_amount: number;
  purchase_date: string; notes: string | null; created_at: string;
@@ -472,7 +472,7 @@ export default function PurchasesManager({ initialPurchases, initialPagination }
  <FaBoxOpen className="text-[#DC2626] text-[10px]" />
  </span>
  <div className="min-w-0">
-  <p className="text-xs font-bold text-[#111214] break-words">{item.material?.name || item.material_name || item.material_id || 'مادة محذوفة'}</p>
+ <p className="text-xs font-bold text-[#111214] break-words">{item.material?.name || item.material_id}</p>
  <p className="text-[10px] text-[#9A9DA3] font-medium mt-1">
  {item.quantity} × {item.unit_cost.toFixed(2)} ر.س
  </p>

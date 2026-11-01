@@ -154,7 +154,7 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
  }
 
  const handleDeleteMaterial = async (id: string) => {
-  if (!window.confirm('هل أنت متأكد من حذف هذه المادة نهائيًا؟ سيتم حذف جميع حركات مخزونها، مع إبقاء سجل المشتريات. لا يمكن التراجع عن هذا الإجراء.')) return
+ if (!window.confirm('هل أنت متأكد من حذف هذا المادة؟ لا يمكن التراجع عن هذا الإجراء.')) return
  setActionLoading(id); setNotification(null)
  try {
  const { deleteMaterial } = await import('@/app/actions/materials')

@@ -265,15 +265,11 @@ export async function receivePurchase(purchaseId: string) {
 
     const { data: items } = await supabase
       .from('purchase_items')
-      .select('id, material_id')
+      .select('id')
       .eq('purchase_id', purchaseId)
 
     if (!items || items.length === 0) {
       return { success: false as const, error: 'لا توجد عناصر في هذا الشراء' }
-    }
-
-    if (items.some(item => !item.material_id)) {
-      return { success: false as const, error: 'لا يمكن استلام الشراء لأن إحدى المواد حُذفت' }
     }
 
     const { data: result, error: rpcError } = await supabase.rpc('receive_existing_purchase', {
