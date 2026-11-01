@@ -25,6 +25,8 @@ import {
  FaChevronRight,
  FaChevronLeft,
  FaTrash,
+ FaCheck,
+ FaShieldAlt,
 } from 'react-icons/fa'
 
 interface Customer {
@@ -76,13 +78,14 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  initialCustomers?: Customer[]
  initialPagination?: Pagination
 } = {}) {
- const { hasPermission } = useAuth()
+ const { hasPermission, staffInfo } = useAuth()
  const skipInitialFetch = useRef(initialCustomers !== undefined)
  const [customers, setCustomers] = useState<Customer[]>(initialCustomers ?? [])
  const [loading, setLoading] = useState(initialCustomers === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
  const [page, setPage] = useState(1)
+ const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
  const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
@@ -90,12 +93,20 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null)
  const [customerVehicles, setCustomerVehicles] = useState<Vehicle[]>([])
  const [loadingVehicles, setLoadingVehicles] = useState(false)
- const [togglingId, setTogglingId] = useState<string | null>(null)
- const [actionLoading, setActionLoading] = useState<string | null>(null)
+ const [toggleTarget, setToggleTarget] = useState<Customer | null>(null)
+ const [toggleLoading, setToggleLoading] = useState(false)
+ const [deleteTargets, setDeleteTargets] = useState<Customer[]>([])
+ const [selectedIds, setSelectedIds] = useState<string[]>([])
+ const [deleteCode, setDeleteCode] = useState('')
+ const [deleteError, setDeleteError] = useState('')
+ const [deleteLoading, setDeleteLoading] = useState(false)
+ const [deleteConfirmed, setDeleteConfirmed] = useState(false)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const canCreate = hasPermission('customers', 'create')
   const canUpdate = hasPermission('customers', 'update')
+  const canDelete = hasPermission('customers', 'delete')
+  const isSuperAdmin = staffInfo?.role === 'super_admin'
 
   useEffect(() => {
     if (canCreate && window.location.search.includes('create=true')) {
@@ -118,9 +129,15 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  try {
  setLoading(true)
  const { getCustomers } = await import('@/app/actions/customers')
- const result = await getCustomers(debouncedSearch, page)
+ const result = await getCustomers(
+   debouncedSearch,
+   page,
+   undefined,
+   statusFilter === 'all' ? undefined : statusFilter
+ )
  if (result.success) {
  setCustomers(result.data)
+ setSelectedIds([])
  if (result.pagination) {
  setPagination(result.pagination)
  }
@@ -132,7 +149,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  } finally {
  setLoading(false)
  }
- }, [debouncedSearch, page])
+ }, [debouncedSearch, page, statusFilter])
 
  useEffect(() => {
  if (skipInitialFetch.current) {
@@ -148,42 +165,108 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  return () => clearTimeout(t)
  }, [notification])
 
- const handleToggle = async (id: string) => {
- setTogglingId(id)
+ const handleConfirmToggle = async () => {
+ if (!toggleTarget) return
+ setToggleLoading(true)
  try {
  const { toggleCustomerStatus } = await import('@/app/actions/customers')
- const result = await toggleCustomerStatus(id)
+ const result = await toggleCustomerStatus(toggleTarget.id)
  if (result.success) {
- setNotification({ type: 'success', message: 'تم تغيير الحالة بنجاح' })
+ setNotification({
+ type: 'success',
+ message: toggleTarget.is_active ? 'تم تعطيل العميل بنجاح' : 'تم تفعيل العميل بنجاح',
+ })
+ setToggleTarget(null)
  fetchCustomers()
  } else {
  setNotification({ type: 'error', message: result.error })
  }
  } catch {
  setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
-  } finally {
-    setTogglingId(null)
-  }
-  }
+ } finally {
+ setToggleLoading(false)
+ }
+ }
 
-  const handleDeleteCustomer = async (id: string) => {
-  if (!window.confirm('هل أنت متأكد من حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.')) return
-  setActionLoading(id)
-  try {
-    const { softDeleteCustomer } = await import('@/app/actions/crm')
-    const result = await softDeleteCustomer(id)
-    if (result.success) {
-    setNotification({ type: 'success', message: 'تم حذف العميل بنجاح' })
-    fetchCustomers()
-    } else {
-    setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
-    }
-  } catch {
-    setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
-  } finally {
-    setActionLoading(null)
-  }
-  }
+ const openDeleteCustomer = (customer: Customer) => {
+ setDeleteTargets([customer])
+ setDeleteCode('')
+ setDeleteError('')
+ setDeleteConfirmed(false)
+ }
+
+ const openBulkDelete = () => {
+ if (!isSuperAdmin) {
+ setNotification({ type: 'error', message: 'لا تملك صلاحية حذف' })
+ return
+ }
+ const targets = customers.filter((customer) => selectedIds.includes(customer.id))
+ if (targets.length === 0) return
+ setDeleteTargets(targets)
+ setDeleteCode('')
+ setDeleteError('')
+ setDeleteConfirmed(false)
+ }
+
+ const closeDeleteCustomer = () => {
+ if (deleteLoading) return
+ setDeleteTargets([])
+ setDeleteCode('')
+ setDeleteError('')
+ setDeleteConfirmed(false)
+ }
+
+ const handleDeleteCustomer = async () => {
+ if (deleteTargets.length === 0) return
+ if (!deleteCode.trim()) {
+ setDeleteError('يرجى إدخال رمز الحذف')
+ return
+ }
+ if (!deleteConfirmed) {
+ setDeleteError('يرجى تأكيد الحذف أولًا')
+ return
+ }
+ setDeleteLoading(true)
+ setDeleteError('')
+ try {
+ const { sha256 } = await import('@/lib/crypto')
+ const { deleteCustomerSecure } = await import('@/app/actions/customers')
+ const tokenHash = await sha256(deleteCode.trim())
+ const deleted = { vehicles: 0, bookings: 0, invoices: 0, payments: 0 }
+ let failedMessage = ''
+ for (const target of deleteTargets) {
+ const result = await deleteCustomerSecure(target.id, tokenHash)
+ if (!result.success) {
+ failedMessage = deleteTargets.length > 1
+ ? `تعذر حذف «${target.full_name}»: ${result.error || 'حدث خطأ'}`
+ : (result.error || 'حدث خطأ')
+ break
+ }
+ deleted.vehicles += result.deleted.vehicles
+ deleted.bookings += result.deleted.bookings
+ deleted.invoices += result.deleted.invoices
+ deleted.payments += result.deleted.payments
+ }
+ if (failedMessage) {
+ setDeleteError(failedMessage)
+ fetchCustomers()
+ return
+ }
+ setNotification({
+ type: 'success',
+ message: `${deleteTargets.length > 1 ? `تم حذف ${deleteTargets.length} عميل نهائيًا` : 'تم حذف العميل نهائيًا'} — ${deleted.bookings} حجز، ${deleted.invoices} فاتورة، ${deleted.payments} دفعة، ${deleted.vehicles} مركبة`,
+ })
+ setDeleteTargets([])
+ setDeleteCode('')
+ setDeleteError('')
+ setDeleteConfirmed(false)
+ fetchCustomers()
+ } catch {
+ setDeleteError('حدث خطأ غير متوقع')
+ } finally {
+ setDeleteLoading(false)
+ }
+ }
 
  const handleViewCustomer = async (customer: Customer) => {
  setViewingCustomer(customer)
@@ -214,14 +297,23 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  }
 
  const totalPages = pagination?.totalPages || 1
+ const allSelected = customers.length > 0 && customers.every((customer) => selectedIds.includes(customer.id))
+
+ const toggleSelected = (id: string) => {
+ setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])
+ }
+
+ const toggleSelectAll = () => {
+ setSelectedIds(allSelected ? [] : customers.map((customer) => customer.id))
+ }
 
  return (
  <div className="p-4 md:p-6 lg:p-8">
  {notification && (
  <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-2xl border font-bold text-sm flex items-center gap-3 animate-bounceIn ${
  notification.type === 'success'
- ? 'bg-[#ECFDF5] border-[#A7F3D0] text-green-300'
- : 'bg-[#FEF2F2] border-[#FECACA] text-red-300'
+ ? 'bg-[#ECFDF5] border-[#A7F3D0] text-emerald-700'
+ : 'bg-[#FEF2F2] border-[#FECACA] text-red-700'
  }`}>
  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
  notification.type === 'success' ? 'bg-[#ECFDF5] text-[#059669]' : 'bg-[#FEF2F2] text-[#DC2626]'
@@ -271,8 +363,8 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  </div>
  )}
 
- <div className="mb-4">
- <div className="relative max-w-md">
+ <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+ <div className="relative max-w-md flex-1">
  <FaSearch className="absolute right-3 top-1/2 -translate-y-1/2 text-[#62666D] text-sm" />
  <input
  type="text"
@@ -282,12 +374,57 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  className="w-full bg-white border border-[#E7E8EA] shadow-sm rounded-xl pr-10 pl-4 py-3 text-[#111214] text-[16px] focus:outline-none focus:border-[#FECACA] placeholder:text-[16px] placeholder:text-[#62666D]"
  />
  {search && (
- <button onClick={() => setSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition">
+ <button onClick={() => setSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#62666D] hover:text-[#111214] transition" aria-label="مسح البحث">
  <FaTimes className="text-xs" />
  </button>
  )}
  </div>
+ <div className="flex items-center gap-1.5 flex-wrap">
+ {([
+   { key: 'all', label: 'الكل' },
+   { key: 'active', label: 'نشط' },
+   { key: 'inactive', label: 'معطّل' },
+ ] as const).map((item) => (
+ <button
+ key={item.key}
+ onClick={() => { setStatusFilter(item.key); setPage(1) }}
+ className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+ statusFilter === item.key
+ ? 'bg-[#111214] text-white border-[#111214] shadow-sm'
+ : 'bg-white text-[#62666D] border-[#E7E8EA] hover:text-[#111214] hover:border-[#D4D6DA]'
+ }`}
+ >
+ {item.label}
+ </button>
+ ))}
  </div>
+ </div>
+
+ {canDelete && customers.length > 0 && (
+ <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5">
+ <label className="flex items-center gap-2 text-xs font-bold text-[#4B4F55] cursor-pointer select-none">
+ <input
+ type="checkbox"
+ checked={allSelected}
+ onChange={toggleSelectAll}
+ className="w-4 h-4 accent-[#DC2626] cursor-pointer"
+ />
+ تحديد الكل ({customers.length})
+ </label>
+ {selectedIds.length > 0 && (
+ <div className="flex items-center gap-2.5">
+ <span className="text-xs font-bold text-[#62666D]">{selectedIds.length} محدد</span>
+ <button
+ onClick={openBulkDelete}
+ className="px-3 py-1.5 bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] text-[#DC2626] rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
+ >
+ <FaTrash className="text-[10px]" />
+ حذف المحدد
+ </button>
+ </div>
+ )}
+ </div>
+ )}
 
  {loading ? (
  <div className="flex items-center justify-center py-16">
@@ -313,6 +450,15 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  className="group bg-white border border-[#E7E8EA] hover:border-[#E7E8EA] rounded-xl p-3 sm:p-4 flex items-center justify-between transition-all duration-200"
  >
  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+ {canDelete && (
+ <input
+ type="checkbox"
+ checked={selectedIds.includes(customer.id)}
+ onChange={() => toggleSelected(customer.id)}
+ aria-label={`تحديد ${customer.full_name}`}
+ className="w-4 h-4 accent-[#DC2626] shrink-0 cursor-pointer"
+ />
+ )}
  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border ${
  customer.is_active
  ? 'bg-[#FEF2F2] border-[#FECACA]'
@@ -367,17 +513,20 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  </button>
  </>
  )}
- {hasPermission('customers', 'delete') && (
+ {canDelete && (
  <button
- onClick={() => handleDeleteCustomer(customer.id)}
- disabled={actionLoading === customer.id}
- className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] rounded-lg text-[10px] sm:text-xs font-bold transition-all disabled:opacity-30 flex items-center gap-1 hover:scale-105"
+ onClick={() => {
+ if (!isSuperAdmin) {
+ setNotification({ type: 'error', message: 'لا تملك صلاحية حذف' })
+ return
+ }
+ openDeleteCustomer(customer)
+ }}
+ className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] text-[#DC2626] rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1 hover:scale-105"
+ title="حذف"
+ aria-label={`حذف ${customer.full_name}`}
  >
- {actionLoading === customer.id ? (
- <FaSpinner className="text-[9px] sm:text-[10px] animate-spin" />
- ) : (
  <FaTrash className="text-[9px] sm:text-[10px]" />
- )}
  <span className="hidden sm:inline">حذف</span>
  </button>
  )}
@@ -390,20 +539,18 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  </button>
  {canUpdate && (
  <button
- onClick={() => handleToggle(customer.id)}
- disabled={togglingId === customer.id}
- className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1 disabled:opacity-50 ${
+ onClick={() => setToggleTarget(customer)}
+ className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1 ${
  customer.is_active
- ? 'bg-[#FFFBEB] hover:bg-[#FFFBEB] border border-[#FDE68A] text-amber-300'
- : 'bg-[#ECFDF5] hover:bg-[#ECFDF5] border border-[#A7F3D0] text-green-300'
+ ? 'bg-[#FFFBEB] hover:bg-[#FEF3C7] border border-[#FDE68A] text-amber-700'
+ : 'bg-[#ECFDF5] hover:bg-[#D1FAE5] border border-[#A7F3D0] text-emerald-700'
  }`}
+ title={customer.is_active ? 'تعطيل العميل' : 'تفعيل العميل'}
  >
- {togglingId === customer.id ? (
- <FaSpinner className="text-[9px] sm:text-[10px] animate-spin" />
- ) : customer.is_active ? (
+ {customer.is_active ? (
  <FaTimes className="text-[9px] sm:text-[10px]" />
  ) : (
- <FaEye className="text-[9px] sm:text-[10px]" />
+ <FaCheck className="text-[9px] sm:text-[10px]" />
  )}
  <span className="hidden sm:inline">{customer.is_active ? 'تعطيل' : 'تفعيل'}</span>
  </button>
@@ -646,6 +793,167 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  </div>
  </div>
  )}
+
+  {/* Toggle status confirmation */}
+  {toggleTarget && (
+  <div
+  role="presentation"
+  className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+  onClick={() => { if (!toggleLoading) setToggleTarget(null) }}
+  >
+  <div
+  role="dialog"
+  aria-modal="true"
+  aria-label={toggleTarget.is_active ? 'تعطيل العميل' : 'تفعيل العميل'}
+  className={`bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border-t-4 ${toggleTarget.is_active ? 'border-t-[#D97706]' : 'border-t-[#059669]'}`}
+  onClick={e => e.stopPropagation()}
+  >
+  <div className="px-5 pt-5 pb-3 flex items-center gap-3">
+  <span className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${toggleTarget.is_active ? 'bg-[#FFFBEB] text-[#B45309]' : 'bg-[#ECFDF5] text-[#059669]'}`}>
+  {toggleTarget.is_active ? <FaTimes /> : <FaCheck />}
+  </span>
+  <div className="min-w-0">
+  <h3 className="text-base font-black text-[#111214]">{toggleTarget.is_active ? 'تعطيل العميل' : 'تفعيل العميل'}</h3>
+  <p className="text-[11px] text-[#62666D] font-medium truncate mt-0.5">{toggleTarget.full_name}</p>
+  </div>
+  </div>
+  <div className="px-5 pb-4">
+  <p className="text-xs leading-relaxed text-[#4B4F55] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-3">
+  {toggleTarget.is_active
+  ? 'سيتم تعطيل العميل ومنعه من إنشاء حجوزات أو فواتير جديدة. تبقى الحجوزات والفواتير والمدفوعات السابقة كما هي.'
+  : 'سيتمكن العميل من إنشاء حجوزات وفواتير جديدة مرة أخرى.'}
+  </p>
+  </div>
+  <div className="px-5 pb-5 flex gap-2.5">
+  <button
+  onClick={handleConfirmToggle}
+  disabled={toggleLoading}
+  className={`flex-1 px-4 py-2.5 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
+  toggleTarget.is_active ? 'bg-[#D97706] hover:bg-[#B45309]' : 'bg-[#059669] hover:bg-[#047857]'
+  }`}
+  >
+  {toggleLoading ? <><FaSpinner className="animate-spin" /> جاري التنفيذ...</> : toggleTarget.is_active ? 'تعطيل' : 'تفعيل'}
+  </button>
+  <button
+  onClick={() => setToggleTarget(null)}
+  disabled={toggleLoading}
+  className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+  >
+  إلغاء
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
+
+  {/* Super-admin delete */}
+  {deleteTargets.length > 0 && isSuperAdmin && (
+  <div
+  role="presentation"
+  className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fadeIn"
+  onClick={closeDeleteCustomer}
+  >
+  <div
+  role="dialog"
+  aria-modal="true"
+  aria-label="حذف العميل"
+  className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto border-t-4 border-t-[#DC2626]"
+  onClick={e => e.stopPropagation()}
+  >
+  <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-[#E7E8EA] bg-white/95 backdrop-blur">
+  <div className="flex items-center gap-3 min-w-0">
+  <span className="w-9 h-9 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex items-center justify-center shrink-0">
+  <FaTrash className="text-[#DC2626] text-sm" />
+  </span>
+  <div className="min-w-0">
+  <h3 className="text-base font-bold text-[#111214] leading-tight">{deleteTargets.length > 1 ? 'حذف العملاء المحددين' : 'حذف العميل'}</h3>
+  <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">يتطلب رمز الحذف للتأكيد</p>
+  </div>
+  </div>
+  <button onClick={closeDeleteCustomer} disabled={deleteLoading} aria-label="إغلاق" className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0 disabled:opacity-40">
+  <FaTimes className="text-sm" />
+  </button>
+  </div>
+
+  <div className="px-5 py-4 space-y-4">
+  <div className="flex items-center gap-3 rounded-xl bg-[#FBFBFA] border border-[#E7E8EA] px-3.5 py-3">
+  <span className="w-9 h-9 rounded-xl bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
+  <FaUsers className="text-[#DC2626] text-xs" />
+  </span>
+  <div className="min-w-0">
+  {deleteTargets.length === 1 ? (
+  <>
+  <p className="text-sm font-bold text-[#111214] truncate">{deleteTargets[0].full_name}</p>
+  <p className="text-[11px] text-[#62666D] mt-0.5" dir="ltr">{deleteTargets[0].phone}</p>
+  </>
+  ) : (
+  <>
+  <p className="text-sm font-bold text-[#111214]">{deleteTargets.length} عملاء محددين</p>
+  <p className="text-[11px] text-[#62666D] mt-0.5 truncate">
+  {deleteTargets.slice(0, 3).map((customer) => customer.full_name).join('، ')}
+  {deleteTargets.length > 3 ? ` و${deleteTargets.length - 3} آخرين` : ''}
+  </p>
+  </>
+  )}
+  </div>
+  </div>
+
+  <div className="flex items-start gap-2.5 rounded-xl bg-[#FEF2F2] border border-[#FECACA] px-3.5 py-3.5 text-xs font-bold leading-relaxed text-[#B91C1C]">
+  <FaExclamationTriangle className="text-sm mt-0.5 shrink-0" />
+  <span>{deleteTargets.length > 1
+  ? `سوف يتم حذف جميع ما يتعلق بهؤلاء العملاء (${deleteTargets.length}) نهائيًا من النظام، ولا يمكن التراجع عنه.`
+  : 'سوف يتم حذف جميع ما يتعلق بهذا العميل نهائيًا من النظام، ولا يمكن التراجع عنه.'}</span>
+  </div>
+
+  <label className="flex items-start gap-2.5 rounded-xl border border-[#E7E8EA] bg-white px-3.5 py-3 cursor-pointer">
+  <input
+  type="checkbox"
+  checked={deleteConfirmed}
+  onChange={e => { setDeleteConfirmed(e.target.checked); setDeleteError('') }}
+  className="mt-0.5 accent-[#DC2626]"
+  />
+  <span className="text-[11px] font-bold text-[#4B4F55] leading-relaxed">{deleteTargets.length > 1 ? 'نعم، احذف العملاء المحددين وجميع سجلاتهم نهائيًا.' : 'نعم، احذف العميل وجميع سجلاته نهائيًا.'}</span>
+  </label>
+
+  <div>
+  <label className="text-xs font-bold text-[#62666D] mb-1.5 flex items-center gap-1.5">
+  <FaShieldAlt className="text-[#DC2626] text-[10px]" />
+  رمز الحذف الخاص *
+  </label>
+  <input
+  type="password"
+  value={deleteCode}
+  onChange={e => { setDeleteCode(e.target.value); setDeleteError('') }}
+  onKeyDown={e => { if (e.key === 'Enter') handleDeleteCustomer() }}
+  placeholder="أدخل رمز الحذف..."
+  autoComplete="new-password"
+  dir="ltr"
+  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] text-right focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all"
+  />
+  <p className="text-[10px] text-[#9A9DA3] mt-1.5">نفس رمز الحذف المُدار من صفحة الإعدادات.</p>
+  {deleteError && <p className="text-xs text-[#DC2626] mt-2 font-bold">{deleteError}</p>}
+  </div>
+  </div>
+
+  <div className="sticky bottom-0 z-10 px-5 py-4 border-t border-[#E7E8EA] bg-white/95 backdrop-blur flex gap-2.5">
+  <button
+  onClick={handleDeleteCustomer}
+  disabled={!deleteCode.trim() || deleteLoading || !deleteConfirmed}
+  className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#DC2626] to-[#9B1B30] hover:from-[#9B1B30] hover:to-[#7A1526] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-red-500/20 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2"
+  >
+  {deleteLoading ? <><FaSpinner className="animate-spin" /> جاري التنفيذ...</> : 'حذف نهائي'}
+  </button>
+  <button
+  onClick={closeDeleteCustomer}
+  disabled={deleteLoading}
+  className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+  >
+  إلغاء
+  </button>
+  </div>
+  </div>
+  </div>
+  )}
  </div>
  )
 }

@@ -133,7 +133,7 @@ const canUpdate = hasPermission('invoices', 'update')
   const canExport = canUpdate && hasPermission('payments', 'create') && hasPermission('inventory', 'usage')
  const totalPages = pagination?.totalPages || 1
  const [showCreateForm, setShowCreateForm] = useState(false)
- const [customers, setCustomers] = useState<{ id: string; full_name: string; phone: string }[]>([])
+ const [customers, setCustomers] = useState<{ id: string; full_name: string; phone: string; is_active: boolean }[]>([])
  const [services, setServices] = useState<{ id: string; name: string; base_price: number }[]>([])
  const [createFormData, setCreateFormData] = useState({
    customer_id: '',
@@ -174,7 +174,7 @@ const [showRefundModal, setShowRefundModal] = useState(false)
          import('@/app/actions/services'),
        ])
        const [cRes, sRes] = await Promise.all([getCustomerOptions(), getServices()])
-       if (cRes.success && cRes.data) setCustomers(cRes.data.map((c: { id: string; full_name: string; phone: string }) => ({ id: c.id, full_name: c.full_name, phone: c.phone })))
+       if (cRes.success && cRes.data) setCustomers(cRes.data.map((c: { id: string; full_name: string; phone: string; is_active: boolean }) => ({ id: c.id, full_name: c.full_name, phone: c.phone, is_active: c.is_active })))
        if (sRes.success) setServices(sRes.data || [])
      })()
    }
@@ -1057,7 +1057,7 @@ const handleOpenRefund = (invoiceId: string) => {
   <label className="text-xs font-bold text-[#62666D] mb-1 block">العميل *</label>
   <select value={createFormData.customer_id} onChange={e => setCreateFormData(p => ({ ...p, customer_id: e.target.value }))} className={`w-full bg-white border ${createErrors.customer_id ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] appearance-none cursor-pointer`}>
   <option value="">اختر العميل</option>
-  {customers.map(c => <option key={c.id} value={c.id}>{c.full_name} — {c.phone}</option>)}
+  {customers.map(c => <option key={c.id} value={c.id} disabled={!c.is_active}>{c.full_name} — {c.phone}{!c.is_active ? ' (معطّل)' : ''}</option>)}
   </select>
   {createErrors.customer_id && <p className="text-[#DC2626] text-xs mt-1">{createErrors.customer_id}</p>}
   </div>

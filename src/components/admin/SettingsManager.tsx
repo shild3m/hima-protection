@@ -103,8 +103,8 @@ export default function SettingsManager() {
  <FaTrash className="text-sm" />
  </div>
  <div>
- <h3 className="text-[#111214] font-black">رمز حذف الحجوزات</h3>
- <p className="text-[#62666D] text-xs mt-0.5">يُطلب عند الحذف النهائي لأي حجز</p>
+ <h3 className="text-[#111214] font-black">رمز الحذف</h3>
+ <p className="text-[#62666D] text-xs mt-0.5">يُطلب عند الحذف النهائي للحجوزات أو العملاء</p>
  </div>
  </div>
  <button

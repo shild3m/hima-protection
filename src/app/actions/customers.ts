@@ -1,8 +1,9 @@
 'use server'
 
 import { z } from 'zod'
+import { timingSafeEqual } from 'crypto'
 import { createClient } from '@/utils/supabase/server'
-import { requireAuth } from '@/lib/auth'
+import { getSupabaseAdmin, requireAuth } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 
 const PAGE_SIZE = 20
@@ -53,7 +54,12 @@ function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-()]/g, '').trim()
 }
 
-export async function getCustomers(search?: string, page?: number, pageSize?: number) {
+export async function getCustomers(
+  search?: string,
+  page?: number,
+  pageSize?: number,
+  status?: 'active' | 'inactive'
+) {
   const user = await requireAuth()
   if (!user.permissions.includes('customers:read')) {
     return { success: false as const, error: 'غير مصرح' }
@@ -71,6 +77,10 @@ export async function getCustomers(search?: string, page?: number, pageSize?: nu
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)
+
+    if (status === 'active' || status === 'inactive') {
+      query = query.eq('is_active', status === 'active')
+    }
 
     if (search && search.trim()) {
       const sanitized = sanitizeSearch(search)
@@ -116,7 +126,7 @@ export async function getCustomerOptions() {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('customers')
-      .select('id, full_name, phone')
+      .select('id, full_name, phone, is_active')
       .order('full_name', { ascending: true })
       .limit(1000)
 
@@ -359,6 +369,203 @@ export async function toggleCustomerStatus(id: string) {
 
     return { success: true as const, data }
   } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
+// Failed attempts are tracked per server instance. This is a best-effort guard
+// against guessing the delete code; the code itself is verified server-side and
+// never logged.
+const DELETE_WINDOW_MS = 10 * 60 * 1000
+const DELETE_MAX_ATTEMPTS = 5
+const deleteAttempts = new Map<string, { count: number; resetAt: number }>()
+
+function checkDeleteAttempts(userId: string) {
+  const now = Date.now()
+  const entry = deleteAttempts.get(userId)
+  if (!entry || entry.resetAt <= now) {
+    deleteAttempts.delete(userId)
+    return { ok: true as const }
+  }
+  if (entry.count >= DELETE_MAX_ATTEMPTS) {
+    return {
+      ok: false as const,
+      error: `تم تجاوز عدد المحاولات. حاول بعد ${Math.max(1, Math.ceil((entry.resetAt - now) / 60000))} دقيقة`,
+    }
+  }
+  return { ok: true as const }
+}
+
+function recordDeleteFailure(userId: string) {
+  const now = Date.now()
+  const entry = deleteAttempts.get(userId)
+  if (!entry || entry.resetAt <= now) {
+    deleteAttempts.set(userId, { count: 1, resetAt: now + DELETE_WINDOW_MS })
+    return
+  }
+  entry.count += 1
+}
+
+function clearDeleteAttempts(userId: string) {
+  deleteAttempts.delete(userId)
+}
+
+function safeEqual(a: string, b: string) {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
+/**
+ * Super-admin-only customer deletion.
+ *
+ * Permanently removes the customer along with their vehicles, bookings,
+ * invoices and payments. Requires the delete code that is managed from
+ * Settings. There is no soft-delete path; disabling a customer uses
+ * `toggleCustomerStatus` instead.
+ */
+export async function deleteCustomerSecure(id: string, tokenHash: string) {
+  const user = await requireAuth()
+  if (user.role_name !== 'super_admin' || !user.permissions.includes('customers:delete')) {
+    return { success: false as const, error: 'لا تملك صلاحية حذف' }
+  }
+  if (!/^[a-f0-9]{64}$/i.test(tokenHash)) {
+    return { success: false as const, error: 'رمز الحذف غير صحيح' }
+  }
+
+  const attempt = checkDeleteAttempts(user.auth_user_id)
+  if (!attempt.ok) {
+    return { success: false as const, error: attempt.error }
+  }
+
+  try {
+    const admin = getSupabaseAdmin()
+
+    const { data: setting } = await admin
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'booking_delete_secret')
+      .maybeSingle()
+
+    if (!setting?.value || !safeEqual(tokenHash.toLowerCase(), String(setting.value).toLowerCase())) {
+      recordDeleteFailure(user.auth_user_id)
+      return { success: false as const, error: 'رمز الحذف غير صحيح' }
+    }
+    clearDeleteAttempts(user.auth_user_id)
+
+    const { data: customer } = await admin
+      .from('customers')
+      .select('id, full_name, phone, is_active')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!customer) {
+      return { success: false as const, error: 'العميل غير موجود' }
+    }
+
+    // Collect related rows first so the response can report exactly what was
+    // removed and so deletes run in dependency order.
+    const [bookingsRes, invoicesRes, vehiclesRes] = await Promise.all([
+      admin.from('bookings').select('id').eq('customer_id', id),
+      admin.from('invoices').select('id').eq('customer_id', id),
+      admin.from('vehicles').select('id').eq('customer_id', id),
+    ])
+
+    if (bookingsRes.error || invoicesRes.error || vehiclesRes.error) {
+      console.error('Load customer relations error:', bookingsRes.error || invoicesRes.error || vehiclesRes.error)
+      return { success: false as const, error: 'تعذر تحميل سجلات العميل' }
+    }
+
+    const bookingIds = (bookingsRes.data || []).map((row) => row.id)
+    const invoiceIds = (invoicesRes.data || []).map((row) => row.id)
+    const vehicleIds = (vehiclesRes.data || []).map((row) => row.id)
+
+    let paymentIds: string[] = []
+    if (invoiceIds.length > 0) {
+      const { data: payments, error } = await admin
+        .from('payments')
+        .select('id')
+        .in('invoice_id', invoiceIds)
+      if (error) {
+        console.error('Load customer payments error:', error)
+        return { success: false as const, error: 'تعذر تحميل مدفوعات العميل' }
+      }
+      paymentIds = (payments || []).map((row) => row.id)
+    }
+
+    // Notifications are not foreign-keyed, so clean them explicitly.
+    if (bookingIds.length > 0) {
+      await admin.from('notifications').delete().in('resource_id', bookingIds).eq('resource_type', 'bookings')
+    }
+    if (invoiceIds.length > 0) {
+      await admin.from('notifications').delete().in('resource_id', invoiceIds).eq('resource_type', 'invoices')
+    }
+    if (paymentIds.length > 0) {
+      await admin.from('notifications').delete().in('resource_id', paymentIds).eq('resource_type', 'payments')
+    }
+    if (vehicleIds.length > 0) {
+      await admin.from('notifications').delete().in('resource_id', vehicleIds).eq('resource_type', 'vehicles')
+    }
+    await admin.from('notifications').delete().eq('resource_id', id).eq('resource_type', 'customers')
+
+    if (paymentIds.length > 0) {
+      const { error } = await admin.from('payments').delete().in('id', paymentIds)
+      if (error) {
+        console.error('Hard delete payments error:', error)
+        return { success: false as const, error: 'تعذر حذف مدفوعات العميل' }
+      }
+    }
+
+    if (invoiceIds.length > 0) {
+      const { error } = await admin.from('invoices').delete().in('id', invoiceIds)
+      if (error) {
+        console.error('Hard delete invoices error:', error)
+        return { success: false as const, error: 'تعذر حذف فواتير العميل' }
+      }
+    }
+
+    if (bookingIds.length > 0) {
+      const { error } = await admin.from('bookings').delete().in('id', bookingIds)
+      if (error) {
+        console.error('Hard delete bookings error:', error)
+        return { success: false as const, error: 'تعذر حذف حجوزات العميل' }
+      }
+    }
+
+    if (vehicleIds.length > 0) {
+      const { error } = await admin.from('vehicles').delete().in('id', vehicleIds)
+      if (error) {
+        console.error('Hard delete vehicles error:', error)
+        return { success: false as const, error: 'تعذر حذف مركبات العميل' }
+      }
+    }
+
+    const { error: customerError } = await admin.from('customers').delete().eq('id', id)
+    if (customerError) {
+      console.error('Hard delete customer error:', customerError)
+      return { success: false as const, error: 'تعذر حذف العميل' }
+    }
+
+    const deleted = {
+      vehicles: vehicleIds.length,
+      bookings: bookingIds.length,
+      invoices: invoiceIds.length,
+      payments: paymentIds.length,
+    }
+
+    await logAudit({
+      userId: user.auth_user_id,
+      action: 'customer_hard_deleted',
+      resourceType: 'customers',
+      resourceId: id,
+      oldValues: { full_name: customer.full_name, phone: customer.phone },
+      newValues: deleted,
+    })
+
+    return { success: true as const, deleted }
+  } catch (err) {
+    console.error('Delete customer secure error:', err)
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
   }
 }
