@@ -901,8 +901,8 @@ export default function CustomersManager({ initialCustomers, initialPagination }
   <div className="flex items-start gap-2.5 rounded-xl bg-[#FEF2F2] border border-[#FECACA] px-3.5 py-3.5 text-xs font-bold leading-relaxed text-[#B91C1C]">
   <FaExclamationTriangle className="text-sm mt-0.5 shrink-0" />
   <span>{deleteTargets.length > 1
-  ? `سوف يتم حذف جميع ما يتعلق بهؤلاء العملاء (${deleteTargets.length}) نهائيًا من النظام، ولا يمكن التراجع عنه.`
-  : 'سوف يتم حذف جميع ما يتعلق بهذا العميل نهائيًا من النظام، ولا يمكن التراجع عنه.'}</span>
+  ? `سيتم حذف جميع ما يتعلق بهؤلاء العملاء (${deleteTargets.length}) نهائيًا من النظام، ولا يمكن التراجع عنه.`
+  : 'سيتم حذف جميع ما يتعلق بهذا العميل نهائيًا من النظام، ولا يمكن التراجع عنه.'}</span>
   </div>
 
   <label className="flex items-start gap-2.5 rounded-xl border border-[#E7E8EA] bg-white px-3.5 py-3 cursor-pointer">
