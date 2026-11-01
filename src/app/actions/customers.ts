@@ -431,7 +431,7 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
     return { success: false as const, error: 'لا تملك صلاحية حذف' }
   }
   if (!/^[a-f0-9]{64}$/i.test(tokenHash)) {
-    return { success: false as const, error: 'رمز الحذف غير صحيح' }
+    return { success: false as const, error: 'الرمز الخاص غير صحيح' }
   }
 
   const attempt = checkDeleteAttempts(user.auth_user_id)
@@ -450,7 +450,7 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
 
     if (!setting?.value || !safeEqual(tokenHash.toLowerCase(), String(setting.value).toLowerCase())) {
       recordDeleteFailure(user.auth_user_id)
-      return { success: false as const, error: 'رمز الحذف غير صحيح' }
+      return { success: false as const, error: 'الرمز الخاص غير صحيح' }
     }
     clearDeleteAttempts(user.auth_user_id)
 

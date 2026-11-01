@@ -219,7 +219,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  const handleDeleteCustomer = async () => {
  if (deleteTargets.length === 0) return
  if (!deleteCode.trim()) {
- setDeleteError('يرجى إدخال رمز الحذف')
+ setDeleteError('يرجى إدخال الرمز الخاص')
  return
  }
  if (!deleteConfirmed) {
@@ -867,7 +867,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
   </span>
   <div className="min-w-0">
   <h3 className="text-base font-bold text-[#111214] leading-tight">{deleteTargets.length > 1 ? 'حذف العملاء المحددين' : 'حذف العميل'}</h3>
-  <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">يتطلب رمز الحذف للتأكيد</p>
+  <p className="text-[10px] text-[#9A9DA3] font-medium mt-0.5">يتطلب الرمز الخاص للتأكيد</p>
   </div>
   </div>
   <button onClick={closeDeleteCustomer} disabled={deleteLoading} aria-label="إغلاق" className="w-8 h-8 rounded-lg text-[#62666D] hover:text-[#111214] hover:bg-[#F1F2F3] flex items-center justify-center transition shrink-0 disabled:opacity-40">
@@ -918,19 +918,18 @@ export default function CustomersManager({ initialCustomers, initialPagination }
   <div>
   <label className="text-xs font-bold text-[#62666D] mb-1.5 flex items-center gap-1.5">
   <FaShieldAlt className="text-[#DC2626] text-[10px]" />
-  رمز الحذف الخاص *
+  الرمز الخاص *
   </label>
   <input
   type="password"
   value={deleteCode}
   onChange={e => { setDeleteCode(e.target.value); setDeleteError('') }}
   onKeyDown={e => { if (e.key === 'Enter') handleDeleteCustomer() }}
-  placeholder="أدخل رمز الحذف..."
+  placeholder="أدخل الرمز الخاص..."
   autoComplete="new-password"
   dir="ltr"
   className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] text-right focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all"
   />
-  <p className="text-[10px] text-[#9A9DA3] mt-1.5">نفس رمز الحذف المُدار من صفحة الإعدادات.</p>
   {deleteError && <p className="text-xs text-[#DC2626] mt-2 font-bold">{deleteError}</p>}
   </div>
   </div>
