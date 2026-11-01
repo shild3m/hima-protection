@@ -452,6 +452,10 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   }
   }
 
+  const inventoryAction = (message?: string) => message?.includes('المخزون غير كافٍ')
+    ? { label: 'الذهاب للمخزون', href: '/admin/inventory' }
+    : undefined
+
   const handleStatusUpdate = (bookingId: string, newStatus: string) => {
   if (newStatus === 'completed') {
     const booking = bookings.find(b => b.id === bookingId)
@@ -568,7 +572,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       if (result.success) {
         setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
       } else {
-        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة', action: inventoryAction(result.error) })
       }
     } catch {
       setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
@@ -583,7 +587,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       if (result.success) {
         setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
       } else {
-        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة', action: inventoryAction(result.error) })
       }
     } catch {
       setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
@@ -636,14 +640,17 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     }
     setNewProgressSubmitting(true)
     try {
-      if (amount >= invoiceStatusPrompt.total) {
-        const { createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
-        await createInvoiceWithPayment(invoiceStatusPrompt.bookingId, 'cash', 'full')
-      } else {
-        const { createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
-        await createInvoiceWithPayment(invoiceStatusPrompt.bookingId, 'cash', 'deposit', amount)
-      }
-      await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+      const isFull = amount >= invoiceStatusPrompt.total
+      await applyStatusUpdate(
+        invoiceStatusPrompt.bookingId,
+        'in_progress',
+        undefined,
+        {
+          method: 'cash',
+          type: isFull ? 'full' : 'deposit',
+          amount: isFull ? undefined : amount,
+        },
+      )
       setNewProgressPaidAmount('')
       setInvoiceStatusPrompt(null)
     } catch {
@@ -661,7 +668,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         const { recordRemainingPayment } = await import('@/app/actions/invoice-draft')
         const result = await recordRemainingPayment(invoiceStatusPrompt.invoiceId, unpaidMethod as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara')
         if (!result.success) {
-          setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+          setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة', action: inventoryAction(result.error) })
           setInvoiceSubmitting(false)
           return
         }
@@ -713,7 +720,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         setCompleteNoWarranty(false)
         setCompletePrompt({ bookingId: unpaidPrompt.bookingId })
       } else {
-        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة' })
+        setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة', action: inventoryAction(result.error) })
       }
     } catch {
       setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })

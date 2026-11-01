@@ -407,47 +407,27 @@ export async function cancelInvoice(id: string) {
   try {
     const supabase = await createClient()
 
-    const { data: existing } = await supabase
-      .from('invoices')
-      .select('id, status, paid_amount')
-      .eq('id', id)
-      .maybeSingle()
-
-    if (!existing) {
-      return { success: false as const, error: 'الفاتورة غير موجودة' }
-    }
-
-    if (existing.status === 'paid' || existing.status === 'cancelled') {
-      return { success: false as const, error: 'لا يمكن إلغاء هذه الفاتورة' }
-    }
-
-    if (existing.paid_amount > 0) {
-      return { success: false as const, error: 'لا يمكن إلغاء فاتورة مدفوعة جزئيًا' }
-    }
-
-    const { data, error } = await supabase
-      .from('invoices')
-      .update({
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancelled_by: user.auth_user_id,
-      })
-      .eq('id', id)
-      .select()
-      .single()
+    const { data, error } = await supabase.rpc('cancel_invoice_with_materials', {
+      p_invoice_id: id,
+    })
 
     if (error) {
-      console.error('Cancel invoice error:', error)
+      console.error('Cancel invoice RPC error:', error)
+      return { success: false as const, error: formatInventoryError(error) }
+    }
+
+    if (!data || typeof data !== 'object' || !('success' in data)) {
       return { success: false as const, error: 'تعذر إلغاء الفاتورة' }
     }
 
-    await logAudit({
-      userId: user.auth_user_id,
-      action: 'invoice_cancelled',
-      resourceType: 'invoices',
-      resourceId: id,
-    })
+    if (!(data as Record<string, unknown>).success) {
+      return {
+        success: false as const,
+        error: ((data as Record<string, unknown>).error as string) || 'تعذر إلغاء الفاتورة',
+      }
+    }
 
+    updateTag(CACHE_TAGS.materials)
     return { success: true as const, data }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }

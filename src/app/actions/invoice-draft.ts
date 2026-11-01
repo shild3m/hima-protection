@@ -14,6 +14,18 @@ function getAdminClient() {
   )
 }
 
+function formatInventoryIssueError(
+  error: { message?: string } | null | undefined,
+  result: Record<string, unknown> | null | undefined,
+): string {
+  const raw = error?.message || (typeof result?.error === 'string' ? result.error : '')
+  const match = raw.match(/INSUFFICIENT_STOCK\|([^|]+)\|([0-9.]+)\|([0-9.]+)/i)
+  if (match) {
+    return `المخزون غير كافٍ لمادة ${match[1]} — المطلوب ${match[2]}، المتاح ${match[3]}`
+  }
+  return raw || 'تعذر إصدار الفاتورة'
+}
+
 export async function ensureDraftInvoiceForBooking(bookingId: string) {
   const user = await requireAuth()
   try {
@@ -186,12 +198,10 @@ export async function createInvoiceWithPayment(
 
     if (issueErr || !issueResult?.success) {
       console.error('Invoice issue error:', issueErr)
-      const raw = issueErr?.message || issueResult?.error || ''
-      const match = raw.match(/INSUFFICIENT_STOCK\|([^|]+)\|([0-9.]+)\|([0-9.]+)/i)
-      const error = match
-        ? `المخزون غير كافٍ لمادة ${match[1]} — المطلوب ${match[2]}، المتاح ${match[3]}`
-        : (raw || 'تعذر إصدار الفاتورة')
-      return { success: false as const, error }
+      return {
+        success: false as const,
+        error: formatInventoryIssueError(issueErr, issueResult),
+      }
     }
   }
 
@@ -302,9 +312,29 @@ export async function recordRemainingPayment(
     return { success: false as const, error: 'الفاتورة غير موجودة' }
   }
 
+  if (invoice.status === 'cancelled' || invoice.status === 'refunded') {
+    return { success: false as const, error: 'لا يمكن تسجيل دفعة لهذه الفاتورة' }
+  }
+
   const remaining = invoice.total - invoice.paid_amount
   if (remaining <= 0) {
     return { success: false as const, error: 'الفاتورة مدفوعة بالكامل' }
+  }
+
+  // A draft invoice must be issued first so its service materials are deducted
+  // exactly once before any payment is recorded against it.
+  if (invoice.status === 'draft') {
+    const { data: issueResult, error: issueErr } = await supabase.rpc('issue_invoice_with_materials', {
+      p_invoice_id: invoiceId,
+    })
+
+    if (issueErr || !issueResult?.success) {
+      console.error('Invoice issue error:', issueErr)
+      return {
+        success: false as const,
+        error: formatInventoryIssueError(issueErr, issueResult),
+      }
+    }
   }
 
   const { error: insertErr } = await supabase
