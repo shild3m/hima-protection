@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { updateTag } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
-import { requireAuth } from '@/lib/auth'
+import { getSupabaseAdmin, requireAuth } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
 import {
@@ -354,47 +354,17 @@ export async function deleteMaterial(id: string) {
       return { success: false as const, error: 'المادة غير موجودة' }
     }
 
-    const { data: hasMovements } = await supabase
-      .from('inventory_transactions')
-      .select('id')
-      .eq('material_id', id)
-      .limit(1)
-      .maybeSingle()
+    // This is intentionally a hard delete. The database function clears the
+    // material FK from purchase lines after saving the material name, removes
+    // every inventory movement, and then deletes the material atomically.
+    const { data: result, error } = await getSupabaseAdmin().rpc(
+      'delete_material_preserve_purchases',
+      { p_material_id: id },
+    )
 
-    if (hasMovements) {
-      return { success: false as const, error: 'لا يمكن حذف المادة لأنها مرتبطة بحركات مخزون. استخدم التعطيل بدلاً من الحذف.' }
-    }
-
-    const { data: hasPurchaseItems } = await supabase
-      .from('purchase_items')
-      .select('id')
-      .eq('material_id', id)
-      .limit(1)
-      .maybeSingle()
-
-    if (hasPurchaseItems) {
-      return { success: false as const, error: 'لا يمكن حذف المادة لأنها مرتبطة بمشتريات. استخدم التعطيل بدلاً من الحذف.' }
-    }
-
-    const { data: hasServiceMaterials } = await supabase
-      .from('service_materials')
-      .select('id')
-      .eq('material_id', id)
-      .limit(1)
-      .maybeSingle()
-
-    if (hasServiceMaterials) {
-      return { success: false as const, error: 'لا يمكن حذف المادة لأنها مرتبطة بخدمات. استخدم التعطيل بدلاً من الحذف.' }
-    }
-
-    const { error } = await supabase
-      .from('materials')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      console.error('Delete material error:', error)
-      return { success: false as const, error: 'تعذر حذف المادة' }
+    if (error || !result?.success) {
+      console.error('Delete material error:', error || result?.error)
+      return { success: false as const, error: result?.error || 'تعذر حذف المادة' }
     }
 
     await logAudit({
