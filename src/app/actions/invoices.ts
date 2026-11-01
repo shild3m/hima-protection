@@ -20,6 +20,17 @@ function sanitizeError(error: unknown): string {
   return 'حدث خطأ غير متوقع'
 }
 
+function formatInventoryError(error: { message?: string } | null | undefined): string {
+  const raw = error?.message || ''
+  const match = raw.match(/INSUFFICIENT_STOCK\|([^|]+)\|([0-9.]+)\|([0-9.]+)/i)
+  if (match) {
+    return `المخزون غير كافٍ لمادة ${match[1]} — المطلوب ${match[2]}، المتاح ${match[3]}`
+  }
+  return raw.includes('INSUFFICIENT_STOCK')
+    ? 'المخزون غير كافٍ للمواد المطلوبة'
+    : raw || 'تعذر تنفيذ عملية المخزون'
+}
+
 function sanitizeSearch(input: string): string {
   return input.trim()
     .replace(/,/g, '')
@@ -355,16 +366,17 @@ export async function issueInvoice(id: string) {
       return { success: false as const, error: 'يمكن إصدار الفواتير المسودة فقط' }
     }
 
-    const { data, error } = await supabase
-      .from('invoices')
-      .update({ status: 'issued', issued_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single()
+    const { data, error } = await supabase.rpc('issue_invoice_with_materials', {
+      p_invoice_id: id,
+    })
 
     if (error) {
       console.error('Issue invoice error:', error)
-      return { success: false as const, error: 'تعذر إصدار الفاتورة' }
+      return { success: false as const, error: formatInventoryError(error) }
+    }
+
+    if (!data?.success) {
+      return { success: false as const, error: data?.error || 'تعذر إصدار الفاتورة' }
     }
 
     await logAudit({
@@ -376,6 +388,7 @@ export async function issueInvoice(id: string) {
 
     createNotificationsForRole('invoices', 'read', 'invoice_issued', 'فاتورة جديدة', `تم إصدار فاتورة ${data.invoice_number || id.slice(0, 8)}`, 'invoices', id).catch(() => {});
 
+    updateTag(CACHE_TAGS.materials)
     return { success: true as const, data }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
@@ -502,14 +515,14 @@ export async function refundInvoice(id: string, reason?: string) {
   try {
     const supabase = await createClient()
 
-    const { data, error } = await supabase.rpc('refund_invoice', {
+    const { data, error } = await supabase.rpc('refund_invoice_with_materials', {
       p_invoice_id: id,
       p_reason: reason || null,
     })
 
     if (error) {
       console.error('Refund invoice error:', error)
-      return { success: false as const, error: 'تعذر استرجاع الفاتورة' }
+      return { success: false as const, error: formatInventoryError(error) }
     }
 
     if (!data || typeof data !== 'object' || !('success' in data)) {
@@ -520,6 +533,7 @@ export async function refundInvoice(id: string, reason?: string) {
       return { success: false as const, error: (data as Record<string, unknown>).error as string || 'تعذر استرجاع الفاتورة' }
     }
 
+    updateTag(CACHE_TAGS.materials)
     return { success: true as const, data }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }
@@ -594,7 +608,7 @@ export async function exportInvoice(input: {
     const validated = ExportSchema.parse(input)
     const supabase = await createClient()
 
-    const { data, error } = await supabase.rpc('export_booking_invoice', {
+    const { data, error } = await supabase.rpc('export_invoice_with_materials', {
       p_invoice_id: validated.invoice_id,
       p_payment_method: validated.payment_method,
       p_idempotency_key: `export_${validated.invoice_id}`,
@@ -602,7 +616,7 @@ export async function exportInvoice(input: {
 
     if (error) {
       console.error('Export invoice RPC error:', error)
-      return { success: false as const, error: 'تعذر تصدير الفاتورة' }
+      return { success: false as const, error: formatInventoryError(error) }
     }
 
     if (!data || !data.success) {

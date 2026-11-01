@@ -65,6 +65,21 @@ function validatePageSize(value: unknown): number {
   return Math.min(Math.floor(num), MAX_PAGE_SIZE)
 }
 
+function formatInventoryShortage(result: { error?: string; shortages?: Array<{ name?: string; required?: number; available?: number; unit?: string }> } | null, rpcError?: { message?: string } | null): string {
+  const shortages = result?.shortages || []
+  if (shortages.length > 0) {
+    const details = shortages
+      .map(item => `${item.name || 'مادة'}: المطلوب ${item.required ?? 0} ${item.unit || ''}، المتاح ${item.available ?? 0} ${item.unit || ''}`.trim())
+      .join(' — ')
+    return `المخزون غير كافٍ: ${details}`
+  }
+
+  const raw = result?.error || rpcError?.message || ''
+  return raw.includes('INSUFFICIENT_STOCK')
+    ? 'المخزون غير كافٍ للمواد المطلوبة'
+    : raw || 'تعذر التحقق من المخزون'
+}
+
 const StatusSchema = z.enum([
   'new', 'contacted', 'in_progress', 'completed', 'cancelled',
 ])
@@ -358,6 +373,27 @@ export async function updateBookingStatus(
       }
     }
 
+    let reservedForTransition = false
+
+    // Reserve service materials before allowing the booking to enter service.
+    // Reservation does not reduce physical stock; it prevents another booking
+    // from consuming the same units before this booking is invoiced.
+    if (newStatus === 'in_progress' || newStatus === 'completed') {
+      const { data: inventoryResult, error: inventoryError } = await supabase.rpc(
+        'reserve_booking_materials',
+        { p_booking_id: id },
+      )
+
+      if (inventoryError || !inventoryResult?.success) {
+        return {
+          success: false as const,
+          error: formatInventoryShortage(inventoryResult, inventoryError),
+          inventoryShortage: true as const,
+        }
+      }
+      reservedForTransition = true
+    }
+
     const updatePayload: Record<string, unknown> = { status: newStatus }
     if (newStatus === 'completed' && warrantyInput) {
       if (warrantyInput.years && warrantyInput.years >= 1 && warrantyInput.years <= 10) {
@@ -380,11 +416,33 @@ export async function updateBookingStatus(
 
     if (error) {
       console.error('Update booking status error:', error)
+      if (reservedForTransition) {
+        try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort rollback */ }
+      }
       return { success: false as const, error: 'تعذر تحديث حالة الحجز' }
     }
 
     if (!data) {
+      if (reservedForTransition) {
+        try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort rollback */ }
+      }
       return { success: false as const, error: 'الحجز غير موجود أو تغيرت الحالة منذ قرائتها' }
+    }
+
+    if (
+      newStatus !== 'in_progress' &&
+      newStatus !== 'completed' &&
+      (existing.status === 'in_progress' || existing.status === 'completed')
+    ) {
+      // Release a reservation when a super-admin moves a booking back or
+      // cancels it. Consumed materials are never released here.
+      const { data: releaseResult, error: releaseError } = await supabase.rpc(
+        'release_booking_materials',
+        { p_booking_id: id },
+      )
+      if (releaseError || !releaseResult?.success) {
+        console.error('Release booking materials error:', releaseError || releaseResult?.error)
+      }
     }
 
     await supabase

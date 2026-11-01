@@ -150,6 +150,7 @@ export async function createInvoiceWithPayment(
   depositAmount?: number,
 ) {
   const user = await requireAuth()
+  const supabase = await createClient()
 
   const draft = await ensureDraftInvoiceForBooking(bookingId)
   if (!draft.success) return draft
@@ -167,16 +168,30 @@ export async function createInvoiceWithPayment(
     return { success: false as const, error: 'الفاتورة غير موجودة' }
   }
 
+  const amount = paymentType === 'full' ? invoice.total : (depositAmount || 0)
+
+  if (amount <= 0) {
+    return { success: false as const, error: 'المبلغ يجب أن يكون أكبر من صفر' }
+  }
+
+  if (amount > invoice.total) {
+    return { success: false as const, error: `المبلغ (${amount}) أكبر من إجمالي الفاتورة (${invoice.total})` }
+  }
+
   // If invoice is still draft, issue it first
   if (invoice.status === 'draft') {
-    const { error: issueErr } = await admin
-      .from('invoices')
-      .update({ status: 'issued', updated_at: new Date().toISOString() })
-      .eq('id', invoiceId)
+    const { data: issueResult, error: issueErr } = await supabase.rpc('issue_invoice_with_materials', {
+      p_invoice_id: invoiceId,
+    })
 
-    if (issueErr) {
+    if (issueErr || !issueResult?.success) {
       console.error('Invoice issue error:', issueErr)
-      return { success: false as const, error: `تعذر إصدار الفاتورة: ${issueErr.message}` }
+      const raw = issueErr?.message || issueResult?.error || ''
+      const match = raw.match(/INSUFFICIENT_STOCK\|([^|]+)\|([0-9.]+)\|([0-9.]+)/i)
+      const error = match
+        ? `المخزون غير كافٍ لمادة ${match[1]} — المطلوب ${match[2]}، المتاح ${match[3]}`
+        : (raw || 'تعذر إصدار الفاتورة')
+      return { success: false as const, error }
     }
   }
 
@@ -195,16 +210,6 @@ export async function createInvoiceWithPayment(
 
   // Reset: delete old payments and reset paid_amount so we start fresh
   await admin.from('payments').delete().eq('invoice_id', invoiceId)
-
-  const amount = paymentType === 'full' ? invoice.total : (depositAmount || 0)
-
-  if (amount <= 0) {
-    return { success: false as const, error: 'المبلغ يجب أن يكون أكبر من صفر' }
-  }
-
-  if (amount > invoice.total) {
-    return { success: false as const, error: `المبلغ (${amount}) أكبر من إجمالي الفاتورة (${invoice.total})` }
-  }
 
   const { error: insertErr } = await admin
     .from('payments')

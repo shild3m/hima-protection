@@ -73,7 +73,7 @@ interface Stats {
  total: number
 }
 
-type Notification = { type: 'success' | 'error'; message: string } | null
+type Notification = { type: 'success' | 'error'; message: string; action?: { label: string; href: string } } | null
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
  draft: { label: 'مسودة', color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' },
@@ -301,8 +301,12 @@ const [showRefundModal, setShowRefundModal] = useState(false)
  setNotification({ type: 'success', message: 'تم إصدار الفاتورة بنجاح' })
  fetchInvoices()
  fetchStats()
- } else {
- setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
+  } else {
+  setNotification({
+    type: 'error',
+    message: result.error || 'حدث خطأ غير متوقع',
+    action: result.error?.includes('المخزون غير كافٍ') ? { label: 'الذهاب للمخزون', href: '/admin/inventory' } : undefined,
+  })
  }
  } catch {
  setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
@@ -423,7 +427,11 @@ const handleOpenRefund = (invoiceId: string) => {
         await fetchInvoices()
         await fetchStats()
       } else {
-        setNotification({ type: 'error', message: result.error || 'تعذر تصدير الفاتورة' })
+       setNotification({
+         type: 'error',
+         message: result.error || 'تعذر تصدير الفاتورة',
+         action: result.error?.includes('المخزون غير كافٍ') ? { label: 'الذهاب للمخزون', href: '/admin/inventory' } : undefined,
+       })
       }
     } catch {
       setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
@@ -470,9 +478,14 @@ const handleOpenRefund = (invoiceId: string) => {
  ? 'bg-[#ECFDF5] border-[#A7F3D0] text-[#059669]'
  : 'bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]'
  }`}>
- {notification.type === 'success' ? <FaCheckCircle className="inline ml-2" /> : <FaExclamationTriangle className="inline ml-2" />}
- {notification.message}
- </div>
+  {notification.type === 'success' ? <FaCheckCircle className="inline ml-2" /> : <FaExclamationTriangle className="inline ml-2" />}
+  {notification.message}
+  {notification.action && (
+  <a href={notification.action.href} className="mr-3 inline-flex rounded-lg bg-[#DC2626] px-3 py-1.5 text-xs font-black text-white hover:bg-[#B91C1C]">
+  {notification.action.label}
+  </a>
+  )}
+  </div>
  )}
 
  {stats && (

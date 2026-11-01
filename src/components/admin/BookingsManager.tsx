@@ -87,7 +87,7 @@ interface Stats {
  total: number
 }
 
-type Notification = { type: 'success' | 'error'; message: string } | null
+type Notification = { type: 'success' | 'error'; message: string; action?: { label: string; href: string } } | null
 
 const ARABIC_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
 const WEEKDAY_HEADERS = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
@@ -438,8 +438,12 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   if (viewingBooking?.id === bookingId) {
   handleViewBooking({ id: bookingId } as Booking)
   }
-  } else {
-  setNotification({ type: 'error', message: result.error || 'حدث خطأ غير متوقع' })
+   } else {
+   setNotification({
+     type: 'error',
+     message: result.error || 'حدث خطأ غير متوقع',
+     action: result.inventoryShortage ? { label: 'الذهاب للمخزون', href: '/admin/inventory' } : undefined,
+   })
   }
   } catch {
   setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
@@ -1053,8 +1057,13 @@ return (
   }`}>
   {notification.type === 'success' ? <FaCheckCircle className="text-lg" /> : <FaExclamationTriangle className="text-lg" />}
   </div>
-  <p className="flex-1 min-w-0 font-black text-[15px] text-[#111214]">{notification.message}</p>
-  <button onClick={() => setNotification(null)} className="opacity-40 hover:opacity-100 transition shrink-0">
+   <p className="flex-1 min-w-0 font-black text-[15px] text-[#111214]">{notification.message}</p>
+   {notification.action && (
+   <a href={notification.action.href} className="shrink-0 rounded-lg bg-[#DC2626] px-3 py-2 text-xs font-black text-white hover:bg-[#B91C1C] transition-colors">
+   {notification.action.label}
+   </a>
+   )}
+   <button onClick={() => setNotification(null)} className="opacity-40 hover:opacity-100 transition shrink-0">
   <FaTimes className="text-sm" />
   </button>
   </div>

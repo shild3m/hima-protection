@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fa'
 
 interface Material { id: string; name: string; sku: string; unit: string; current_stock: number; min_stock: number; is_active: boolean }
+interface Availability { id: string; name: string; sku: string; unit: string; current_stock: number; reserved_stock: number; available_stock: number; min_stock: number; is_active: boolean }
 interface StockMovement {
  id: string; material_id: string; quantity: number; type: string; notes: string | null;
  created_at: string; created_by: string | null;
@@ -33,16 +34,18 @@ function getTypeInfo(quantity: number): { label: string; color: string; icon: Re
 
 type ActionType = 'in' | 'out'
 
-export default function InventoryManager({ initialMovements, initialPagination, initialMaterials }: {
+export default function InventoryManager({ initialMovements, initialPagination, initialMaterials, initialAvailability }: {
  initialMovements?: StockMovement[]
  initialPagination?: Pagination
  initialMaterials?: Material[]
+ initialAvailability?: Availability[]
 } = {}) {
  const { hasPermission } = useAuth()
  const skipInitialMovementsFetch = useRef(initialMovements !== undefined)
  const skipInitialMaterialsFetch = useRef(initialMaterials !== undefined)
  const [movements, setMovements] = useState<StockMovement[]>(initialMovements ?? [])
- const [materials, setMaterials] = useState<Material[]>(initialMaterials ?? [])
+  const [materials, setMaterials] = useState<Material[]>(initialMaterials ?? [])
+  const [availability, setAvailability] = useState<Availability[]>(initialAvailability ?? [])
  const [loading, setLoading] = useState(initialMovements === undefined)
  const [materialFilter, setMaterialFilter] = useState('')
  const [typeFilter, setTypeFilter] = useState('all')
@@ -65,21 +68,32 @@ export default function InventoryManager({ initialMovements, initialPagination, 
  } finally { setLoading(false) }
  }, [])
 
- const loadMaterials = useCallback(async () => {
+  const loadMaterials = useCallback(async () => {
  try {
  const { getMaterialOptions } = await import('@/app/actions/materials')
  const res = await getMaterialOptions()
  if (res.success) setMaterials(res.data)
  } catch { /* ignore */ }
- }, [])
+  }, [])
 
- useEffect(() => {
+  const loadAvailability = useCallback(async () => {
+    try {
+      const { getInventoryAvailability } = await import('@/app/actions/inventory')
+      const res = await getInventoryAvailability()
+      if (res.success) setAvailability(res.data as Availability[])
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => {
    if (skipInitialMaterialsFetch.current) {
      skipInitialMaterialsFetch.current = false
      return
    }
    loadMaterials()
- }, [loadMaterials])
+  }, [loadMaterials])
+  useEffect(() => {
+    if (!initialAvailability) loadAvailability()
+  }, [initialAvailability, loadAvailability])
  useEffect(() => {
    if (skipInitialMovementsFetch.current) {
      skipInitialMovementsFetch.current = false
@@ -115,8 +129,9 @@ export default function InventoryManager({ initialMovements, initialPagination, 
   setShowAction(null)
   setActionForm({ material_id: '', quantity: 1, direction: 'in', notes: '' })
   setActionError('')
-  loadMovements(materialFilter, typeFilter, page)
-  loadMaterials()
+   loadMovements(materialFilter, typeFilter, page)
+   loadMaterials()
+   loadAvailability()
   } finally { setSaving(false) }
   }
 
@@ -127,7 +142,7 @@ export default function InventoryManager({ initialMovements, initialPagination, 
 
  return (
  <div className="p-4 md:p-6 lg:p-8">
- <div className="flex items-center justify-between mb-6">
+  <div className="flex items-center justify-between mb-6">
  <div>
  <h1 className="text-2xl font-black text-[#111214] mb-1">المخزون</h1>
  <p className="text-[#62666D] text-sm">حركات المخزون وتعديلات</p>
@@ -141,10 +156,41 @@ export default function InventoryManager({ initialMovements, initialPagination, 
  <FaMinus className="text-xs" /> خصم
  </button>
  </div>
- )}
- </div>
+  )}
+  </div>
 
- {notification && (
+  {availability.length > 0 && (
+  <div className="bg-white border border-[#E7E8EA] shadow-sm rounded-2xl overflow-hidden mb-4">
+  <div className="px-4 py-3 border-b border-[#E7E8EA]">
+  <h2 className="text-sm font-black text-[#111214]">توفر المواد</h2>
+  <p className="text-[11px] text-[#62666D] mt-1">المتاح = المخزون الفعلي ناقص الكميات المحجوزة للحجوزات</p>
+  </div>
+  <div className="overflow-x-auto">
+  <table className="w-full text-sm">
+  <thead>
+  <tr className="border-b border-[#E7E8EA]">
+  <th className="text-right px-4 py-3 text-[#62666D] font-bold">المادة</th>
+  <th className="text-right px-4 py-3 text-[#62666D] font-bold">المخزون</th>
+  <th className="text-right px-4 py-3 text-[#62666D] font-bold">المحجوز</th>
+  <th className="text-right px-4 py-3 text-[#62666D] font-bold">المتاح</th>
+  </tr>
+  </thead>
+  <tbody>
+  {availability.map(item => (
+  <tr key={item.id} className="border-b border-[#E7E8EA] last:border-b-0">
+  <td className="px-4 py-3 font-bold text-[#111214]">{item.name}</td>
+  <td className="px-4 py-3 text-[#111214]">{item.current_stock} {item.unit}</td>
+  <td className="px-4 py-3 text-[#D97706] font-bold">{item.reserved_stock} {item.unit}</td>
+  <td className={`px-4 py-3 font-black ${item.available_stock <= item.min_stock ? 'text-[#DC2626]' : 'text-[#059669]'}`}>{item.available_stock} {item.unit}</td>
+  </tr>
+  ))}
+  </tbody>
+  </table>
+  </div>
+  </div>
+  )}
+
+  {notification && (
  <div className={`mb-4 p-3 rounded-xl text-sm font-bold ${notification.type === 'success' ? 'bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]' : 'bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]'}`}>
  {notification.type === 'success' ? <FaCheckCircle className="inline ml-2" /> : <FaExclamationTriangle className="inline ml-2" />}
  {notification.message}
@@ -249,6 +295,7 @@ export default function InventoryManager({ initialMovements, initialPagination, 
   <h2 className="text-lg font-black text-[#111214] flex items-center gap-2">{ACTION_LABELS[showAction].icon} {ACTION_LABELS[showAction].title}</h2>
   <button onClick={() => { setShowAction(null); setActionError('') }} className="p-2 rounded-lg hover:bg-[#F1F2F3] text-[#62666D]"><FaTimes /></button>
   </div>
+
   {actionError && (
   <div className="mb-4 px-3 py-2 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-xs font-bold">
   {actionError}

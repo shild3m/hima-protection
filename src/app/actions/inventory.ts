@@ -192,6 +192,27 @@ export async function getInventorySummary() {
   }
 }
 
+export async function getInventoryAvailability() {
+  const user = await requireAuth()
+  if (!user.permissions.includes('inventory:read')) {
+    return { success: false as const, error: 'ليس لديك صلاحية لعرض المخزون' }
+  }
+
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('get_inventory_availability')
+
+    if (error) {
+      console.error('Get inventory availability error:', error)
+      return { success: false as const, error: 'تعذر عرض توفر المخزون' }
+    }
+
+    return { success: true as const, data: data || [] }
+  } catch {
+    return { success: false as const, error: 'حدث خطأ غير متوقع' }
+  }
+}
+
 const WasteSchema = z.object({
   material_id: z.string().uuid('معرف المادة غير صحيح'),
   quantity: z.number().positive('الكمية يجب أن تكون أكبر من صفر'),
