@@ -258,7 +258,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  }
  setNotification({
  type: 'success',
- message: `${deleteTargets.length > 1 ? `تم حذف ${deleteTargets.length} عميل نهائيًا` : 'تم حذف العميل نهائيًا'} — ${deleted.bookings} حجز، ${deleted.invoices} فاتورة، ${deleted.payments} دفعة، ${deleted.vehicles} مركبة${keptVehicles > 0 ? ` — تم الاحتفاظ بـ ${keptVehicles} مركبة مرتبطة بعملاء آخرين ونقل ملكيتها إليهم` : ''}`,
+ message: `${deleteTargets.length > 1 ? `تم حذف ${deleteTargets.length} عميل نهائيًا` : 'تم حذف العميل نهائيًا'} — ${deleted.bookings} حجز، ${deleted.invoices} فاتورة، ${deleted.payments} دفعة، ${deleted.vehicles} مركبة${keptVehicles > 0 ? ` — تم الاحتفاظ بـ ${keptVehicles} مركبة مرتبطة بعملاء آخرين` : ''}`,
  })
  setDeleteTargets([])
  setDeleteCode('')

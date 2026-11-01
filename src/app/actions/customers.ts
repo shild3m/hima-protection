@@ -531,8 +531,8 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
     }
 
     // A vehicle may be shared with bookings/invoices that belong to other
-    // customers. Those rows are kept, so the vehicle must stay as well; hand
-    // ownership to the most recent other customer instead of deleting it.
+    // customers. Those rows are kept, so the vehicle must stay as well; link it
+    // to the most recent other customer instead of deleting it.
     let deletedVehicleCount = 0
     let keptVehicleCount = 0
     for (const vehicleId of vehicleIds) {
@@ -585,7 +585,7 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
 
       if (error) {
         console.error('Reassign shared vehicle error:', error)
-        return { success: false as const, error: 'تعذر نقل ملكية مركبة مشتركة' }
+        return { success: false as const, error: 'تعذر الاحتفاظ بمركبة مشتركة' }
       }
       keptVehicleCount += 1
     }
