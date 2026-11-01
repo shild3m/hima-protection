@@ -504,9 +504,6 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
     if (paymentIds.length > 0) {
       await admin.from('notifications').delete().in('resource_id', paymentIds).eq('resource_type', 'payments')
     }
-    if (vehicleIds.length > 0) {
-      await admin.from('notifications').delete().in('resource_id', vehicleIds).eq('resource_type', 'vehicles')
-    }
     await admin.from('notifications').delete().eq('resource_id', id).eq('resource_type', 'customers')
 
     if (paymentIds.length > 0) {
@@ -533,12 +530,64 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
       }
     }
 
-    if (vehicleIds.length > 0) {
-      const { error } = await admin.from('vehicles').delete().in('id', vehicleIds)
-      if (error) {
-        console.error('Hard delete vehicles error:', error)
-        return { success: false as const, error: 'تعذر حذف مركبات العميل' }
+    // A vehicle may be shared with bookings/invoices that belong to other
+    // customers. Those rows are kept, so the vehicle must stay as well; hand
+    // ownership to the most recent other customer instead of deleting it.
+    let deletedVehicleCount = 0
+    let keptVehicleCount = 0
+    for (const vehicleId of vehicleIds) {
+      const [bookingRef, invoiceRef] = await Promise.all([
+        admin
+          .from('bookings')
+          .select('customer_id, created_at')
+          .eq('vehicle_id', vehicleId)
+          .neq('customer_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        admin
+          .from('invoices')
+          .select('customer_id, created_at')
+          .eq('vehicle_id', vehicleId)
+          .neq('customer_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
+
+      if (bookingRef.error || invoiceRef.error) {
+        console.error('Load shared vehicle references error:', bookingRef.error || invoiceRef.error)
+        return { success: false as const, error: 'تعذر التحقق من مركبات العميل' }
       }
+
+      const references = [bookingRef.data, invoiceRef.data].filter(
+        (row): row is { customer_id: string; created_at: string } => Boolean(row?.customer_id)
+      )
+
+      if (references.length === 0) {
+        await admin.from('notifications').delete().eq('resource_id', vehicleId).eq('resource_type', 'vehicles')
+        const { error } = await admin.from('vehicles').delete().eq('id', vehicleId)
+        if (error) {
+          console.error('Hard delete vehicles error:', error)
+          return { success: false as const, error: 'تعذر حذف مركبات العميل' }
+        }
+        deletedVehicleCount += 1
+        continue
+      }
+
+      references.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      const newOwnerId = references[0].customer_id
+
+      const { error } = await admin
+        .from('vehicles')
+        .update({ customer_id: newOwnerId })
+        .eq('id', vehicleId)
+
+      if (error) {
+        console.error('Reassign shared vehicle error:', error)
+        return { success: false as const, error: 'تعذر نقل ملكية مركبة مشتركة' }
+      }
+      keptVehicleCount += 1
     }
 
     const { error: customerError } = await admin.from('customers').delete().eq('id', id)
@@ -548,7 +597,7 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
     }
 
     const deleted = {
-      vehicles: vehicleIds.length,
+      vehicles: deletedVehicleCount,
       bookings: bookingIds.length,
       invoices: invoiceIds.length,
       payments: paymentIds.length,
@@ -560,10 +609,10 @@ export async function deleteCustomerSecure(id: string, tokenHash: string) {
       resourceType: 'customers',
       resourceId: id,
       oldValues: { full_name: customer.full_name, phone: customer.phone },
-      newValues: deleted,
+      newValues: { ...deleted, keptVehicles: keptVehicleCount },
     })
 
-    return { success: true as const, deleted }
+    return { success: true as const, deleted, keptVehicles: keptVehicleCount }
   } catch (err) {
     console.error('Delete customer secure error:', err)
     return { success: false as const, error: 'حدث خطأ غير متوقع' }

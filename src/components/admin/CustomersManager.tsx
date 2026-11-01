@@ -235,6 +235,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  const { deleteCustomerSecure } = await import('@/app/actions/customers')
  const tokenHash = await sha256(deleteCode.trim())
  const deleted = { vehicles: 0, bookings: 0, invoices: 0, payments: 0 }
+ let keptVehicles = 0
  let failedMessage = ''
  for (const target of deleteTargets) {
  const result = await deleteCustomerSecure(target.id, tokenHash)
@@ -248,6 +249,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  deleted.bookings += result.deleted.bookings
  deleted.invoices += result.deleted.invoices
  deleted.payments += result.deleted.payments
+ keptVehicles += result.keptVehicles || 0
  }
  if (failedMessage) {
  setDeleteError(failedMessage)
@@ -256,7 +258,7 @@ export default function CustomersManager({ initialCustomers, initialPagination }
  }
  setNotification({
  type: 'success',
- message: `${deleteTargets.length > 1 ? `تم حذف ${deleteTargets.length} عميل نهائيًا` : 'تم حذف العميل نهائيًا'} — ${deleted.bookings} حجز، ${deleted.invoices} فاتورة، ${deleted.payments} دفعة، ${deleted.vehicles} مركبة`,
+ message: `${deleteTargets.length > 1 ? `تم حذف ${deleteTargets.length} عميل نهائيًا` : 'تم حذف العميل نهائيًا'} — ${deleted.bookings} حجز، ${deleted.invoices} فاتورة، ${deleted.payments} دفعة، ${deleted.vehicles} مركبة${keptVehicles > 0 ? ` — تم الاحتفاظ بـ ${keptVehicles} مركبة مرتبطة بعملاء آخرين ونقل ملكيتها إليهم` : ''}`,
  })
  setDeleteTargets([])
  setDeleteCode('')
