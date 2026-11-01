@@ -146,9 +146,16 @@ export default function SettingsManager() {
  <input
  type="password"
  value={currentToken}
- onChange={e => { setCurrentToken(e.target.value); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
+ onChange={e => {
+ const raw = e.target.value
+ const englishOnly = raw.replace(/[^\x20-\x7E]/g, '')
+ setCurrentToken(englishOnly)
+ setTokenSettingsError(raw !== englishOnly ? 'الرمز الخاص بالإنجليزية فقط' : '')
+ setTokenSettingsSuccess('')
+ }}
  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
  placeholder="الرمز الحالي..."
+ dir="ltr"
  autoFocus
  />
  </div>
@@ -158,10 +165,18 @@ export default function SettingsManager() {
  <input
  type="password"
  value={newToken}
- onChange={e => { setNewToken(e.target.value); setTokenSettingsError(''); setTokenSettingsSuccess('') }}
+ onChange={e => {
+ const raw = e.target.value
+ const englishOnly = raw.replace(/[^\x20-\x7E]/g, '')
+ setNewToken(englishOnly)
+ setTokenSettingsError(raw !== englishOnly ? 'الرمز الخاص بالإنجليزية فقط' : '')
+ setTokenSettingsSuccess('')
+ }}
  className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626]"
  placeholder="رمز سري جديد..."
+ dir="ltr"
  />
+ <p className="text-[10px] text-[#9A9DA3] mt-1.5">استخدم الحروف الإنجليزية والأرقام فقط.</p>
  </div>
 
  <div className="flex gap-3">

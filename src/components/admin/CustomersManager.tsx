@@ -931,13 +931,19 @@ export default function CustomersManager({ initialCustomers, initialPagination }
   <input
   type="password"
   value={deleteCode}
-  onChange={e => { setDeleteCode(e.target.value); setDeleteError('') }}
+  onChange={e => {
+  const raw = e.target.value
+  const englishOnly = raw.replace(/[^\x20-\x7E]/g, '')
+  setDeleteCode(englishOnly)
+  setDeleteError(raw !== englishOnly ? 'الرمز الخاص بالإنجليزية فقط' : '')
+  }}
   onKeyDown={e => { if (e.key === 'Enter') handleDeleteCustomer() }}
   placeholder="أدخل الرمز الخاص..."
   autoComplete="new-password"
   dir="ltr"
   className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] text-right focus:outline-none focus:border-[#DC2626] focus:ring-4 focus:ring-red-500/10 transition-all"
   />
+  <p className="text-[10px] text-[#9A9DA3] mt-1.5">استخدم الحروف الإنجليزية والأرقام فقط.</p>
   {deleteError && <p className="text-xs text-[#DC2626] mt-2 font-bold">{deleteError}</p>}
   </div>
   </div>
