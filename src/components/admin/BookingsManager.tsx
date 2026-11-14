@@ -2275,7 +2275,7 @@ type="password"
   <label className="text-xs font-bold text-[#62666D]">المبلغ</label>
  {completeAfterPayment ? (
  <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-3 text-center">
- <p className="text-sm font-bold text-[#92400E]">هل أنت متأكد من estالمبلغ؟</p>
+ <p className="text-sm font-bold text-[#92400E]">هل أنت متأكد من استلام المبلغ؟</p>
  <p className="text-xs font-bold text-[#B45309] mt-1">سيتم تسجيل المبلغ كامل</p>
  </div>
  ) : (
@@ -2296,7 +2296,7 @@ type="password"
  </div>
  </div>
  <div className="px-6 pb-6 pt-2 flex gap-3">
- <button onClick={confirmPayment} disabled={paymentSubmitting || (!completeAfterPayment && paymentType === 'deposit' && (!depositAmount || Number(depositAmount) <= 0))} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-2os delay-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
+ <button onClick={confirmPayment} disabled={paymentSubmitting || (!completeAfterPayment && paymentType === 'deposit' && (!depositAmount || Number(depositAmount) <= 0))} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 delay-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
  {paymentSubmitting ? <><FaSpinner className="animate-spin" /> جاري التأكيد...</> : completeAfterPayment ? 'تأكيد استلام المبلغ' : 'تأكيد'}
  </button>
   <button onClick={() => { if (!paymentSubmitting) setPaymentPrompt(null) }} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">

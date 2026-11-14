@@ -368,7 +368,7 @@ export async function recordRemainingPayment(
     }
   }
 
-  const { error: insertErr } = await supabase
+  const { data: inserted, error: insertErr } = await supabase
     .from('payments')
     .insert({
       invoice_id: invoiceId,
@@ -376,16 +376,26 @@ export async function recordRemainingPayment(
       payment_method: paymentMethod,
       created_by: user.auth_user_id,
     })
+    .select('id')
+    .single()
 
-  if (insertErr) {
+  if (insertErr || !inserted) {
     console.error('Remaining payment insert error:', insertErr)
     return { success: false as const, error: 'تعذر تسجيل الدفعة' }
   }
 
-  await admin
+  const { error: updateErr } = await admin
     .from('invoices')
     .update({ paid_amount: invoice.total, status: 'paid', updated_at: new Date().toISOString() })
     .eq('id', invoiceId)
+
+  if (updateErr) {
+    // Roll the payment back so the invoice never shows a paid_amount that does
+    // not match its payment rows.
+    console.error('Invoice update error:', updateErr)
+    await admin.from('payments').delete().eq('id', inserted.id)
+    return { success: false as const, error: `تعذر تحديث الفاتورة: ${updateErr.message}` }
+  }
 
   await logAudit({
     userId: user.auth_user_id,
