@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import { decideBookingFlow, availableBookingStatuses } from '@/lib/booking-flow'
 import SaudiPlate from '@/components/ui/SaudiPlate'
 import {
  FaCalendarAlt,
@@ -60,7 +61,7 @@ status: string
  service_date?: string | null
  warranty_start_date?: string | null
  warranty_end_date?: string | null
-  linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number } | null
+  linked_invoice?: { id: string; invoice_number: string; status: string; total: number; paid_amount: number; created_at?: string | null } | null
   booking_items?: { id: string; service_id: string; quantity: number; unit_price: number; total: number; service?: { id: string; name: string; base_price: number }; service_name_snapshot?: string | null }[]
 }
 
@@ -152,14 +153,6 @@ const STATUS_META: Record<string, { icon: React.ReactNode; iconBg: string; iconC
   cancelled: { icon: <FaBan />, iconBg: 'bg-[#F6F6F6]', iconColor: 'text-[#62666D]' },
 }
 
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  new: ['contacted', 'cancelled'],
-  contacted: ['in_progress', 'cancelled'],
-  in_progress: ['completed'],
-  completed: [],
-  cancelled: [],
-}
-
 const INVOICE_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   draft: { label: 'مسودة', color: 'text-[#62666D]', bg: 'bg-[#F1F2F3] border-[#E7E8EA]' },
   issued: { label: 'صادرة', color: 'text-[#2563EB]', bg: 'bg-[#EFF6FF] border-[#BFDBFE]' },
@@ -231,8 +224,6 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [unpaidSubmitting, setUnpaidSubmitting] = useState(false)
   const [completeAfterPayment, setCompleteAfterPayment] = useState(false)
  const [invoiceStatusPrompt, setInvoiceStatusPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number; mode: 'new_to_progress' | 'in_progress' | 'completed'; step: 1 | 2 | 3 } | null>(null)
- const [notFullyPaidPrompt, setNotFullyPaidPrompt] = useState<{ bookingId: string; invoiceId: string; total: number; paid: number; remaining: number } | null>(null)
- const [notFullyPaidSubmitting, setNotFullyPaidSubmitting] = useState(false)
  const [warrantyStart, setWarrantyStart] = useState('')
  const [warrantyEnd, setWarrantyEnd] = useState('')
  const [warrantyYears, setWarrantyYears] = useState(1)
@@ -357,10 +348,10 @@ useEffect(() => {
 
   const getAvailableStatuses = (booking: Booking): string[] => {
     if (isSuperAdmin && booking.status !== 'completed') {
-      return Object.keys(STATUS_CONFIG).filter(s => s !== booking.status)
+      return availableBookingStatuses(booking.status, true)
     }
     if (!canUpdate) return []
-    return VALID_TRANSITIONS[booking.status] || []
+    return availableBookingStatuses(booking.status, false)
   }
 
   useEffect(() => {
@@ -424,7 +415,7 @@ useEffect(() => {
  }
  }
 
-const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyInput?: { years?: number; noWarranty?: boolean }, paymentInput?: { method: string; type: 'full' | 'deposit'; amount?: number }) => {
+const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyInput?: { years?: number; noWarranty?: boolean }, paymentInput?: { method: string; type: 'full' | 'deposit'; amount?: number }): Promise<boolean> => {
   setUpdatingStatus(bookingId)
   try {
   const { updateBookingStatus } = await import('@/app/actions/bookings')
@@ -438,15 +429,18 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   if (viewingBooking?.id === bookingId) {
   handleViewBooking({ id: bookingId } as Booking)
   }
+  return true
    } else {
    setNotification({
      type: 'error',
      message: result.error || 'حدث خطأ غير متوقع',
      action: result.inventoryShortage ? { label: 'الذهاب للمخزون', href: '/admin/inventory' } : undefined,
    })
+  return false
   }
   } catch {
   setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+  return false
   } finally {
   setUpdatingStatus(null)
   }
@@ -457,60 +451,53 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     : undefined
 
   const handleStatusUpdate = (bookingId: string, newStatus: string) => {
-  if (newStatus === 'completed') {
-    const booking = bookings.find(b => b.id === bookingId)
-    const linkedInvoice = (booking as BookingDetail)?.linked_invoice
-    if (linkedInvoice) {
-      if (linkedInvoice.paid_amount >= linkedInvoice.total) {
-        setCompleteWarrantyYears(1)
-        setCompleteNoWarranty(false)
-        setCompletePrompt({ bookingId })
-      } else {
-        setInvoiceStatusPrompt({
-          bookingId,
-          invoiceId: linkedInvoice.id,
-          total: linkedInvoice.total,
-          paid: linkedInvoice.paid_amount,
-          remaining: linkedInvoice.total - linkedInvoice.paid_amount,
-          mode: 'completed',
-          step: 1,
-        })
-      }
-    } else {
-      const serviceName = bookingServiceLabel(booking)
-      const basePrice = bookingGrandTotal(booking)
-      setCompleteAfterPayment(true)
-      setPaymentType('full')
-      setDepositAmount('')
-      setPaymentPrompt({ bookingId, serviceName, basePrice })
-    }
+  const booking = bookings.find(b => b.id === bookingId)
+  const linkedInvoice = (booking as BookingDetail)?.linked_invoice
+  const decision = decideBookingFlow({ targetStatus: newStatus, linkedInvoice })
+
+  if (decision.type === 'apply_status') {
+    applyStatusUpdate(bookingId, newStatus)
     return
   }
-  if (newStatus === 'in_progress') {
-    const booking = bookings.find(b => b.id === bookingId)
-    const linkedInvoice = (booking as BookingDetail)?.linked_invoice
-    if (linkedInvoice) {
-      const isFromNew = booking?.status === 'new'
-      setInvoiceStatusPrompt({
-        bookingId,
-        invoiceId: linkedInvoice.id,
-        total: linkedInvoice.total,
-        paid: linkedInvoice.paid_amount,
-        remaining: linkedInvoice.total - linkedInvoice.paid_amount,
-        mode: isFromNew ? 'new_to_progress' : 'in_progress',
-        step: 1,
-      })
-    } else {
-      const serviceName = bookingServiceLabel(booking)
-      const basePrice = bookingGrandTotal(booking)
-      setPaymentType('full')
-      setDepositAmount('')
-      setCompleteAfterPayment(false)
-      setPaymentPrompt({ bookingId, serviceName, basePrice })
-    }
+
+  if (decision.type === 'complete_prompt') {
+    setCompleteWarrantyYears(1)
+    setCompleteNoWarranty(false)
+    setCompletePrompt({ bookingId })
     return
   }
-  applyStatusUpdate(bookingId, newStatus)
+
+  if (decision.type === 'payment_prompt') {
+    const serviceName = bookingServiceLabel(booking)
+    const basePrice = bookingGrandTotal(booking)
+    setCompleteAfterPayment(decision.completeAfterPayment)
+    setPaymentType('full')
+    setDepositAmount('')
+    setPaymentPrompt({ bookingId, serviceName, basePrice })
+    return
+  }
+
+  // invoice_prompt — the invoice is live (draft/issued/partially_paid/paid).
+  if (!linkedInvoice) {
+    // Defensive: the live-invoice check above guarantees one exists.
+    const serviceName = bookingServiceLabel(booking)
+    const basePrice = bookingGrandTotal(booking)
+    setCompleteAfterPayment(decision.mode === 'completed')
+    setPaymentType('full')
+    setDepositAmount('')
+    setPaymentPrompt({ bookingId, serviceName, basePrice })
+    return
+  }
+
+  setInvoiceStatusPrompt({
+    bookingId,
+    invoiceId: linkedInvoice.id,
+    total: linkedInvoice.total,
+    paid: linkedInvoice.paid_amount,
+    remaining: linkedInvoice.total - linkedInvoice.paid_amount,
+    mode: decision.mode,
+    step: 1,
+  })
   }
 
   const handleCompleteWithCheck = async (bookingId: string, invoiceId: string) => {
@@ -560,6 +547,8 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     const booking = bookings.find(b => b.id === invoiceStatusPrompt.bookingId)
     const serviceName = booking?.service?.name || booking?.service_name_snapshot || 'خدمة'
     setCompleteAfterPayment(false)
+    setPaymentType('full')
+    setDepositAmount('')
     setPaymentPrompt({ bookingId: invoiceStatusPrompt.bookingId, serviceName, basePrice: invoiceStatusPrompt.total })
     setInvoiceStatusPrompt(null)
   }
@@ -620,14 +609,15 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   const handleNewToProgressSave = async () => {
     if (!invoiceStatusPrompt) return
     setNewProgressSubmitting(true)
-    await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
+    const ok = await applyStatusUpdate(invoiceStatusPrompt.bookingId, 'in_progress')
     setNewProgressSubmitting(false)
-    setInvoiceStatusPrompt(null)
+    if (ok) setInvoiceStatusPrompt(null)
   }
 
   const handleNewToProgressEdit = () => {
     if (!invoiceStatusPrompt) return
     setNewProgressPaidAmount(String(invoiceStatusPrompt.paid))
+    setPaymentMethod('cash')
     setInvoiceStatusPrompt(prev => prev ? { ...prev, step: 2 } : null)
   }
 
@@ -641,16 +631,17 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     setNewProgressSubmitting(true)
     try {
       const isFull = amount >= invoiceStatusPrompt.total
-      await applyStatusUpdate(
+      const ok = await applyStatusUpdate(
         invoiceStatusPrompt.bookingId,
         'in_progress',
         undefined,
         {
-          method: 'cash',
+          method: paymentMethod,
           type: isFull ? 'full' : 'deposit',
           amount: isFull ? undefined : amount,
         },
       )
+      if (!ok) return
       setNewProgressPaidAmount('')
       setInvoiceStatusPrompt(null)
     } catch {
@@ -678,12 +669,12 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         return
       }
     }
-    await applyStatusUpdate(
+    const ok = await applyStatusUpdate(
       invoiceStatusPrompt.bookingId,
       'completed',
       completeNoWarranty ? { noWarranty: true } : { years: completeWarrantyYears }
     )
-    setInvoiceStatusPrompt(null)
+    if (ok) setInvoiceStatusPrompt(null)
     setInvoiceSubmitting(false)
   }
 
@@ -691,12 +682,53 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     if (!paymentPrompt) return
     setPaymentSubmitting(true)
     const shouldComplete = completeAfterPayment
-    await applyStatusUpdate(paymentPrompt.bookingId, 'in_progress', undefined, {
+    const booking = bookings.find(b => b.id === paymentPrompt.bookingId)
+    const paymentInput = {
       method: paymentMethod,
-      type: shouldComplete ? 'full' : paymentType,
+      type: (shouldComplete ? 'full' : paymentType) as 'full' | 'deposit',
       amount: !shouldComplete && paymentType === 'deposit' ? Number(depositAmount) : undefined,
-    })
+    }
+
+    // Already in service: there is no status transition left, so record the
+    // invoice/payment directly. Asking the server for an
+    // in_progress → in_progress change is rejected by the transition rules.
+    if (booking?.status === 'in_progress') {
+      try {
+        const { createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
+        const result = await createInvoiceWithPayment(
+          paymentPrompt.bookingId,
+          paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara',
+          paymentInput.type,
+          paymentInput.amount,
+        )
+        if (!result.success) {
+          setNotification({ type: 'error', message: result.error || 'تعذر إنشاء الفاتورة', action: inventoryAction(result.error) })
+          setPaymentSubmitting(false)
+          return
+        }
+      } catch {
+        setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
+        setPaymentSubmitting(false)
+        return
+      }
+      setPaymentSubmitting(false)
+      setPaymentPrompt(null)
+      setPaymentMethod('cash')
+      setPaymentType('full')
+      setDepositAmount('')
+      fetchBookings()
+      if (shouldComplete) {
+        setCompleteAfterPayment(false)
+        setCompleteWarrantyYears(1)
+        setCompleteNoWarranty(false)
+        setCompletePrompt({ bookingId: paymentPrompt.bookingId })
+      }
+      return
+    }
+
+    const ok = await applyStatusUpdate(paymentPrompt.bookingId, 'in_progress', undefined, paymentInput)
     setPaymentSubmitting(false)
+    if (!ok) return
     setPaymentPrompt(null)
     setPaymentMethod('cash')
     setPaymentType('full')
@@ -719,6 +751,7 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
         setCompleteWarrantyYears(1)
         setCompleteNoWarranty(false)
         setCompletePrompt({ bookingId: unpaidPrompt.bookingId })
+        setUnpaidPrompt(null)
       } else {
         setNotification({ type: 'error', message: result.error || 'تعذر تسجيل الدفعة', action: inventoryAction(result.error) })
       }
@@ -726,19 +759,18 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
       setNotification({ type: 'error', message: 'حدث خطأ غير متوقع' })
     }
     setUnpaidSubmitting(false)
-    setUnpaidPrompt(null)
   }
 
   const confirmComplete = async () => {
   if (!completePrompt) return
   setCompleteSubmitting(true)
-  await applyStatusUpdate(
+  const ok = await applyStatusUpdate(
   completePrompt.bookingId,
   'completed',
   completeNoWarranty ? { noWarranty: true } : { years: completeWarrantyYears }
   )
   setCompleteSubmitting(false)
-  setCompletePrompt(null)
+  if (ok) setCompletePrompt(null)
   }
 
  const handleSaveWarranty = async () => {
@@ -2354,7 +2386,7 @@ type="password"
    {invoiceStatusPrompt.mode === 'new_to_progress' ? (
    <div className="px-5 pb-5 pt-2 flex gap-2">
    <button onClick={handleNewToProgressSave} disabled={newProgressSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-blue-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
-   {newProgressSubmitting ? <><FaSpinner className="animate-spin" /> جاري الحفظ...</> : 'حفظ وإكمال'}
+   {newProgressSubmitting ? <><FaSpinner className="animate-spin" /> جاري الحفظ...</> : 'حفظ'}
    </button>
    <button onClick={handleNewToProgressEdit} disabled={newProgressSubmitting} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#D97706] to-[#B45309] hover:from-[#B45309] hover:to-[#92400E] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-amber-500/25 disabled:opacity-40 disabled:shadow-none flex items-center justify-center gap-2">
    تعديل الفاتورة
@@ -2414,6 +2446,17 @@ type="password"
    placeholder="0"
    className="w-full bg-white border border-[#E7E8EA] rounded-xl px-4 py-3 text-sm font-bold text-[#111214] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition-all"
    />
+   </div>
+   <div className="space-y-1.5">
+   <label className="text-xs font-bold text-[#62666D]">طريقة الدفع</label>
+   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3 py-3 text-sm font-bold text-[#111214] focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition-all">
+   <option value="cash">نقدي</option>
+   <option value="card">بطاقة ائتمانية</option>
+   <option value="bank_transfer">تحويل بنكي</option>
+   <option value="online">دفع إلكتروني</option>
+   <option value="tabby">تابي</option>
+   <option value="tamara">تمارا</option>
+   </select>
    </div>
    </div>
    <div className="px-5 pb-5 pt-2 flex gap-3">

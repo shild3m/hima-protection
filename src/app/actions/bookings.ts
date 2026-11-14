@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/auth'
+import { availableBookingStatuses, pickLiveInvoice } from '@/lib/booking-flow'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
 import { createNotificationsForRole } from '@/app/actions/notifications'
@@ -26,14 +27,6 @@ export interface AdminBookingInput {
 
 const PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 50
-
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  new: ['contacted', 'cancelled'],
-  contacted: ['in_progress', 'cancelled'],
-  in_progress: ['completed'],
-  completed: [],
-  cancelled: [],
-}
 
 function sanitizeError(error: unknown): string {
   if (error instanceof z.ZodError) {
@@ -125,7 +118,7 @@ export async function getBookings(
           vehicle:${vehicleRel}(id, make, model, year, plate_number),
           service:services(id, name, base_price),
           booking_items:booking_items(id, service_id, quantity, unit_price, total, service:services(name)),
-          invoices(id, invoice_number, status, total, paid_amount),
+          invoices(id, invoice_number, status, total, paid_amount, created_at),
           booking_status_history(created_at, new_status)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
@@ -229,7 +222,15 @@ export async function getBookings(
         if (latest) serviceDate = latest.slice(0, 10)
       }
 
-      const invoice = Array.isArray(invoices) ? invoices[0] : invoices
+      const invoiceRows = Array.isArray(invoices) ? invoices : invoices ? [invoices] : []
+      const invoice = pickLiveInvoice(invoiceRows as Array<{
+        id: string
+        invoice_number: string
+        status: string
+        total: number
+        paid_amount: number
+        created_at?: string | null
+      }>)
 
       return {
         ...booking,
@@ -316,11 +317,20 @@ export async function getBooking(id: string) {
       changed_by_name: h.changed_by ? staffNames[h.changed_by] || null : null,
     }))
 
-    const { data: linkedInvoice } = await supabase
+    const { data: linkedInvoices } = await supabase
       .from('invoices')
       .select('id, invoice_number, status, total, paid_amount, created_at')
       .eq('booking_id', id)
-      .maybeSingle()
+      .order('created_at', { ascending: false })
+
+    const linkedInvoice = pickLiveInvoice(linkedInvoices as Array<{
+      id: string
+      invoice_number: string
+      status: string
+      total: number
+      paid_amount: number
+      created_at?: string | null
+    }> | null)
 
     return { success: true as const, data: { ...data, status_history: enrichedHistory, created_by_name: data.created_by ? staffNames[data.created_by] || null : null, linked_invoice: linkedInvoice || null } }
   } catch {
@@ -328,20 +338,24 @@ export async function getBooking(id: string) {
   }
 }
 
+type UpdateBookingStatusResult =
+  | { success: true; data: Record<string, unknown>; invoiceWarning: string | null }
+  | { success: false; error: string; inventoryShortage?: true }
+
 export async function updateBookingStatus(
   id: string,
   newStatus: string,
   notes?: string,
   warrantyInput?: { years?: number; noWarranty?: boolean },
   paymentInput?: { method: string; type: 'full' | 'deposit'; amount?: number },
-) {
+): Promise<UpdateBookingStatusResult> {
   const user = await requireAuth()
   if (!user.permissions.includes('bookings:update')) {
     return { success: false as const, error: 'غير مصرح' }
   }
 
   const rl = await checkRateLimit('bookings:update')
-  if (!rl.ok) return { success: false as const, error: rl.error }
+  if (!rl.ok) return { success: false as const, error: rl.error || 'محاولات كثيرة — حاول لاحقًا' }
 
   const statusResult = StatusSchema.safeParse(newStatus)
   if (!statusResult.success) {
@@ -353,7 +367,7 @@ export async function updateBookingStatus(
 
     const { data: existing } = await supabase
       .from('bookings')
-      .select('id, status')
+      .select('id, status, warranty_start_date, warranty_end_date')
       .eq('id', id)
       .maybeSingle()
 
@@ -361,14 +375,12 @@ export async function updateBookingStatus(
       return { success: false as const, error: 'الحجز غير موجود' }
     }
 
-    let allowed = VALID_TRANSITIONS[existing.status] || []
-
     // Super-admin: bypass normal transition rules — can change to any
     // non-completed status from any status (except completed is terminal).
-    if (user.role_name === 'super_admin' && existing.status !== 'completed') {
-      const ALL = ['new', 'contacted', 'in_progress', 'completed', 'cancelled']
-      allowed = ALL.filter(s => s !== existing.status)
-    }
+    const allowed = availableBookingStatuses(
+      existing.status,
+      user.role_name === 'super_admin',
+    )
 
     if (!allowed.includes(newStatus)) {
       return {
@@ -447,6 +459,56 @@ export async function updateBookingStatus(
       return { success: false as const, error: 'الحجز غير موجود أو تغيرت الحالة منذ قرائتها' }
     }
 
+    // Record the invoice/payment before the change reaches history, so a failed
+    // payment can never leave a booking that "changed status but the amount did
+    // not". A failed payment reverts the status change instead.
+    let invoiceWarning: string | null = null
+    if (newStatus === 'in_progress' || newStatus === 'completed') {
+      try {
+        const { ensureDraftInvoiceForBooking, createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
+        const invoiceResult = paymentInput?.method
+          ? await createInvoiceWithPayment(
+              id,
+              paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara',
+              paymentInput.type,
+              paymentInput.amount,
+            )
+          : await ensureDraftInvoiceForBooking(id)
+
+        if (!invoiceResult.success) {
+          invoiceWarning = invoiceResult.error || 'تعذر إنشاء الفاتورة التلقائية'
+
+          if (paymentInput?.method) {
+            const revertPayload: Record<string, unknown> = { status: existing.status }
+            if (newStatus === 'completed') {
+              revertPayload.warranty_start_date = existing.warranty_start_date ?? null
+              revertPayload.warranty_end_date = existing.warranty_end_date ?? null
+            }
+            await supabase
+              .from('bookings')
+              .update(revertPayload)
+              .eq('id', id)
+              .eq('status', newStatus)
+
+            if (rollbackReservation) {
+              try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort */ }
+            }
+
+            return {
+              success: false as const,
+              error: invoiceWarning,
+              ...(invoiceWarning.includes('المخزون غير كافٍ')
+                ? { inventoryShortage: true as const }
+                : {}),
+            }
+          }
+        }
+      } catch (e) {
+        invoiceWarning = 'خطأ غير متوقع في إنشاء الفاتورة'
+        console.error('Auto invoice exception for booking', id, e)
+      }
+    }
+
     if (
       newStatus !== 'in_progress' &&
       newStatus !== 'completed' &&
@@ -491,33 +553,8 @@ export async function updateBookingStatus(
       createNotificationsForRole('bookings', 'read', notif.type, notif.title, notif.msg, 'bookings', id).catch(() => {})
     }
 
-    // Auto draft invoice when booking enters in_progress or completed (non-fatal, idempotent)
-    let invoiceWarning: string | null = null
-    if (newStatus === 'in_progress' || newStatus === 'completed') {
-      try {
-        const { ensureDraftInvoiceForBooking, createInvoiceWithPayment } = await import('@/app/actions/invoice-draft')
-        if (paymentInput && paymentInput.method) {
-          const draft = await createInvoiceWithPayment(
-            id,
-            paymentInput.method as 'cash' | 'card' | 'bank_transfer' | 'online' | 'tabby' | 'tamara',
-            paymentInput.type,
-            paymentInput.amount,
-          )
-          if (!draft.success) {
-            invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
-          }
-        } else {
-          const draft = await ensureDraftInvoiceForBooking(id)
-          if (!draft.success) {
-            invoiceWarning = draft.error || 'تعذر إنشاء الفاتورة التلقائية'
-          }
-        }
-      } catch (e) {
-        invoiceWarning = 'خطأ غير متوقع في إنشاء الفاتورة'
-        console.error('Auto invoice exception for booking', id, e)
-      }
-    }
-
+    // Auto draft invoice when booking enters in_progress or completed — already
+    // recorded above, before history, so a failed payment rolls the change back.
     return { success: true as const, data, invoiceWarning }
   } catch {
     return { success: false as const, error: 'حدث خطأ غير متوقع' }

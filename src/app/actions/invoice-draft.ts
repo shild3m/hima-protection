@@ -5,7 +5,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 
-const ALLOWED_EXISTING_STATUSES = ['draft', 'issued', 'partially_paid', 'paid']
+import { LIVE_INVOICE_STATUSES, computeInvoicePayment } from '@/lib/booking-flow'
 
 function getAdminClient() {
   return createAdminClient(
@@ -63,7 +63,9 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
       .from('invoices')
       .select('id, invoice_number, status')
       .eq('booking_id', bookingId)
-      .in('status', ALLOWED_EXISTING_STATUSES)
+      .in('status', LIVE_INVOICE_STATUSES)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (existing) {
@@ -131,6 +133,12 @@ export async function ensureDraftInvoiceForBooking(bookingId: string) {
     if (error || !result || !result.success || !result.invoice_id) {
       const errMsg = error?.message || JSON.stringify(result) || 'unknown'
       console.error('Auto invoice RPC error:', errMsg)
+      if (errMsg.includes('duplicate key') || errMsg.includes('invoices_booking_id_unique')) {
+        return {
+          success: false as const,
+          error: 'تعذر إنشاء الفاتورة: توجد فاتورة سابقة لهذا الحجز (راجع migration 052)',
+        }
+      }
       return { success: false as const, error: `تعذر إنشاء الفاتورة: ${errMsg}` }
     }
 
@@ -180,15 +188,14 @@ export async function createInvoiceWithPayment(
     return { success: false as const, error: 'الفاتورة غير موجودة' }
   }
 
-  const amount = paymentType === 'full' ? invoice.total : (depositAmount || 0)
-
-  if (amount <= 0) {
-    return { success: false as const, error: 'المبلغ يجب أن يكون أكبر من صفر' }
+  const payment = computeInvoicePayment(invoice.total, paymentType, depositAmount)
+  if (!payment.ok) {
+    return { success: false as const, error: payment.error }
   }
 
-  if (amount > invoice.total) {
-    return { success: false as const, error: `المبلغ (${amount}) أكبر من إجمالي الفاتورة (${invoice.total})` }
-  }
+  const amount = payment.amount
+  const originalStatus = invoice.status
+  const originalPaid = invoice.paid_amount
 
   // If invoice is still draft, issue it first
   if (invoice.status === 'draft') {
@@ -205,23 +212,10 @@ export async function createInvoiceWithPayment(
     }
   }
 
-  // If invoice is paid or partially_paid (booking was reset), reset to issued first
-  if (invoice.status === 'paid' || invoice.status === 'partially_paid') {
-    const { error: resetErr } = await admin
-      .from('invoices')
-      .update({ status: 'issued', paid_amount: 0, updated_at: new Date().toISOString() })
-      .eq('id', invoiceId)
-
-    if (resetErr) {
-      console.error('Invoice reset error:', resetErr)
-      return { success: false as const, error: `تعذر إعادة الفاتورة: ${resetErr.message}` }
-    }
-  }
-
-  // Reset: delete old payments and reset paid_amount so we start fresh
-  await admin.from('payments').delete().eq('invoice_id', invoiceId)
-
-  const { error: insertErr } = await admin
+  // Insert the replacement payment FIRST. The previous payments are only
+  // deleted once the new one is safely stored, so a failed insert can never
+  // wipe the existing payment history.
+  const { data: inserted, error: insertErr } = await admin
     .from('payments')
     .insert({
       invoice_id: invoiceId,
@@ -229,14 +223,42 @@ export async function createInvoiceWithPayment(
       payment_method: paymentMethod,
       created_by: user.auth_user_id,
     })
+    .select('id')
+    .single()
 
-  if (insertErr) {
+  if (insertErr || !inserted) {
     console.error('Payment insert error:', insertErr)
     return { success: false as const, error: 'تعذر تسجيل الدفعة' }
   }
 
+  // Put the invoice back exactly as it was if a later step fails.
+  const restoreInvoice = async () => {
+    const { error: delErr } = await admin.from('payments').delete().eq('id', inserted.id)
+    if (delErr) console.error('Payment rollback error:', delErr)
+    const { error: resErr } = await admin
+      .from('invoices')
+      .update({ status: originalStatus, paid_amount: originalPaid, updated_at: new Date().toISOString() })
+      .eq('id', invoiceId)
+    if (resErr) console.error('Invoice restore error:', resErr)
+  }
+
+  // A booking that was reset needs its invoice reset before a new status can
+  // be written (paid/partially_paid are not allowed straight to partially_paid).
+  if (originalStatus === 'paid' || originalStatus === 'partially_paid') {
+    const { error: resetErr } = await admin
+      .from('invoices')
+      .update({ status: 'issued', paid_amount: 0, updated_at: new Date().toISOString() })
+      .eq('id', invoiceId)
+
+    if (resetErr) {
+      console.error('Invoice reset error:', resetErr)
+      await restoreInvoice()
+      return { success: false as const, error: `تعذر إعادة الفاتورة: ${resetErr.message}` }
+    }
+  }
+
   // issued → partially_paid or paid
-  const newStatus = amount >= invoice.total ? 'paid' : 'partially_paid'
+  const newStatus = payment.status
 
   const { error: updateErr } = await admin
     .from('invoices')
@@ -245,8 +267,17 @@ export async function createInvoiceWithPayment(
 
   if (updateErr) {
     console.error('Invoice update error:', updateErr)
+    await restoreInvoice()
     return { success: false as const, error: `تعذر تحديث الفاتورة: ${updateErr.message}` }
   }
+
+  // Everything succeeded — now drop the superseded payments (best effort).
+  const { error: cleanupErr } = await admin
+    .from('payments')
+    .delete()
+    .eq('invoice_id', invoiceId)
+    .neq('id', inserted.id)
+  if (cleanupErr) console.error('Old payments cleanup error:', cleanupErr)
 
   await logAudit({
     userId: user.auth_user_id,
