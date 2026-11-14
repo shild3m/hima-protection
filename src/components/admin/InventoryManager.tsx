@@ -27,33 +27,18 @@ const UNIT_LABELS: Record<string, string> = {
 const HISTORY_FILTER_OPTIONS = [
  { value: 'in', label: 'إضافة' },
  { value: 'out', label: 'خصم' },
- { value: 'purchase', label: 'شراء' },
- { value: 'usage', label: 'استهلاك' },
- { value: 'return', label: 'إرجاع' },
- { value: 'adjustment', label: 'تسوية' },
 ]
 
 function formatUnit(unit: string) {
  return UNIT_LABELS[unit] || unit
 }
 
-function getMovementInfo(type: string, quantity: number): { label: string; color: string } {
- switch (type) {
- case 'purchase':
- return { label: 'شراء', color: 'text-[#059669] bg-[#ECFDF5]' }
- case 'usage':
- return { label: 'استهلاك', color: 'text-[#DC2626] bg-[#FEF2F2]' }
- case 'waste':
- return { label: 'هدر', color: 'text-[#DC2626] bg-[#FEF2F2]' }
- case 'return':
- return { label: 'إرجاع', color: 'text-[#059669] bg-[#ECFDF5]' }
- case 'adjustment':
- return { label: quantity > 0 ? 'تسوية إضافة' : 'تسوية خصم', color: 'text-[#D97706] bg-[#FFFBEB]' }
- default:
+// The UI only exposes two movement kinds. Detailed types (purchase, usage,
+// waste, return, adjustment) stay in inventory_transactions for reporting.
+function getMovementInfo(quantity: number): { label: string; color: string } {
  return quantity > 0
  ? { label: 'إضافة', color: 'text-[#059669] bg-[#ECFDF5]' }
  : { label: 'خصم', color: 'text-[#DC2626] bg-[#FEF2F2]' }
- }
 }
 
 type ActionType = 'in' | 'out'
@@ -214,10 +199,10 @@ export default function InventoryManager({ initialMaterials, initialAvailability
  {canAdjust && (
  <div className="flex gap-2 flex-wrap">
  <button onClick={() => openAction('in')} className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-colors">
- <FaPlus className="text-xs" /> إضافة
+ <FaPlus className="text-xs" /> إضافة مواد
  </button>
  <button onClick={() => openAction('out')} className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-colors">
- <FaMinus className="text-xs" /> خصم
+ <FaMinus className="text-xs" /> خصم مواد
  </button>
  </div>
  )}
@@ -270,7 +255,7 @@ export default function InventoryManager({ initialMaterials, initialAvailability
  <tbody>
  {visibleMaterials.map(item => {
  const latest = latestMovements[item.id]
- const latestInfo = latest ? getMovementInfo(latest.type, latest.quantity) : null
+ const latestInfo = latest ? getMovementInfo(latest.quantity) : null
  return (
  <tr key={item.id} className="border-b border-[#E7E8EA] last:border-b-0 hover:bg-[#F1F2F3]">
  <td className="px-4 py-3">
@@ -328,14 +313,14 @@ export default function InventoryManager({ initialMaterials, initialAvailability
 
  <div className="flex flex-col sm:flex-row sm:items-end gap-3 px-5 py-3 border-b border-[#E7E8EA]">
  <div className="w-full sm:w-48">
- <label className="block text-[#62666D] text-[11px] font-bold mb-1.5">النوع</label>
+ <label className="block text-[#62666D] text-[11px] font-bold mb-1.5">الحركة</label>
  <SelectList
  value={historyType}
  onChange={v => { setHistoryType(v); setHistoryPage(1) }}
- options={[{ value: 'all', label: 'كل الأنواع' }, ...HISTORY_FILTER_OPTIONS]}
- placeholder="كل الأنواع"
+ options={[{ value: 'all', label: 'كل الحركات' }, ...HISTORY_FILTER_OPTIONS]}
+ placeholder="كل الحركات"
  icon={<FaFilter />}
- ariaLabel="تصفية حسب النوع"
+ ariaLabel="تصفية حسب الحركة"
  />
  </div>
  {historyPagination && (
@@ -355,7 +340,7 @@ export default function InventoryManager({ initialMaterials, initialAvailability
  <table className="w-full min-w-[520px] text-sm">
  <thead>
  <tr className="border-b border-[#E7E8EA]">
- <th className="text-right px-4 py-3 text-[#62666D] font-bold whitespace-nowrap">النوع</th>
+ <th className="text-right px-4 py-3 text-[#62666D] font-bold whitespace-nowrap">الحركة</th>
  <th className="text-right px-4 py-3 text-[#62666D] font-bold whitespace-nowrap">الكمية</th>
  <th className="text-right px-4 py-3 text-[#62666D] font-bold whitespace-nowrap">التاريخ</th>
  <th className="text-right px-4 py-3 text-[#62666D] font-bold whitespace-nowrap">ملاحظات</th>
@@ -363,7 +348,7 @@ export default function InventoryManager({ initialMaterials, initialAvailability
  </thead>
  <tbody>
  {historyMovements.map(m => {
- const info = getMovementInfo(m.type, m.quantity)
+ const info = getMovementInfo(m.quantity)
  return (
  <tr key={m.id} className="border-b border-[#E7E8EA] last:border-b-0 hover:bg-[#F1F2F3]">
  <td className="px-4 py-3">
