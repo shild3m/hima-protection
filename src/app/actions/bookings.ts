@@ -75,6 +75,10 @@ function formatInventoryShortage(result: { error?: string; shortages?: Array<{ n
   }
 
   const raw = result?.error || rpcError?.message || ''
+  const match = raw.match(/INSUFFICIENT_STOCK\|([^|]+)\|([0-9.]+)\|([0-9.]+)/i)
+  if (match) {
+    return `المخزون غير كافٍ لمادة ${match[1].trim()} — المطلوب ${match[2]}، المتاح ${match[3]}`
+  }
   return raw.includes('INSUFFICIENT_STOCK')
     ? 'المخزون غير كافٍ للمواد المطلوبة'
     : raw || 'تعذر التحقق من المخزون'
@@ -414,16 +418,30 @@ export async function updateBookingStatus(
       .select()
       .single()
 
+    // Only release the reservation on rollback when this transition created it.
+    // A booking that was already in service keeps its valid reservation if the
+    // update fails (for example, a shortage while completing).
+    const rollbackReservation = reservedForTransition
+      && existing.status !== 'in_progress'
+      && existing.status !== 'completed'
+
     if (error) {
       console.error('Update booking status error:', error)
-      if (reservedForTransition) {
+      if (rollbackReservation) {
         try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort rollback */ }
+      }
+      if (error.message?.includes('INSUFFICIENT_STOCK')) {
+        return {
+          success: false as const,
+          error: formatInventoryShortage(null, error),
+          inventoryShortage: true as const,
+        }
       }
       return { success: false as const, error: 'تعذر تحديث حالة الحجز' }
     }
 
     if (!data) {
-      if (reservedForTransition) {
+      if (rollbackReservation) {
         try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort rollback */ }
       }
       return { success: false as const, error: 'الحجز غير موجود أو تغيرت الحالة منذ قرائتها' }
