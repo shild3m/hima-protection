@@ -16,7 +16,6 @@ import { getSupabaseAdmin } from '@/lib/auth'
 
 export const CACHE_TAGS = {
   materials: 'materials',
-  suppliers: 'suppliers',
   services: 'services',
   publicServices: 'public-services',
 } as const
@@ -36,7 +35,6 @@ export type CachedList<T> =
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type MaterialRow = any
-export type SupplierRow = any
 export type ServiceRow = any
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -70,7 +68,7 @@ export const getMaterialsPageCached = unstable_cache(
   async (search: string, from: number, to: number): Promise<CachedList<MaterialRow>> => {
     let query = getSupabaseAdmin()
       .from('materials')
-      .select('*, supplier:suppliers(id, name)', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -112,59 +110,6 @@ export const getMaterialOptionsCached = unstable_cache(
   },
   ['material-options'],
   { tags: [CACHE_TAGS.materials], revalidate: TTL_SECONDS },
-)
-
-// ─────────────────────────────────────────────────────────────
-// Suppliers
-// ─────────────────────────────────────────────────────────────
-
-export const getSuppliersPageCached = unstable_cache(
-  async (search: string, from: number, to: number): Promise<CachedList<SupplierRow>> => {
-    let query = getSupabaseAdmin()
-      .from('suppliers')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to)
-
-    if (search) {
-      const sanitized = sanitizeSearch(search)
-      query = query.or(
-        `name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,email.ilike.%${sanitized}%`,
-      )
-    }
-
-    const { data, error, count } = await query
-
-    if (error) {
-      console.error('Get suppliers error:', error)
-      return { ok: false, error: 'تعذر جلب الموردين' }
-    }
-
-    return { ok: true, data: (data || []) as SupplierRow[], count: count || 0 }
-  },
-  ['suppliers-page'],
-  { tags: [CACHE_TAGS.suppliers], revalidate: TTL_SECONDS },
-)
-
-export const getSupplierOptionsCached = unstable_cache(
-  async (): Promise<CachedList<SupplierRow>> => {
-    const { data, error } = await getSupabaseAdmin()
-      .from('suppliers')
-      .select('id, name, phone, email, is_active')
-      .eq('is_active', true)
-      .order('name', { ascending: true })
-      .limit(MAX_OPTION_ROWS)
-
-    if (error) {
-      console.error('Get supplier options error:', error)
-      return { ok: false, error: 'تعذر جلب الموردين' }
-    }
-
-    const rows = (data || []) as SupplierRow[]
-    return { ok: true, data: rows, count: rows.length }
-  },
-  ['supplier-options'],
-  { tags: [CACHE_TAGS.suppliers], revalidate: TTL_SECONDS },
 )
 
 // ─────────────────────────────────────────────────────────────

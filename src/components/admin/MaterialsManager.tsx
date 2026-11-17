@@ -5,7 +5,7 @@ import { useAuth } from '@/components/AuthProvider'
 import {
  FaSearch, FaEye, FaPen, FaTrash, FaTimes, FaExclamationTriangle,
  FaSpinner, FaBoxOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaPlus,
- FaToggleOn, FaToggleOff, FaCubes, FaBarcode, FaWarehouse, FaTruck, FaMoneyBillWave, FaCalendarAlt,
+ FaToggleOn, FaToggleOff, FaCubes, FaBarcode, FaWarehouse, FaMoneyBillWave, FaCalendarAlt,
 } from 'react-icons/fa'
 
 const UNITS: Record<string, string> = {
@@ -15,11 +15,9 @@ const UNITS: Record<string, string> = {
 interface Material {
  id: string; name: string; sku: string; unit: string; current_stock: number;
  min_stock: number; max_stock: number | null; cost_per_unit: number;
- is_active: boolean; notes: string | null; supplier: { id: string; name: string } | null;
+ is_active: boolean; notes: string | null;
  created_at: string;
 }
-
-interface Supplier { id: string; name: string; is_active: boolean }
 
 interface Pagination { page: number; pageSize: number; total: number; totalPages: number }
 
@@ -31,16 +29,13 @@ function stockStatus(m: Material): { label: string; color: string } {
  return { label: 'متوفر', color: 'text-[#059669] bg-[#ECFDF5]' }
 }
 
-export default function MaterialsManager({ initialMaterials, initialPagination, initialSuppliers }: {
+export default function MaterialsManager({ initialMaterials, initialPagination }: {
  initialMaterials?: Material[]
  initialPagination?: Pagination
- initialSuppliers?: Supplier[]
 } = {}) {
  const { hasPermission } = useAuth()
  const skipInitialMaterialsFetch = useRef(initialMaterials !== undefined)
- const skipInitialSuppliersFetch = useRef(initialSuppliers !== undefined)
  const [materials, setMaterials] = useState<Material[]>(initialMaterials ?? [])
- const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers ?? [])
  const [loading, setLoading] = useState(initialMaterials === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -60,7 +55,7 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
 
  const [form, setForm] = useState({
  name: '', sku: '', unit: 'piece', min_stock: 0, max_stock: '',
- cost_per_unit: 0, supplier_id: '', notes: '',
+ cost_per_unit: 0, notes: '',
  })
 
  const loadMaterials = useCallback(async (s: string, p: number) => {
@@ -74,22 +69,6 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
  }
  } finally { setLoading(false) }
  }, [])
-
- const loadSuppliers = useCallback(async () => {
- try {
- const { getSupplierOptions } = await import('@/app/actions/suppliers')
- const res = await getSupplierOptions()
- if (res.success) setSuppliers(res.data)
- } catch { /* ignore */ }
- }, [])
-
- useEffect(() => {
-   if (skipInitialSuppliersFetch.current) {
-     skipInitialSuppliersFetch.current = false
-     return
-   }
-   loadSuppliers()
- }, [loadSuppliers])
 
  useEffect(() => {
  if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -107,7 +86,7 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
 
  const openCreate = () => {
  setEditingMaterial(null)
- setForm({ name: '', sku: '', unit: 'piece', min_stock: 0, max_stock: '', cost_per_unit: 0, supplier_id: '', notes: '' })
+ setForm({ name: '', sku: '', unit: 'piece', min_stock: 0, max_stock: '', cost_per_unit: 0, notes: '' })
  setShowForm(true)
  }
 
@@ -116,7 +95,7 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
  setForm({
  name: m.name, sku: m.sku, unit: m.unit, min_stock: m.min_stock,
  max_stock: m.max_stock?.toString() || '', cost_per_unit: m.cost_per_unit,
- supplier_id: m.supplier?.id || '', notes: m.notes || '',
+ notes: m.notes || '',
  })
  setShowForm(true)
  }
@@ -130,7 +109,6 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
  min_stock: Number(form.min_stock),
  max_stock: form.max_stock ? Number(form.max_stock) : null,
  cost_per_unit: Number(form.cost_per_unit),
- supplier_id: form.supplier_id || null,
  }
  if (editingMaterial) {
  const { updateMaterial } = await import('@/app/actions/materials')
@@ -311,14 +289,6 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
  </div>
  </div>
  <div>
- <label className="block text-[#62666D] text-xs font-bold mb-1">المورد</label>
- <select value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })}
- className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626]">
- <option value="">بدون مورد</option>
- {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
- </select>
- </div>
- <div>
  <label className="block text-[#62666D] text-xs font-bold mb-1">ملاحظات</label>
  <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}
  className="w-full px-3 py-2 bg-white border border-[#E7E8EA] shadow-sm rounded-xl text-[#111214] text-sm focus:outline-none focus:border-[#DC2626] resize-none" />
@@ -435,16 +405,6 @@ export default function MaterialsManager({ initialMaterials, initialPagination, 
  <div className="min-w-0">
  <p className="text-[10px] font-bold text-[#9A9DA3]">وحدة القياس</p>
  <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{UNITS[viewingMaterial.unit] || viewingMaterial.unit}</p>
- </div>
- </div>
-
- <div className="flex items-center gap-3 rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3.5 py-3">
- <span className="w-8 h-8 rounded-lg bg-white border border-[#E7E8EA] flex items-center justify-center shrink-0">
- <FaTruck className="text-[#059669] text-[11px]" />
- </span>
- <div className="min-w-0">
- <p className="text-[10px] font-bold text-[#9A9DA3]">المورد</p>
- <p className="text-xs font-bold text-[#111214] truncate mt-0.5">{viewingMaterial.supplier?.name || '—'}</p>
  </div>
  </div>
 

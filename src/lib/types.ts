@@ -454,25 +454,8 @@ export interface Material {
   max_stock: number | null;
   current_stock: number;
   cost_per_unit: number;
-  supplier_id: string | null;
   is_active: boolean;
   notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface MaterialWithSupplier extends Material {
-  supplier: { id: string; name: string } | null;
-}
-
-export interface Supplier {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  notes: string | null;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -507,35 +490,11 @@ export interface ServiceMaterial {
   notes: string | null;
 }
 
-export interface Purchase {
-  id: string;
-  supplier_id: string;
-  status: 'draft' | 'received' | 'cancelled';
-  total_amount: number;
-  purchase_date: string;
-  received_at: string | null;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PurchaseItem {
-  id: string;
-  purchase_id: string;
-  material_id: string;
-  quantity: number;
-  unit_cost: number;
-  total_cost: number;
-  created_at: string;
-}
-
 export type MaterialFilters = {
   search?: string;
   unit?: MaterialUnit;
   is_active?: boolean;
   low_stock?: boolean;
-  supplier_id?: string;
 };
 
 export type InventoryFilters = {
