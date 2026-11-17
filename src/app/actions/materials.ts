@@ -43,7 +43,6 @@ const MaterialSchema = z.object({
   min_stock: z.number().min(0, 'الحد الأدنى يجب أن يكون 0 على الأقل').default(0),
   max_stock: z.number().min(0).optional().nullable(),
   cost_per_unit: z.number().min(0, 'التكلفة يجب أن تكون 0 على الأقل').default(0),
-  supplier_id: z.string().uuid().optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 })
 
@@ -54,7 +53,6 @@ const MaterialUpdateSchema = z.object({
   min_stock: z.number().min(0).optional(),
   max_stock: z.number().min(0).optional().nullable(),
   cost_per_unit: z.number().min(0).optional(),
-  supplier_id: z.string().uuid().optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 })
 
@@ -125,7 +123,7 @@ export async function getMaterial(id: string) {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('materials')
-      .select('*, supplier:suppliers(id, name)')
+      .select('*')
       .eq('id', id)
       .single()
 
@@ -152,19 +150,6 @@ export async function createMaterial(input: MaterialInput) {
     const validated = MaterialSchema.parse(input)
     const supabase = await createClient()
 
-    if (validated.supplier_id) {
-      const { data: supplier } = await supabase
-        .from('suppliers')
-        .select('id')
-        .eq('id', validated.supplier_id)
-        .eq('is_active', true)
-        .maybeSingle()
-
-      if (!supplier) {
-        return { success: false as const, error: 'المورد غير موجود أو غير نشط' }
-      }
-    }
-
     const { data, error } = await supabase
       .from('materials')
       .insert({
@@ -174,7 +159,6 @@ export async function createMaterial(input: MaterialInput) {
         min_stock: validated.min_stock,
         max_stock: validated.max_stock || null,
         cost_per_unit: validated.cost_per_unit,
-        supplier_id: validated.supplier_id || null,
         notes: validated.notes || null,
         current_stock: 0,
       })
@@ -228,19 +212,6 @@ export async function updateMaterial(id: string, input: z.infer<typeof MaterialU
       return { success: false as const, error: 'المادة غير موجودة' }
     }
 
-    if (validated.supplier_id) {
-      const { data: supplier } = await supabase
-        .from('suppliers')
-        .select('id')
-        .eq('id', validated.supplier_id)
-        .eq('is_active', true)
-        .maybeSingle()
-
-      if (!supplier) {
-        return { success: false as const, error: 'المورد غير موجود أو غير نشط' }
-      }
-    }
-
     const updateData: Record<string, unknown> = {}
     if (validated.name !== undefined) updateData.name = validated.name
     if (validated.sku !== undefined) updateData.sku = validated.sku
@@ -248,7 +219,6 @@ export async function updateMaterial(id: string, input: z.infer<typeof MaterialU
     if (validated.min_stock !== undefined) updateData.min_stock = validated.min_stock
     if (validated.max_stock !== undefined) updateData.max_stock = validated.max_stock
     if (validated.cost_per_unit !== undefined) updateData.cost_per_unit = validated.cost_per_unit
-    if (validated.supplier_id !== undefined) updateData.supplier_id = validated.supplier_id || null
     if (validated.notes !== undefined) updateData.notes = validated.notes || null
 
     if (Object.keys(updateData).length === 0) {
@@ -387,14 +357,22 @@ export async function deleteMaterial(id: string) {
       return { success: false as const, error: 'لا يمكن حذف المادة لأنها مرتبطة بخدمات. استخدم التعطيل بدلاً من الحذف.' }
     }
 
-    const { error } = await supabase
+    // Ask for the deleted rows: `error === null` is not enough, because a
+    // missing RLS DELETE policy returns "0 rows, no error".
+    const { data: deleted, error } = await supabase
       .from('materials')
       .delete()
       .eq('id', id)
+      .select('id')
 
     if (error) {
       console.error('Delete material error:', error)
       return { success: false as const, error: 'تعذر حذف المادة' }
+    }
+
+    if (!deleted || deleted.length === 0) {
+      console.error('Delete material: 0 rows removed (RLS or missing row)', { id })
+      return { success: false as const, error: 'لم يتم حذف المادة — تحقق من صلاحيتك للحذف' }
     }
 
     await logAudit({
@@ -423,7 +401,7 @@ export async function getLowStockMaterials() {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('materials')
-      .select('*, supplier:suppliers(id, name)')
+      .select('*')
       .eq('is_active', true)
       .order('current_stock', { ascending: true })
 

@@ -1218,14 +1218,22 @@ export async function deleteCustomerNote(
       return { success: false, error: "العميل غير موجود" };
     }
 
-    const { error } = await supabase
+    // `error === null` is not enough: a missing RLS DELETE policy answers
+    // "0 rows, no error". Only a returned row proves the deletion happened.
+    const { data: deleted, error } = await supabase
       .from("customer_notes")
       .delete()
-      .eq("id", noteId);
+      .eq("id", noteId)
+      .select("id");
 
     if (error) {
       console.error("deleteCustomerNote DB error:", error.message);
       return { success: false, error: "حدث خطأ أثناء حذف الملاحظة" };
+    }
+
+    if (!deleted || deleted.length === 0) {
+      console.error("deleteCustomerNote: 0 rows removed", noteId);
+      return { success: false, error: "لم يتم حذف الملاحظة — تحقق من صلاحيتك للحذف" };
     }
 
     await writeAuditLog(

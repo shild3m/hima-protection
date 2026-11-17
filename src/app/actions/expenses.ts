@@ -238,14 +238,23 @@ export async function deleteExpense(id: string) {
       return { success: false as const, error: 'المصروف غير موجود' }
     }
 
-    const { error } = await supabase
+    // PostgREST answers `error = null` when RLS silently filters every row,
+    // so ask for the deleted rows: only a real row count proves the deletion
+    // (and only then may we log the audit entry below).
+    const { data: deleted, error } = await supabase
       .from('expenses')
       .delete()
       .eq('id', id)
+      .select('id')
 
     if (error) {
       console.error('Delete expense error:', error)
       return { success: false as const, error: 'تعذر حذف المصروف' }
+    }
+
+    if (!deleted || deleted.length === 0) {
+      console.error('Delete expense: 0 rows removed (RLS or missing row)', { id })
+      return { success: false as const, error: 'لم يتم حذف المصروف — تحقق من صلاحيتك للحذف' }
     }
 
     await logAudit({
