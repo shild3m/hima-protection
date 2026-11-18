@@ -75,6 +75,7 @@ function validateVehicleInput(input: {
   make?: string;
   model?: string;
   year?: number;
+  vin?: string | null;
 }): string | null {
   if (!input.make || input.make.trim().length < 1) {
     return "ماركة السيارة مطلوبة";
@@ -93,6 +94,15 @@ function validateVehicleInput(input: {
     (input.year < 1900 || input.year > new Date().getFullYear() + 1)
   ) {
     return "سنة الصنع غير صحيحة";
+  }
+  // The serial number is the vehicle identity: never empty, never duplicated.
+  if (input.vin !== undefined) {
+    if (!input.vin || input.vin.trim().length < 3) {
+      return "الرقم التسلسلي مطلوب";
+    }
+    if (input.vin.trim().length > 32) {
+      return "الرقم التسلسلي طويل (32 حرفاً كحد أقصى)";
+    }
   }
   return null;
 }
@@ -855,6 +865,9 @@ export async function createVehicle(input: {
     if (validationError) {
       return { success: false, error: validationError };
     }
+    if (!input.vin || input.vin.trim().length < 3) {
+      return { success: false, error: "الرقم التسلسلي مطلوب" };
+    }
     if (!input.customer_id || !isValidUUID(input.customer_id)) {
       return { success: false, error: "معرف العميل غير صحيح" };
     }
@@ -879,9 +892,10 @@ export async function createVehicle(input: {
         year: input.year || null,
         color: input.color?.trim() || null,
         plate_number: input.plate_number?.trim() || null,
-        vin: input.vin?.trim() || null,
+        vin: input.vin!.trim(),
         notes: input.notes?.trim() || null,
         is_active: true,
+        status: "confirmed",
       })
       .select(
         "id, customer_id, make, model, year, color, plate_number, vin, notes, is_active, created_at, updated_at"
@@ -890,6 +904,12 @@ export async function createVehicle(input: {
 
     if (error) {
       console.error("createVehicle DB error:", error.message);
+      if (error.code === "23505") {
+        return {
+          success: false,
+          error: "هذا الرقم التسلسلي مسجّل لسيارة أخرى",
+        };
+      }
       return { success: false, error: "حدث خطأ أثناء إنشاء السيارة" };
     }
 
@@ -984,8 +1004,13 @@ export async function updateVehicle(
     if (updateData.plate_number !== undefined)
       updateData.plate_number =
         (updateData.plate_number as string)?.trim() || null;
-    if (updateData.vin !== undefined)
-      updateData.vin = (updateData.vin as string)?.trim() || null;
+    if (updateData.vin !== undefined) {
+      const serial = (updateData.vin as string)?.trim() || "";
+      if (serial.length < 3) {
+        return { success: false, error: "الرقم التسلسلي مطلوب" };
+      }
+      updateData.vin = serial;
+    }
     if (updateData.notes !== undefined)
       updateData.notes = (updateData.notes as string)?.trim() || null;
 
@@ -1000,6 +1025,12 @@ export async function updateVehicle(
 
     if (error) {
       console.error("updateVehicle DB error:", error.message);
+      if (error.code === "23505") {
+        return {
+          success: false,
+          error: "هذا الرقم التسلسلي مسجّل لسيارة أخرى",
+        };
+      }
       return { success: false, error: "حدث خطأ أثناء تحديث السيارة" };
     }
 

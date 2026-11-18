@@ -7,14 +7,10 @@ export interface BookingInput {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
-  vehicleMake: string;
-  vehicleModel: string;
-  vehicleYear: number;
-  vehicleColor?: string;
-  vehiclePlate?: string;
   serviceId: string;
-  preferredDate: string;
-  preferredTime: string;
+  /** Optional — the staff member completes the visit details later. */
+  preferredDate?: string;
+  preferredTime?: string;
   notes?: string;
   idempotencyKey?: string;
 }
@@ -40,44 +36,28 @@ function validateInput(input: BookingInput): string | null {
     return "رقم الهاتف غير صحيح";
   }
 
-  if (!input.vehicleMake || input.vehicleMake.trim().length < 1) {
-    return "ماركة السيارة مطلوبة";
-  }
-
-  if (!input.vehicleModel || input.vehicleModel.trim().length < 1) {
-    return "موديل السيارة مطلوب";
-  }
-
-  if (
-    !input.vehicleYear ||
-    input.vehicleYear < 1900 ||
-    input.vehicleYear > new Date().getFullYear() + 1
-  ) {
-    return "سنة الصنع غير صحيحة";
-  }
-
+  // The public form carries only: name + phone + service (staff complete the
+  // rest — visit details and, when service starts, the vehicle).
   if (!input.serviceId) {
     return "يرجى اختيار الخدمة";
   }
 
-  if (!input.preferredDate) {
-    return "التاريخ المفضل مطلوب";
+  if (input.preferredDate) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(input.preferredDate)) {
+      return "صيغة التاريخ غير صحيحة";
+    }
+
+    const preferredDate = new Date(input.preferredDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (preferredDate < today) {
+      return "يجب أن يكون التاريخ في المستقبل";
+    }
   }
 
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(input.preferredDate)) {
-    return "صيغة التاريخ غير صحيحة";
-  }
-
-  const preferredDate = new Date(input.preferredDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (preferredDate < today) {
-    return "يجب أن يكون التاريخ في المستقبل";
-  }
-
-  if (!input.preferredTime) {
-    return "الوقت المفضل مطلوب";
+  if (input.preferredTime && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(input.preferredTime)) {
+    return "الوقت المفضل غير صحيح";
   }
 
   if (input.customerEmail && input.customerEmail.trim()) {
@@ -126,14 +106,9 @@ export async function createBooking(
     p_customer_name: input.customerName.trim(),
     p_customer_phone: normalizedPhone,
     p_customer_email: input.customerEmail?.trim() || null,
-    p_vehicle_make: input.vehicleMake.trim(),
-    p_vehicle_model: input.vehicleModel.trim(),
-    p_vehicle_year: input.vehicleYear,
-    p_vehicle_color: input.vehicleColor?.trim() || null,
-    p_vehicle_plate: input.vehiclePlate?.trim() || null,
     p_service_id: input.serviceId,
-    p_preferred_date: input.preferredDate,
-    p_preferred_time: input.preferredTime,
+    p_preferred_date: input.preferredDate || null,
+    p_preferred_time: input.preferredTime || null,
     p_notes: input.notes?.trim() || null,
     p_idempotency_key: input.idempotencyKey || null,
   });

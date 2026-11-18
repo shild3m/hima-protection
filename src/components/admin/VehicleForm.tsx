@@ -121,8 +121,10 @@ const [make, setMake] = useState(initialData?.make || '')
  }
  }
 
- if (vin.trim() && vin.trim().length > 17) {
- newErrors.vin = 'رقم الهيكل أطول من 17 حرفاً'
+ if (!vin.trim()) {
+ newErrors.vin = 'الرقم التسلسلي مطلوب'
+ } else if (vin.trim().length > 32) {
+ newErrors.vin = 'الرقم التسلسلي طويل (32 حرفاً كحد أقصى)'
  }
 
  if (plateNumber.trim() && plateNumber.trim().length > 20) {
@@ -152,7 +154,7 @@ customer_id: customerId,
   year: year ? parseInt(year) : null,
  color: color.trim() || null,
  plate_number: plateNumber.trim() || null,
- vin: vin.trim() || null,
+ vin: vin.trim(),
  notes: notes.trim() || null,
  is_active: isActive,
  }
@@ -321,14 +323,14 @@ customer_id: customerId,
  </div>
 
  <div>
- <label className="label-light">رقم الهيكل (VIN)</label>
+ <label className="label-light">الرقم التسلسلي *</label>
  <input
  type="text"
  value={vin}
  onChange={(e) => setVin(e.target.value)}
- maxLength={17}
+ maxLength={32}
  className="input-light"
- placeholder="17 حرفاً"
+ placeholder="رقم الهيكل / التسلسلي"
  />
  {errors.vin && <p className="text-[#DC2626] text-xs mt-1 flex items-center gap-1"><FaExclamationTriangle className="text-[8px]" />{errors.vin}</p>}
  </div>

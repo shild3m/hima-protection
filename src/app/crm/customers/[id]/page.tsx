@@ -85,6 +85,7 @@ export default function CustomerDetailPage() {
     year: "",
     color: "",
     plate_number: "",
+    vin: "",
   });
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [error, setError] = useState("");
@@ -153,11 +154,12 @@ export default function CustomerDetailPage() {
       year: newVehicle.year ? parseInt(newVehicle.year) : undefined,
       color: newVehicle.color || undefined,
       plate_number: newVehicle.plate_number || undefined,
+      vin: newVehicle.vin || undefined,
     });
     setAddingVehicle(false);
     if (result.success) {
       setShowAddVehicle(false);
-      setNewVehicle({ make: "", model: "", year: "", color: "", plate_number: "" });
+      setNewVehicle({ make: "", model: "", year: "", color: "", plate_number: "", vin: "" });
       setSuccess("تم إضافة السيارة");
       setRefreshKey(k => k + 1);
       setTimeout(() => setSuccess(""), 3000);
@@ -587,6 +589,22 @@ export default function CustomerDetailPage() {
                   }
                   className="input-light w-full"
                   placeholder="أ ب ج 1234"
+                />
+              </div>
+              <div>
+                <label className="label-light">
+                  الرقم التسلسلي *
+                </label>
+                <input
+                  type="text"
+                  value={newVehicle.vin}
+                  onChange={(e) =>
+                    setNewVehicle({ ...newVehicle, vin: e.target.value })
+                  }
+                  className="input-light w-full"
+                  placeholder="رقم الهيكل / التسلسلي"
+                  dir="ltr"
+                  maxLength={32}
                 />
               </div>
             </div>

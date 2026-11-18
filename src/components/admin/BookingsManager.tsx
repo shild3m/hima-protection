@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { decideBookingFlow, availableBookingStatuses } from '@/lib/booking-flow'
+import type { VehicleCompletionInput } from '@/app/actions/bookings'
 import SaudiPlate from '@/components/ui/SaudiPlate'
 import {
  FaCalendarAlt,
@@ -42,7 +43,7 @@ FaShieldAlt,
 interface Booking {
  id: string
  customer_id: string
- vehicle_id: string
+ vehicle_id: string | null
  service_id: string
 status: string
   preferred_date: string | null
@@ -196,6 +197,12 @@ export default function BookingsManager({ initialBookings, initialPagination, in
  const [loadingDetail, setLoadingDetail] = useState(false)
 const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
  const [completePrompt, setCompletePrompt] = useState<{ bookingId: string } | null>(null)
+ // Car data is completed when a booking enters service — that is the exact
+ // moment a vehicle gets registered (serial number = identity).
+ const [vehiclePrompt, setVehiclePrompt] = useState<{ bookingId: string } | null>(null)
+ const [vehicleForm, setVehicleForm] = useState({ vin: '', make: '', model: '', size: 'medium', year: '', color: '', plate: '' })
+ const [vehicleFormErrors, setVehicleFormErrors] = useState<Record<string, string>>({})
+ const pendingVehicleRef = useRef<{ bookingId: string; input: VehicleCompletionInput } | null>(null)
  const [completeWarrantyYears, setCompleteWarrantyYears] = useState(1)
  const [completeNoWarranty, setCompleteNoWarranty] = useState(false)
  const [completeSubmitting, setCompleteSubmitting] = useState(false)
@@ -203,7 +210,6 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [newProgressPaidAmount, setNewProgressPaidAmount] = useState('')
   const [newProgressSubmitting, setNewProgressSubmitting] = useState(false)
   const [invoiceSubmitting, setInvoiceSubmitting] = useState(false)
- const [vehicleSizeOpen, setVehicleSizeOpen] = useState(false)
   const [serviceMenuOpen, setServiceMenuOpen] = useState(false)
   const [expandedBookingItems, setExpandedBookingItems] = useState<Set<string>>(new Set())
  const [serviceSearch, setServiceSearch] = useState('')
@@ -244,11 +250,6 @@ const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
     customerName: '',
     customerPhone: '',
     customerEmail: '',
-    vehicleMake: '',
-    vehicleModel: '',
-    vehicleYear: new Date().getFullYear().toString(),
-    vehicleColor: '',
-    vehiclePlate: '',
     serviceIds: [] as string[],
     notes: '',
   })
@@ -377,17 +378,6 @@ useEffect(() => {
   }, [completeYearsOpen])
 
   useEffect(() => {
-    if (!vehicleSizeOpen) return
-    const handler = (e: MouseEvent) => {
-      if (!(e.target as Element)?.closest('[data-vehicle-size-menu]')) {
-        setVehicleSizeOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [vehicleSizeOpen])
-
-  useEffect(() => {
     if (!serviceMenuOpen) return
     const handler = (e: MouseEvent) => {
       if (!(e.target as Element)?.closest('[data-service-menu]')) {
@@ -419,8 +409,10 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
   setUpdatingStatus(bookingId)
   try {
   const { updateBookingStatus } = await import('@/app/actions/bookings')
-  const result = await updateBookingStatus(bookingId, newStatus, undefined, warrantyInput, paymentInput)
+  const pendingVehicle = pendingVehicleRef.current?.bookingId === bookingId ? pendingVehicleRef.current.input : undefined
+  const result = await updateBookingStatus(bookingId, newStatus, undefined, warrantyInput, paymentInput, pendingVehicle)
   if (result.success) {
+  pendingVehicleRef.current = null
   const baseMsg = newStatus === 'completed' ? 'تم إكمال الحجز وتسجيل الضمان' : 'تم تحديث حالة الحجز بنجاح'
   const msg = result.invoiceWarning ? `${baseMsg} ⚠️ ${result.invoiceWarning}` : baseMsg
   setNotification({ type: result.invoiceWarning ? 'error' : 'success', message: msg })
@@ -452,6 +444,21 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
 
   const handleStatusUpdate = (bookingId: string, newStatus: string) => {
   const booking = bookings.find(b => b.id === bookingId)
+
+  // No car registered yet → collect it first, then continue the same flow.
+  const hasVehicle = !!booking?.vehicle_id || !!(booking as BookingDetail | undefined)?.vehicle?.id
+  if (
+    newStatus === 'in_progress' &&
+    booking &&
+    !hasVehicle &&
+    pendingVehicleRef.current?.bookingId !== bookingId
+  ) {
+    setVehicleForm({ vin: '', make: '', model: '', size: 'medium', year: '', color: '', plate: '' })
+    setVehicleFormErrors({})
+    setVehiclePrompt({ bookingId })
+    return
+  }
+
   const linkedInvoice = (booking as BookingDetail)?.linked_invoice
   const decision = decideBookingFlow({ targetStatus: newStatus, linkedInvoice })
 
@@ -498,6 +505,47 @@ const applyStatusUpdate = async (bookingId: string, newStatus: string, warrantyI
     mode: decision.mode,
     step: 1,
   })
+  }
+
+  const submitVehiclePrompt = () => {
+    if (!vehiclePrompt) return
+
+    const errs: Record<string, string> = {}
+    const vin = vehicleForm.vin.trim()
+    const make = vehicleForm.make.trim()
+    const model = vehicleForm.model.trim()
+    const yearRaw = vehicleForm.year.trim()
+
+    if (!vin) errs.vin = 'الرقم التسلسلي مطلوب'
+    else if (vin.length > 32) errs.vin = 'الرقم التسلسلي طويل (32 حرفاً كحد أقصى)'
+    if (!make) errs.make = 'الماركة مطلوبة'
+    if (!model) errs.model = 'الموديل مطلوبة'
+    const yearNum = yearRaw ? parseInt(yearRaw, 10) : null
+    if (yearRaw && (!yearNum || isNaN(yearNum) || yearNum < 1900 || yearNum > new Date().getFullYear() + 2)) {
+      errs.year = 'سنة الصنع غير صحيحة'
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setVehicleFormErrors(errs)
+      return
+    }
+
+    const bookingId = vehiclePrompt.bookingId
+    pendingVehicleRef.current = {
+      bookingId,
+      input: {
+        vin,
+        make,
+        model,
+        size: (vehicleForm.size === 'small' || vehicleForm.size === 'large' ? vehicleForm.size : 'medium'),
+        year: yearNum,
+        color: vehicleForm.color.trim() || null,
+        plate_number: vehicleForm.plate.trim() || null,
+      },
+    }
+    setVehiclePrompt(null)
+    // Continue exactly where the flow stopped (payment/warranty prompts, …).
+    handleStatusUpdate(bookingId, 'in_progress')
   }
 
   const handleCompleteWithCheck = async (bookingId: string, invoiceId: string) => {
@@ -910,15 +958,7 @@ const handleWarrantyYearsChange = (y: number) => {
 }
   }
 
-  const VEHICLE_SIZES = [
-   { id: 'صغير', label: 'صغير', hint: 'كورولا، ميني، صغيرة', Icon: FaCarSide },
-  { id: 'متوسط', label: 'متوسط', hint: 'كامري، وكالة، متوسطة', Icon: FaCar },
-  { id: 'كبير', label: 'كبير', hint: 'لكزس، جيب، عائلية SUV', Icon: FaCarAlt },
-  { id: 'بيك أب', label: 'بيك أب', hint: 'هايلوكس، نقل خفيف', Icon: FaTruckPickup },
- ]
- const activeVehicleSize = VEHICLE_SIZES.find(s => s.id === createFormData.vehicleModel) || null
-
- const handleCreateBookingSubmit = async (e: React.FormEvent) => {
+const handleCreateBookingSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
   setCreateErrors({})
   const errs: Record<string, string> = {}
@@ -926,10 +966,6 @@ const handleWarrantyYearsChange = (y: number) => {
   const phoneDigits = (createFormData.customerPhone || '').replace(/[^0-9]/g, '')
   if (!phoneDigits) errs.customerPhone = 'رقم الجوال مطلوب'
   else if (phoneDigits.length !== 10) errs.customerPhone = 'رقم الجوال يجب أن يتكون من 10 أرقام'
-  if (!createFormData.vehicleMake.trim()) errs.vehicleMake = 'اسم السيارة مطلوب'
-  if (!createFormData.vehicleModel.trim()) errs.vehicleModel = 'حجم السيارة مطلوب'
-  const yr = parseInt(createFormData.vehicleYear)
-  if (!createFormData.vehicleYear || yr < 1900 || yr > new Date().getFullYear() + 1) errs.vehicleYear = 'سنة الصنع غير صحيحة'
   if (!createFormData.serviceIds.length) errs.serviceId = 'يرجى اختيار خدمة واحدة على الأقل'
   if (Object.keys(errs).length > 0) { setCreateErrors(errs); setCreateNotification({ type: 'error', message: 'أكمل الحقول المطلوبة بشكل صحيح' }); return }
   setCreateSubmitting(true)
@@ -939,11 +975,6 @@ const handleWarrantyYearsChange = (y: number) => {
   customerName: createFormData.customerName.trim(),
   customerPhone: createFormData.customerPhone.trim(),
   customerEmail: createFormData.customerEmail.trim() || undefined,
-  vehicleMake: createFormData.vehicleMake.trim(),
-  vehicleModel: createFormData.vehicleModel.trim(),
-  vehicleYear: parseInt(createFormData.vehicleYear),
-  vehicleColor: createFormData.vehicleColor.trim() || undefined,
-  vehiclePlate: createFormData.vehiclePlate.trim() || undefined,
   serviceId: createFormData.serviceIds[0],
   serviceIds: createFormData.serviceIds,
   notes: createFormData.notes.trim() || undefined,
@@ -952,7 +983,7 @@ const handleWarrantyYearsChange = (y: number) => {
   setCreateNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
   setShowCreateForm(false)
   setNotification({ type: 'success', message: 'تم إنشاء الحجز بنجاح' })
-  setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', vehicleMake: '', vehicleModel: '', vehicleYear: new Date().getFullYear().toString(), vehicleColor: '', vehiclePlate: '', serviceIds: [], notes: '' })
+  setCreateFormData({ customerName: '', customerPhone: '', customerEmail: '', serviceIds: [], notes: '' })
   fetchBookings()
   fetchStats()
   } else {
@@ -1855,74 +1886,6 @@ return (
 
 <div className="rounded-2xl border border-[#E7E8EA] overflow-visible">
  <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
- <FaCar className="text-[#DC2626] text-xs" />
- <h4 className="text-sm font-bold text-[#111214]">بيانات السيارة</h4>
- </div>
- <div className="px-4 py-4 grid grid-cols-2 gap-3">
- <div>
- <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اسم السيارة *</label>
-  <input type="text" value={createFormData.vehicleMake} onChange={e => { const v = e.target.value.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F ]/g, '').slice(0, 30); setCreateFormData(p => ({ ...p, vehicleMake: v })); setCreateErrors(err => ({ ...err, vehicleMake: '' })) }} className={`w-full bg-white border ${createErrors.vehicleMake ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} placeholder="مثال: تويوتا" />
-  {createErrors.vehicleMake && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleMake}</p>}
-  </div>
-  <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">حجم السيارة *</label>
-  <div className="relative" data-vehicle-size-menu>
-  <button
-  type="button"
-  onClick={() => setVehicleSizeOpen(v => !v)}
-  className={`w-full flex items-center gap-2 bg-white border ${createErrors.vehicleModel ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] hover:border-[#DC2626] transition-all ${activeVehicleSize ? '' : 'text-[#9CA1A6]'}`}
-  >
-  {activeVehicleSize ? (
-  <>
-  <span className="text-[#DC2626] text-base flex items-center"><activeVehicleSize.Icon /></span>
-  <span className="font-bold flex items-center gap-1.5">{activeVehicleSize.label}<span className="text-[10px] text-[#9CA1A6] font-semibold hidden lg:inline">{activeVehicleSize.hint}</span></span>
-  </>
-  ) : (
-  <>
-  <span className="text-[#9CA1A6] text-base flex items-center"><FaCar /></span>
-  <span className="font-semibold">اختر حجم السيارة</span>
-  </>
-  )}
-  <FaChevronDown className={`ms-auto text-[#9CA1A6] text-[10px] transition-transform duration-200 ${vehicleSizeOpen ? 'rotate-180' : ''}`} />
-  </button>
-  {vehicleSizeOpen && (
-  <div className="absolute top-full left-0 right-0 z-30 mt-1.5 bg-white border border-[#E7E8EA] rounded-xl shadow-xl shadow-black/10 py-1 max-h-56 overflow-y-auto">
-  {VEHICLE_SIZES.map(s => (
-  <button
-  key={s.id}
-  type="button"
-  onClick={() => { setCreateFormData(p => ({ ...p, vehicleModel: s.id })); setCreateErrors(err => ({ ...err, vehicleModel: '' })); setVehicleSizeOpen(false) }}
-  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-colors ${activeVehicleSize?.id === s.id ? 'bg-[#FFF5F5]' : 'hover:bg-[#F7F7F5]'}`}
-  >
-  <span className={`text-lg flex items-center ${activeVehicleSize?.id === s.id ? 'text-[#DC2626]' : 'text-[#4B4F55]'}`}><s.Icon /></span>
-  <span className={`flex-1 text-right ${activeVehicleSize?.id === s.id ? 'font-black text-[#111214]' : 'font-bold text-[#4B4F55]'}`}>{s.label}</span>
-  <span className="text-[10px] text-[#9CA1A6] font-semibold">{s.hint}</span>
-  {activeVehicleSize?.id === s.id && <FaCheck className="text-[#DC2626] text-xs" />}
-  </button>
-  ))}
-  </div>
-  )}
-  </div>
-  {createErrors.vehicleModel && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleModel}</p>}
-  </div>
-  <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">سنة الصنع *</label>
-  <input type="number" value={createFormData.vehicleYear} onChange={e => { setCreateFormData(p => ({ ...p, vehicleYear: e.target.value })); setCreateErrors(err => ({ ...err, vehicleYear: '' })) }} min="1900" max={new Date().getFullYear() + 1} className={`w-full bg-white border ${createErrors.vehicleYear ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`} dir="ltr" />
-  {createErrors.vehicleYear && <p className="text-[#DC2626] text-xs mt-1.5">{createErrors.vehicleYear}</p>}
-  </div>
-  <div>
-  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اللون (اختياري)</label>
-  <input type="text" value={createFormData.vehicleColor} onChange={e => { const v = e.target.value.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F ]/g, '').slice(0, 20); setCreateFormData(p => ({ ...p, vehicleColor: v })) }} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أبيض" />
-  </div>
-  <div className="col-span-2">
-  <label className="text-xs font-bold text-[#62666D] mb-1.5 block">رقم اللوحة (اختياري)</label>
-  <input type="text" value={createFormData.vehiclePlate} onChange={e => setCreateFormData(p => ({ ...p, vehiclePlate: e.target.value }))} className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all" placeholder="مثال: أ ب ج 1234" />
-  </div>
-  </div>
- </div>
-
- <div className="rounded-2xl border border-[#E7E8EA] overflow-visible">
- <div className="px-4 py-2.5 bg-[#FBFBFA] border-b border-[#E7E8EA] flex items-center gap-2">
  <FaCalendarAlt className="text-[#DC2626] text-xs" />
  <h4 className="text-xs font-bold text-[#111214]">الخدمات</h4>
  </div>
@@ -2176,7 +2139,123 @@ type="password"
   </div>
   )}
 
-  {completePrompt && (
+  {vehiclePrompt && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => setVehiclePrompt(null)}>
+    <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">
+        <h3 className="text-base font-bold text-[#111214] flex items-center gap-2">
+          <FaCar className="text-[#DC2626] text-sm" />
+          أكمل بيانات السيارة
+        </h3>
+        <button onClick={() => setVehiclePrompt(null)} aria-label="إغلاق" className="text-[#62666D] hover:text-[#111214] p-1.5 rounded-lg hover:bg-[#F7F7F5] transition-all">
+          <FaTimes className="text-sm" />
+        </button>
+      </div>
+
+      <div className="px-5 py-5 space-y-3">
+        <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl px-3.5 py-3 text-[11px] font-bold text-[#B45309] leading-relaxed">
+          تُسجَّل السيارة عند بدء التنفيذ. الرقم التسلسلي أساس التمييز: نفس الرقم = نفس السيارة حتى لو تغيّرت اللوحة، ولا يجوز تكراره.
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الرقم التسلسلي *</label>
+          <input
+            type="text"
+            dir="ltr"
+            maxLength={32}
+            value={vehicleForm.vin}
+            onChange={e => { setVehicleForm(p => ({ ...p, vin: e.target.value })); setVehicleFormErrors(err => ({ ...err, vin: '' })) }}
+            className={`w-full bg-white border ${vehicleFormErrors.vin ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`}
+            placeholder="رقم الهيكل / التسلسلي"
+          />
+          {vehicleFormErrors.vin && <p className="text-[#DC2626] text-xs mt-1.5">{vehicleFormErrors.vin}</p>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الماركة *</label>
+            <input
+              type="text"
+              value={vehicleForm.make}
+              onChange={e => { setVehicleForm(p => ({ ...p, make: e.target.value })); setVehicleFormErrors(err => ({ ...err, make: '' })) }}
+              className={`w-full bg-white border ${vehicleFormErrors.make ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`}
+              placeholder="تويوتا"
+            />
+            {vehicleFormErrors.make && <p className="text-[#DC2626] text-xs mt-1.5">{vehicleFormErrors.make}</p>}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الموديل *</label>
+            <input
+              type="text"
+              value={vehicleForm.model}
+              onChange={e => { setVehicleForm(p => ({ ...p, model: e.target.value })); setVehicleFormErrors(err => ({ ...err, model: '' })) }}
+              className={`w-full bg-white border ${vehicleFormErrors.model ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`}
+              placeholder="كامري"
+            />
+            {vehicleFormErrors.model && <p className="text-[#DC2626] text-xs mt-1.5">{vehicleFormErrors.model}</p>}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-[#62666D] mb-1.5 block">الحجم</label>
+            <select
+              value={vehicleForm.size}
+              onChange={e => setVehicleForm(p => ({ ...p, size: e.target.value }))}
+              className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all"
+            >
+              <option value="small">صغير</option>
+              <option value="medium">متوسط</option>
+              <option value="large">كبير</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-[#62666D] mb-1.5 block">سنة الصنع</label>
+            <input
+              type="number"
+              min="1900"
+              max={new Date().getFullYear() + 2}
+              dir="ltr"
+              value={vehicleForm.year}
+              onChange={e => { setVehicleForm(p => ({ ...p, year: e.target.value })); setVehicleFormErrors(err => ({ ...err, year: '' })) }}
+              className={`w-full bg-white border ${vehicleFormErrors.year ? 'border-[#DC2626]' : 'border-[#E7E8EA]'} rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all`}
+              placeholder="2024"
+            />
+            {vehicleFormErrors.year && <p className="text-[#DC2626] text-xs mt-1.5">{vehicleFormErrors.year}</p>}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-[#62666D] mb-1.5 block">اللون</label>
+            <input
+              type="text"
+              value={vehicleForm.color}
+              onChange={e => setVehicleForm(p => ({ ...p, color: e.target.value }))}
+              className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all"
+              placeholder="أبيض"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-[#62666D] mb-1.5 block">رقم اللوحة</label>
+            <input
+              type="text"
+              value={vehicleForm.plate}
+              onChange={e => setVehicleForm(p => ({ ...p, plate: e.target.value }))}
+              className="w-full bg-white border border-[#E7E8EA] rounded-xl px-3.5 py-2.5 text-sm text-[#111214] focus:outline-none focus:border-[#DC2626] transition-all"
+              placeholder="أ ب ج 1234"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="px-6 pb-6 pt-2 flex gap-3">
+        <button onClick={submitVehiclePrompt} className="flex-1 px-4 py-2.5 bg-gradient-to-br from-[#059669] to-[#047857] hover:from-[#047857] hover:to-[#065F46] text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+          متابعة
+        </button>
+        <button onClick={() => setVehiclePrompt(null)} className="px-5 py-2.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-xl text-sm font-bold transition-all duration-200">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{completePrompt && (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={() => { if (!completeSubmitting) setCompletePrompt(null) }}>
   <div className="bg-white border border-[#E7E8EA] rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
   <div className="px-5 pt-5 pb-4 border-b border-[#F1F2F3] flex items-center justify-between gap-2">

@@ -9,9 +9,6 @@ import type { Service } from "@/lib/service-utils";
 import {
   FaUser,
   FaPhone,
-  FaEnvelope,
-  FaCar,
-  FaCalendarAlt,
   FaClock,
   FaCheckCircle,
   FaExclamationTriangle,
@@ -20,10 +17,6 @@ import {
 } from "react-icons/fa";
 import { getServiceIcon } from "@/lib/service-icons";
 
-const TIME_SLOTS = [
-  "09:00", "10:00", "11:00", "12:00", "13:00", "14:00",
-  "15:00", "16:00", "17:00", "18:00", "19:00", "20:00",
-];
 
 export default function BookingForm({ services }: { services: Service[] }) {
   return (
@@ -49,15 +42,6 @@ function BookingFormContent({ services }: { services: Service[] }) {
   const [formData, setFormData] = useState({
     customerName: "",
     customerPhone: "",
-    customerEmail: "",
-    vehicleMake: "",
-    vehicleModel: "",
-    vehicleYear: "",
-    vehicleColor: "",
-    vehiclePlate: "",
-    preferredDate: "",
-    preferredTime: "",
-    notes: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -89,33 +73,8 @@ function BookingFormContent({ services }: { services: Service[] }) {
     if (!formData.customerPhone.trim() || formData.customerPhone.trim().length < 5) {
       newErrors.customerPhone = "رقم الهاتف مطلوب";
     }
-    if (!formData.vehicleMake.trim()) {
-      newErrors.vehicleMake = "ماركة السيارة مطلوبة";
-    }
-    if (!formData.vehicleModel.trim()) {
-      newErrors.vehicleModel = "موديل السيارة مطلوب";
-    }
-    if (
-      !formData.vehicleYear ||
-      parseInt(formData.vehicleYear) < 1900 ||
-      parseInt(formData.vehicleYear) > new Date().getFullYear() + 1
-    ) {
-      newErrors.vehicleYear = "سنة الصنع غير صحيحة";
-    }
     if (!selectedServiceId) {
       newErrors.service = "يرجى اختيار الخدمة";
-    }
-    if (!formData.preferredDate) {
-      newErrors.preferredDate = "التاريخ المفضل مطلوب";
-    }
-    if (!formData.preferredTime) {
-      newErrors.preferredTime = "الوقت المفضل مطلوب";
-    }
-    if (
-      formData.customerEmail.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)
-    ) {
-      newErrors.customerEmail = "البريد الإلكتروني غير صحيح";
     }
 
     setErrors(newErrors);
@@ -137,16 +96,7 @@ function BookingFormContent({ services }: { services: Service[] }) {
       const result = await createBooking({
         customerName: formData.customerName.trim(),
         customerPhone: formData.customerPhone.trim(),
-        customerEmail: formData.customerEmail.trim() || undefined,
-        vehicleMake: formData.vehicleMake.trim(),
-        vehicleModel: formData.vehicleModel.trim(),
-        vehicleYear: parseInt(formData.vehicleYear),
-        vehicleColor: formData.vehicleColor.trim() || undefined,
-        vehiclePlate: formData.vehiclePlate.trim() || undefined,
         serviceId: selectedServiceId,
-        preferredDate: formData.preferredDate,
-        preferredTime: formData.preferredTime,
-        notes: formData.notes.trim() || undefined,
         idempotencyKey,
       });
 
@@ -185,10 +135,6 @@ function BookingFormContent({ services }: { services: Service[] }) {
               <div className="bg-[#1A1B1E] rounded-xl p-4 mb-6 text-right">
                 <p className="text-sm text-[#6B6B80] mb-1">الخدمة المطلوبة</p>
                 <p className="font-bold">{selectedService?.name}</p>
-                <p className="text-sm text-[#6B6B80] mt-3 mb-1">الموعد</p>
-                <p className="font-bold">
-                  {formData.preferredDate} — {formData.preferredTime}
-                </p>
                 {bookingRef && (
                   <>
                     <p className="text-sm text-[#6B6B80] mt-3 mb-1">رقم الحجز</p>
@@ -359,171 +305,10 @@ function BookingFormContent({ services }: { services: Service[] }) {
                         <p className="error-text">{errors.customerPhone}</p>
                       )}
                     </div>
-                    <div className="md:col-span-2">
-                      <label className="label">
-                        <FaEnvelope className="inline ml-1 text-xs" />
-                        البريد الإلكتروني (اختياري)
-                      </label>
-                      <input
-                        type="email"
-                        name="customerEmail"
-                        value={formData.customerEmail}
-                        onChange={handleChange}
-                        className={`input ${errors.customerEmail ? '!border-[#EF4444]/50' : ''}`}
-                        placeholder="email@example.com"
-                        dir="ltr"
-                      />
-                      {errors.customerEmail && (
-                        <p className="error-text">{errors.customerEmail}</p>
-                      )}
-                    </div>
                   </div>
                 </div>
 
-                {/* Step 2: Vehicle Info */}
-                <div className="border-b border-white/[0.06] pb-5 mb-5">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-[#C4121A]">02</span> بيانات السيارة
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">
-                        <FaCar className="inline ml-1 text-xs" />
-                        ماركة السيارة *
-                      </label>
-                      <input
-                        type="text"
-                        name="vehicleMake"
-                        value={formData.vehicleMake}
-                        onChange={handleChange}
-                        className={`input ${errors.vehicleMake ? '!border-[#EF4444]/50' : ''}`}
-                        placeholder="مثال: تويوتا"
-                      />
-                      {errors.vehicleMake && (
-                        <p className="error-text">{errors.vehicleMake}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="label">
-                        <FaCar className="inline ml-1 text-xs" />
-                        موديل السيارة *
-                      </label>
-                      <input
-                        type="text"
-                        name="vehicleModel"
-                        value={formData.vehicleModel}
-                        onChange={handleChange}
-                        className={`input ${errors.vehicleModel ? '!border-[#EF4444]/50' : ''}`}
-                        placeholder="مثال: كامري"
-                      />
-                      {errors.vehicleModel && (
-                        <p className="error-text">{errors.vehicleModel}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="label">سنة الصنع *</label>
-                      <input
-                        type="number"
-                        name="vehicleYear"
-                        value={formData.vehicleYear}
-                        onChange={handleChange}
-                        min="1900"
-                        max={new Date().getFullYear() + 1}
-                        className={`input ${errors.vehicleYear ? '!border-[#EF4444]/50' : ''}`}
-                        placeholder="مثال: 2024"
-                        dir="ltr"
-                      />
-                      {errors.vehicleYear && (
-                        <p className="error-text">{errors.vehicleYear}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="label">لون السيارة (اختياري)</label>
-                      <input
-                        type="text"
-                        name="vehicleColor"
-                        value={formData.vehicleColor}
-                        onChange={handleChange}
-                        className="input"
-                        placeholder="مثال: أبيض"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="label">رقم اللوحة (اختياري)</label>
-                      <input
-                        type="text"
-                        name="vehiclePlate"
-                        value={formData.vehiclePlate}
-                        onChange={handleChange}
-                        className="input"
-                        placeholder="مثال: أ ب ج 1234"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 3: Appointment */}
-                <div className="border-b border-white/[0.06] pb-5 mb-5">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-[#C4121A]">03</span> الموعد
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">
-                        <FaCalendarAlt className="inline ml-1 text-xs" />
-                        التاريخ المفضل *
-                      </label>
-                      <input
-                        type="date"
-                        name="preferredDate"
-                        value={formData.preferredDate}
-                        onChange={handleChange}
-                        min={new Date().toISOString().split("T")[0]}
-                        className={`input ${errors.preferredDate ? '!border-[#EF4444]/50' : ''}`}
-                      />
-                      {errors.preferredDate && (
-                        <p className="error-text">{errors.preferredDate}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="label">
-                        <FaClock className="inline ml-1 text-xs" />
-                        الوقت المفضل *
-                      </label>
-                      <select
-                        name="preferredTime"
-                        value={formData.preferredTime}
-                        onChange={handleChange}
-                        className={`select ${errors.preferredTime ? '!border-[#EF4444]/50' : ''}`}
-                      >
-                        <option value="">اختر الوقت</option>
-                        {TIME_SLOTS.map((slot) => (
-                          <option key={slot} value={slot}>{slot}</option>
-                        ))}
-                      </select>
-                      {errors.preferredTime && (
-                        <p className="error-text">{errors.preferredTime}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 4: Notes */}
-                <div>
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <span className="text-[#C4121A]">04</span> ملاحظات إضافية
-                  </h3>
-                  <textarea
-                    name="notes"
-                    rows={3}
-                    value={formData.notes}
-                    onChange={handleChange}
-                    className="textarea"
-                    placeholder="أي ملاحظات إضافية أو طلبات خاصة..."
-                  />
-                </div>
-
-                <button
+                                <button
                   type="submit"
                   disabled={submitting}
                   className="btn-primary btn-lg w-full"

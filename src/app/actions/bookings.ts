@@ -13,11 +13,6 @@ export interface AdminBookingInput {
   customerName: string
   customerPhone: string
   customerEmail?: string
-  vehicleMake: string
-  vehicleModel: string
-  vehicleYear: number
-  vehicleColor?: string
-  vehiclePlate?: string
   serviceId: string
   serviceIds?: string[]
   preferredDate?: string
@@ -342,12 +337,28 @@ type UpdateBookingStatusResult =
   | { success: true; data: Record<string, unknown>; invoiceWarning: string | null }
   | { success: false; error: string; inventoryShortage?: true }
 
+/**
+ * Data staff must complete when a booking enters service — this is the moment
+ * a vehicle is registered. The serial number is the identity: same serial =>
+ * same vehicle (the plate may change), missing serial => no registration.
+ */
+export type VehicleCompletionInput = {
+  vin: string
+  make: string
+  model: string
+  size?: 'small' | 'medium' | 'large'
+  year?: number | null
+  color?: string | null
+  plate_number?: string | null
+}
+
 export async function updateBookingStatus(
   id: string,
   newStatus: string,
   notes?: string,
   warrantyInput?: { years?: number; noWarranty?: boolean },
   paymentInput?: { method: string; type: 'full' | 'deposit'; amount?: number },
+  vehicleInput?: VehicleCompletionInput,
 ): Promise<UpdateBookingStatusResult> {
   const user = await requireAuth()
   if (!user.permissions.includes('bookings:update')) {
@@ -367,7 +378,7 @@ export async function updateBookingStatus(
 
     const { data: existing } = await supabase
       .from('bookings')
-      .select('id, status, warranty_start_date, warranty_end_date')
+      .select('id, status, customer_id, vehicle_id, warranty_start_date, warranty_end_date')
       .eq('id', id)
       .maybeSingle()
 
@@ -410,7 +421,136 @@ export async function updateBookingStatus(
       reservedForTransition = true
     }
 
+    // ── Vehicle registration ──────────────────────────────────────────
+    // "new" / "contacted" never register a car. The car appears only when the
+    // booking enters service, and only with its serial number — the serial
+    // number is the identity (same serial = same car, plate may change).
+    const getAdmin = () => createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+
+    let registeredVehicleId: string | null = null // created during this call
+    let targetVehicleId: string | null = (existing.vehicle_id as string | null) || null
+
+    const findBySerial = async (serial: string): Promise<{ id: string; plate_number: string | null } | null> => {
+      const admin = getAdmin()
+      try {
+        const { data, error } = await admin.rpc('vehicles_by_serial', { p_serial: serial })
+        if (error) throw error
+        const row = Array.isArray(data) ? data[0] : data
+        if (row) return row as { id: string; plate_number: string | null }
+      } catch {
+        // Helper not deployed yet — fall back to a local comparison.
+        const { data } = await admin.from('vehicles').select('id, vin, plate_number').limit(1000)
+        const target = serial.trim().replace(/[\s-]/g, '').toLowerCase()
+        const row = (data || []).find(
+          (v) => String(v.vin || '').trim().replace(/[\s-]/g, '').toLowerCase() === target,
+        )
+        if (row) return row as { id: string; plate_number: string | null }
+      }
+      return null
+    }
+
+    // Reserving materials happens before this block, so any early return here
+    // must give the reservation back (same rule as the failed status update).
+    const releaseOwnReservation = async () => {
+      if (!reservedForTransition) return
+      if (existing.status === 'in_progress' || existing.status === 'completed') return
+      try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort */ }
+    }
+
+    if (newStatus === 'in_progress') {
+      if (vehicleInput) {
+        const serial = (vehicleInput.vin || '').trim()
+        const make = (vehicleInput.make || '').trim()
+        const model = (vehicleInput.model || '').trim()
+
+        if (!serial || !make || !model) {
+          await releaseOwnReservation()
+          return {
+            success: false as const,
+            error: 'أكمل بيانات السيارة: الرقم التسلسلي والماركة والموديل مطلوبة',
+          }
+        }
+
+        const match = await findBySerial(serial)
+        const admin = getAdmin()
+
+        if (match) {
+          // Known serial => same car, even with a brand-new plate.
+          targetVehicleId = match.id
+          const newPlate = vehicleInput.plate_number?.trim() || null
+          if (newPlate && match.plate_number && newPlate !== match.plate_number) {
+            const { data: full } = await admin
+              .from('vehicles')
+              .select('previous_plates')
+              .eq('id', match.id)
+              .maybeSingle()
+            const history = Array.isArray(full?.previous_plates)
+              ? [...(full.previous_plates as string[])]
+              : []
+            if (!history.includes(match.plate_number)) history.push(match.plate_number)
+            await admin
+              .from('vehicles')
+              .update({ plate_number: newPlate, previous_plates: history, updated_at: new Date().toISOString() })
+              .eq('id', match.id)
+          }
+        } else {
+          const { data: created, error: createError } = await admin
+            .from('vehicles')
+            .insert({
+              customer_id: existing.customer_id,
+              make,
+              model,
+              size: vehicleInput.size || 'medium',
+              year: vehicleInput.year ?? null,
+              color: vehicleInput.color?.trim() || null,
+              plate_number: vehicleInput.plate_number?.trim() || null,
+              vin: serial,
+              status: 'tentative',
+              is_active: true,
+            })
+            .select('id')
+            .single()
+
+          if (createError || !created) {
+            console.error('Register vehicle for booking error:', createError)
+            if (createError?.code === '23505') {
+              await releaseOwnReservation()
+              return { success: false as const, error: 'هذا الرقم التسلسلي مسجّل لسيارة أخرى' }
+            }
+            await releaseOwnReservation()
+            return { success: false as const, error: 'تعذر تسجيل السيارة' }
+          }
+
+          registeredVehicleId = created.id
+          targetVehicleId = created.id
+        }
+      } else if (!targetVehicleId) {
+        await releaseOwnReservation()
+        return {
+          success: false as const,
+          error: 'أكمل بيانات السيارة أولًا (الرقم التسلسلي إلزامي) قبل بدء التنفيذ',
+        }
+      }
+    }
+
     const updatePayload: Record<string, unknown> = { status: newStatus }
+
+    if (newStatus === 'in_progress' && targetVehicleId && targetVehicleId !== existing.vehicle_id) {
+      updatePayload.vehicle_id = targetVehicleId
+    }
+
+    // Rolling back to "new"/"contacted" releases the registration again.
+    const serviceToUnregistered =
+      (existing.status === 'in_progress' || existing.status === 'completed') &&
+      (newStatus === 'new' || newStatus === 'contacted')
+
+    if (serviceToUnregistered) {
+      updatePayload.vehicle_id = null
+    }
+
     if (newStatus === 'completed' && warrantyInput) {
       if (warrantyInput.years && warrantyInput.years >= 1 && warrantyInput.years <= 10) {
         const start = todayIso()
@@ -439,6 +579,9 @@ export async function updateBookingStatus(
 
     if (error) {
       console.error('Update booking status error:', error)
+      if (registeredVehicleId) {
+        try { await getAdmin().from('vehicles').delete().eq('id', registeredVehicleId) } catch { /* best effort */ }
+      }
       if (rollbackReservation) {
         try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort rollback */ }
       }
@@ -453,6 +596,9 @@ export async function updateBookingStatus(
     }
 
     if (!data) {
+      if (registeredVehicleId) {
+        try { await getAdmin().from('vehicles').delete().eq('id', registeredVehicleId) } catch { /* best effort */ }
+      }
       if (rollbackReservation) {
         try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort rollback */ }
       }
@@ -480,6 +626,8 @@ export async function updateBookingStatus(
 
           if (paymentInput?.method) {
             const revertPayload: Record<string, unknown> = { status: existing.status }
+            // Restore the registration exactly as it was before this attempt.
+            revertPayload.vehicle_id = existing.vehicle_id ?? null
             if (newStatus === 'completed') {
               revertPayload.warranty_start_date = existing.warranty_start_date ?? null
               revertPayload.warranty_end_date = existing.warranty_end_date ?? null
@@ -489,6 +637,10 @@ export async function updateBookingStatus(
               .update(revertPayload)
               .eq('id', id)
               .eq('status', newStatus)
+
+            if (registeredVehicleId) {
+              try { await getAdmin().from('vehicles').delete().eq('id', registeredVehicleId) } catch { /* best effort */ }
+            }
 
             if (rollbackReservation) {
               try { await supabase.rpc('release_booking_materials', { p_booking_id: id }) } catch { /* best effort */ }
@@ -543,6 +695,42 @@ export async function updateBookingStatus(
       oldValues: { status: existing.status },
       newValues: { status: newStatus },
     })
+
+    // A car joins the fleet for real only when one of its bookings completes.
+    if (newStatus === 'completed' && targetVehicleId) {
+      try {
+        await getAdmin()
+          .from('vehicles')
+          .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+          .eq('id', targetVehicleId)
+      } catch (e) {
+        console.error('Confirm vehicle error:', e)
+      }
+    }
+
+    // Rolling back to "new"/"contacted" releases the registration: a tentative
+    // car nothing references anymore disappears (it was never actually served).
+    if (serviceToUnregistered && existing.vehicle_id) {
+      try {
+        const admin = getAdmin()
+        const { count } = await admin
+          .from('bookings')
+          .select('id', { count: 'exact', head: true })
+          .eq('vehicle_id', existing.vehicle_id)
+        if ((count ?? 0) === 0) {
+          const { data: vehicleRow } = await admin
+            .from('vehicles')
+            .select('status')
+            .eq('id', existing.vehicle_id)
+            .maybeSingle()
+          if (vehicleRow?.status === 'tentative') {
+            await admin.from('vehicles').delete().eq('id', existing.vehicle_id)
+          }
+        }
+      } catch (e) {
+        console.error('Release tentative vehicle error:', e)
+      }
+    }
 
     const STATUS_NOTIFICATIONS: Record<string, { type: string; title: string; msg: string }> = {
       cancelled: { type: 'booking_cancelled', title: 'تم إلغاء الحجز', msg: `تم إلغاء الحجز ${id.slice(0, 8)}` },
@@ -712,15 +900,6 @@ export async function adminCreateBooking(input: AdminBookingInput) {
   } else if (normalizedPhone.length !== 10) {
     fieldErrors.customerPhone = 'رقم الجوال يجب أن يتكون من 10 أرقام'
   }
-  if (!input.vehicleMake || input.vehicleMake.trim().length < 1) {
-    fieldErrors.vehicleMake = 'اسم السيارة مطلوب'
-  }
-  if (!input.vehicleModel || input.vehicleModel.trim().length < 1) {
-    fieldErrors.vehicleModel = 'حجم السيارة مطلوب'
-  }
-  if (!input.vehicleYear || input.vehicleYear < 1900 || input.vehicleYear > new Date().getFullYear() + 1) {
-    fieldErrors.vehicleYear = 'سنة الصنع غير صحيحة'
-  }
   if (!input.serviceId) {
     fieldErrors.serviceId = 'يرجى اختيار الخدمة'
   }
@@ -762,11 +941,6 @@ export async function adminCreateBooking(input: AdminBookingInput) {
       p_customer_name: input.customerName.trim(),
       p_customer_phone: normalizedPhone,
       p_customer_email: input.customerEmail?.trim() || null,
-      p_vehicle_make: input.vehicleMake.trim(),
-      p_vehicle_model: input.vehicleModel.trim(),
-      p_vehicle_year: input.vehicleYear,
-      p_vehicle_color: input.vehicleColor?.trim() || null,
-      p_vehicle_plate: input.vehiclePlate?.trim() || null,
       p_service_id: input.serviceId,
       p_preferred_date: preferredDate,
       p_preferred_time: preferredTime,

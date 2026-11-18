@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { VehicleForm } from '@/components/admin/VehicleForm'
+import type { VehicleHistoryRow, VehicleHistorySummary } from '@/app/actions/vehicles'
 import SaudiPlate from '@/components/ui/SaudiPlate'
 import {
  FaCar,
@@ -22,6 +23,7 @@ import {
  FaChevronRight,
  FaChevronLeft,
  FaTrash,
+ FaHistory,
 } from 'react-icons/fa'
 
 interface Vehicle {
@@ -36,6 +38,8 @@ id: string
  vin: string | null
  notes: string | null
  is_active: boolean
+ status: 'tentative' | 'confirmed'
+ previous_plates?: string[] | null
  created_at: string
  updated_at: string
  customer?: {
@@ -54,6 +58,20 @@ interface Pagination {
 
 type Notification = { type: 'success' | 'error'; message: string } | null
 
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  new: 'جديد',
+  contacted: 'تم التواصل',
+  confirmed: 'مؤكد',
+  arrived: 'وصل',
+  in_progress: 'قيد التنفيذ',
+  completed: 'مكتمل',
+  cancelled: 'ملغي',
+  no_show: 'لم يحضر',
+}
+
+const fmtIso = (iso?: string | null) =>
+  iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—'
+
 export default function VehiclesManager({ initialVehicles, initialPagination }: {
  initialVehicles?: Vehicle[]
  initialPagination?: Pagination
@@ -64,12 +82,16 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  const [loading, setLoading] = useState(initialVehicles === undefined)
  const [search, setSearch] = useState('')
  const [debouncedSearch, setDebouncedSearch] = useState('')
+ const [statusFilter, setStatusFilter] = useState<'all' | 'tentative' | 'confirmed'>('confirmed')
  const [page, setPage] = useState(1)
  const [pagination, setPagination] = useState<Pagination | null>(initialPagination ?? null)
  const [notification, setNotification] = useState<Notification>(null)
  const [showForm, setShowForm] = useState(false)
  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
  const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null)
+ const [vehicleHistory, setVehicleHistory] = useState<{ rows: VehicleHistoryRow[]; summary: VehicleHistorySummary } | null>(null)
+ const [historyLoading, setHistoryLoading] = useState(false)
+ const [historyError, setHistoryError] = useState('')
  const [togglingId, setTogglingId] = useState<string | null>(null)
  const [actionLoading, setActionLoading] = useState<string | null>(null)
  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -92,7 +114,7 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  try {
  setLoading(true)
  const { getVehicles } = await import('@/app/actions/vehicles')
- const result = await getVehicles(debouncedSearch, page)
+ const result = await getVehicles(debouncedSearch, page, undefined, statusFilter)
  if (result.success) {
  setVehicles(result.data)
  if (result.pagination) {
@@ -106,7 +128,7 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  } finally {
  setLoading(false)
  }
- }, [debouncedSearch, page])
+ }, [debouncedSearch, page, statusFilter])
 
  useEffect(() => {
  if (skipInitialFetch.current) {
@@ -158,6 +180,29 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  setActionLoading(null)
  }
  }
+
+ // Service history loads whenever a vehicle panel (the eye) is opened.
+ // Loading/clearing happens in the click handler (not in the effect) so the
+ // effect only starts the fetch and writes state from its async callbacks.
+ useEffect(() => {
+   const vehicleId = viewingVehicle?.id
+   if (!vehicleId) return
+   let cancelled = false
+   ;(async () => {
+     try {
+       const { getVehicleServiceHistory } = await import('@/app/actions/vehicles')
+       const res = await getVehicleServiceHistory(vehicleId)
+       if (cancelled) return
+       if (res.success) setVehicleHistory(res.data)
+       else setHistoryError(res.error)
+     } catch {
+       if (!cancelled) setHistoryError('تعذر جلب سجل الخدمات')
+     } finally {
+       if (!cancelled) setHistoryLoading(false)
+     }
+   })()
+   return () => { cancelled = true }
+ }, [viewingVehicle?.id])
 
  const totalPages = pagination?.totalPages || 1
 
@@ -235,6 +280,27 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  </div>
  </div>
 
+ <div className="mb-4 flex flex-wrap items-center gap-2">
+   {([
+     { id: 'confirmed', label: 'المؤكدة', hint: 'السيارات التي خُدمت فعليًا' },
+     { id: 'tentative', label: 'المؤقتة', hint: 'سُجّلت بحجز ما زال قيد التنفيذ' },
+     { id: 'all', label: 'الكل', hint: 'كل السيارات' },
+   ] as const).map(filter => (
+     <button
+       key={filter.id}
+       title={filter.hint}
+       onClick={() => { setStatusFilter(filter.id); setPage(1) }}
+       className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+         statusFilter === filter.id
+           ? 'bg-[#111214] text-white border-[#111214]'
+           : 'bg-white text-[#62666D] border-[#E7E8EA] hover:border-[#111214] hover:text-[#111214]'
+       }`}
+     >
+       {filter.label}
+     </button>
+   ))}
+ </div>
+
  {loading ? (
  <div className="flex items-center justify-center py-16">
  <div className="flex flex-col items-center gap-4">
@@ -247,8 +313,18 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  <div className="w-16 h-16 rounded-2xl bg-[#F7F7F5] border border-[#E7E8EA] flex items-center justify-center mb-4">
  <FaBoxOpen className="text-2xl text-[#62666D]" />
  </div>
- <p className="font-bold">لا يوجد مركبات مسجلة بعد</p>
- <p className="text-xs text-[#62666D] mt-1">أضف مركبة جديدة من الزر أعلاه</p>
+ <p className="font-bold">
+   {statusFilter === 'tentative'
+     ? 'لا توجد سيارات مؤقتة'
+     : statusFilter === 'confirmed'
+       ? 'لا توجد سيارات مؤكدة بعد'
+       : 'لا يوجد مركبات مسجلة بعد'}
+ </p>
+ <p className="text-xs text-[#62666D] mt-1">
+   {statusFilter === 'confirmed'
+     ? 'تصير السيارة مؤكدة عند اكتمال حجزها'
+     : 'أضف مركبة جديدة من الزر أعلاه'}
+ </p>
  </div>
  ) : (
  <>
@@ -277,6 +353,13 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  : 'bg-[#F1F2F3] text-[#62666D] border-[#E7E8EA]'
  }`}>
  {vehicle.is_active ? 'نشط' : 'معطّل'}
+ </span>
+ <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+   vehicle.status === 'tentative'
+     ? 'bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]'
+     : 'bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]'
+ }`}>
+ {vehicle.status === 'tentative' ? 'مؤقتة' : 'مؤكدة'}
  </span>
  </div>
  <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-[#62666D]">
@@ -328,7 +411,13 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
 
  <div className="flex gap-1.5 sm:gap-2 shrink-0 mr-2 sm:mr-4">
  <button
- onClick={() => setViewingVehicle(viewingVehicle?.id === vehicle.id ? null : vehicle)}
+ onClick={() => {
+   const opening = viewingVehicle?.id !== vehicle.id
+   setViewingVehicle(opening ? vehicle : null)
+   setVehicleHistory(null)
+   setHistoryError('')
+   setHistoryLoading(opening)
+ }}
  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-[#F7F7F5] hover:bg-[#F1F2F3] border border-[#E7E8EA] text-[#111214] rounded-lg text-[10px] sm:text-xs font-bold transition-all hover:scale-105 flex items-center gap-1"
  >
  <FaEye className="text-[9px] sm:text-[10px]" />
@@ -483,6 +572,11 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  <div className="flex justify-center">
  <SaudiPlate plate={viewingVehicle.plate_number} />
  </div>
+ {(viewingVehicle.previous_plates || []).length > 0 && (
+ <p className="text-[10px] font-bold text-[#9A9DA3] text-center mt-3" dir="rtl">
+ لوحات سابقة: <span className="text-[#62666D]" dir="ltr">{(viewingVehicle.previous_plates || []).join(' · ')}</span>
+ </p>
+ )}
  </div>
  )}
 
@@ -538,10 +632,116 @@ export default function VehiclesManager({ initialVehicles, initialPagination }: 
  <FaHashtag className="text-[#B45309] text-[11px]" />
  </span>
  <div className="min-w-0">
- <p className="text-[10px] font-bold text-[#9A9DA3]">رقم الهيكل (VIN)</p>
+ <p className="text-[10px] font-bold text-[#9A9DA3]">الرقم التسلسلي</p>
  <p className="text-xs font-bold text-[#111214] truncate mt-0.5" dir="ltr">{viewingVehicle.vin}</p>
  </div>
  </div>
+ )}
+ </div>
+
+ {/* Service history */}
+ <div>
+ <div className="flex items-center gap-2 mb-2">
+ <span className="w-1 h-3.5 rounded-full bg-[#DC2626]" />
+ <h5 className="text-xs font-bold text-[#111214]">سجل الخدمات</h5>
+ <FaHistory className="text-[10px] text-[#9A9DA3]" />
+ </div>
+
+ {historyLoading ? (
+ <div className="flex items-center gap-2 text-[11px] font-bold text-[#62666D] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-4">
+ <FaSpinner className="animate-spin text-[#DC2626]" />
+ جاري تحميل السجل...
+ </div>
+ ) : historyError ? (
+ <div className="text-[11px] font-bold text-[#DC2626] bg-[#FEF2F2] border border-[#FECACA] rounded-xl px-3.5 py-3">
+ {historyError}
+ </div>
+ ) : !vehicleHistory || vehicleHistory.rows.length === 0 ? (
+ <div className="text-[11px] font-bold text-[#62666D] bg-[#FBFBFA] border border-[#E7E8EA] rounded-xl px-3.5 py-4">
+ لا توجد خدمات مسجلة على هذه السيارة بعد
+ </div>
+ ) : (
+ <>
+ <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3 py-2.5">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">الخدمات</p>
+ <p className="text-sm font-black text-[#111214] mt-0.5">
+ {vehicleHistory.summary.completed} مكتملة
+ <span className="text-[10px] font-bold text-[#9A9DA3]"> من {vehicleHistory.summary.bookings}</span>
+ </p>
+ </div>
+ <div className="rounded-xl border border-[#E7E8EA] bg-[#FBFBFA] px-3 py-2.5">
+ <p className="text-[10px] font-bold text-[#9A9DA3]">إجمالي / المدفوع</p>
+ <p className="text-sm font-black text-[#111214] mt-0.5" dir="ltr">
+ {vehicleHistory.summary.total_amount.toLocaleString('en-US')} / {vehicleHistory.summary.total_paid.toLocaleString('en-US')} ر.س
+ </p>
+ </div>
+ <div className={`rounded-xl border px-3 py-2.5 ${
+ vehicleHistory.summary.warranty.state === 'active'
+ ? 'bg-[#ECFDF5] border-[#A7F3D0]'
+ : vehicleHistory.summary.warranty.state === 'expired'
+ ? 'bg-[#F7F7F5] border-[#E7E8EA]'
+ : 'bg-[#FFFBEB] border-[#FDE68A]'
+ }`}>
+ <p className="text-[10px] font-bold text-[#9A9DA3]">الضمان</p>
+ <p className={`text-xs font-black mt-0.5 ${
+ vehicleHistory.summary.warranty.state === 'active' ? 'text-[#059669]' : 'text-[#62666D]'
+ }`}>
+ {vehicleHistory.summary.warranty.label}
+ </p>
+ </div>
+ </div>
+
+ <div className="space-y-2.5">
+ {vehicleHistory.rows.map(row => (
+ <div key={row.booking_id} className="rounded-xl border border-[#E7E8EA] bg-white px-3.5 py-3">
+ <div className="flex items-center justify-between gap-2 mb-2">
+ <span className="text-[11px] font-black text-[#2563EB]" dir="ltr">#{row.reference}</span>
+ <div className="flex items-center gap-2">
+ <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md border ${
+ row.status === 'completed'
+ ? 'text-[#059669] bg-[#ECFDF5] border-[#A7F3D0]'
+ : row.status === 'cancelled' || row.status === 'no_show'
+ ? 'text-[#62666D] bg-[#F7F7F5] border-[#E7E8EA]'
+ : 'text-[#B45309] bg-[#FFFBEB] border-[#FDE68A]'
+ }`}>
+ {BOOKING_STATUS_LABELS[row.status] || row.status}
+ </span>
+ <span className="text-[10px] font-bold text-[#62666D]">{fmtIso(row.date)}</span>
+ </div>
+ </div>
+
+ <ul className="space-y-1">
+ {row.services.map((s, idx) => (
+ <li key={idx} className="flex items-center justify-between gap-2 text-[11px]">
+ <span className="text-[#4B4F55] font-bold truncate">
+ {s.name}{s.qty > 1 ? ` ×${s.qty}` : ''}
+ </span>
+ <span className="text-[#111214] font-black shrink-0" dir="ltr">
+ {s.total.toLocaleString('en-US')} ر.س
+ </span>
+ </li>
+ ))}
+ </ul>
+
+ <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[#F1F2F3]">
+ <span className="text-[10px] font-bold text-[#9A9DA3]">
+ {row.invoice_number ? `فاتورة ${row.invoice_number}` : 'بدون فاتورة'}
+ </span>
+ <span className="text-[11px] font-black text-[#111214]" dir="ltr">
+ {row.amount.toLocaleString('en-US')} ر.س
+ </span>
+ </div>
+
+ {row.warranty_start && row.warranty_end && (
+ <p className="text-[10px] font-bold text-[#059669] mt-1.5">
+ ضمان {row.warranty_label} — من {fmtIso(row.warranty_start)} إلى {fmtIso(row.warranty_end)}
+ </p>
+ )}
+ </div>
+ ))}
+ </div>
+ </>
  )}
  </div>
 

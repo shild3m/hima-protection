@@ -47,7 +47,7 @@ try {
   created.customerId = customer.id
 
   const { data: vehicle, error: ve } = await sb.from('vehicles')
-    .insert({ customer_id: customer.id, make: 'SMOKE', model: 'TEST' })
+    .insert({ customer_id: customer.id, make: 'SMOKE', model: 'TEST', vin: `SMOKE-${TAG}`, status: 'confirmed' })
     .select('id').single()
   if (ve) throw new Error(`vehicle: ${ve.message}`)
   created.vehicleId = vehicle.id
